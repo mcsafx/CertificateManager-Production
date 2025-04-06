@@ -1,4 +1,5 @@
 import { useParams, Link } from "wouter";
+import React from "react";
 import { Layout } from "@/components/layout/layout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -19,8 +20,9 @@ import {
   BarChart,
   Beaker
 } from "lucide-react";
-import { IssuedCertificate, EntryCertificate, Client, EntryCertificateResult } from "@shared/schema";
+import { IssuedCertificate, EntryCertificate, Client, EntryCertificateResult, Tenant, Product } from "@shared/schema";
 import { formatDate } from "@/lib/utils";
+import { generateCertificatePdf, CertificateGenerationData } from "@/lib/html2pdfGenerator";
 
 type IssuedCertificateWithRelations = IssuedCertificate & { 
   clientName?: string;
@@ -43,27 +45,124 @@ export default function IssuedCertificateDetailPage() {
   const {
     data: certificate,
     isLoading,
+    error,
   } = useQuery<IssuedCertificateWithRelations>({
     queryKey: [`/api/issued-certificates/${certificateId}`],
-    onError: (error: Error) => {
+  });
+  
+  // Handle query error
+  React.useEffect(() => {
+    if (error) {
       toast({
         title: "Erro ao carregar certificado",
-        description: error.message,
+        description: error instanceof Error ? error.message : "Erro desconhecido",
         variant: "destructive",
       });
-    },
-  });
+    }
+  }, [error, toast]);
 
   // Extract data for convenience
   const entryCertificate = certificate?.entryCertificate;
   const client = certificate?.client;
   
+  // Fetch tenant data
+  const { data: tenantData } = useQuery<Tenant>({
+    queryKey: ['/api/tenants/1'], // Assuming tenant ID 1 for now, this should be dynamic in production
+    enabled: !!certificate,
+  });
+
   // Handle download of certificate
-  const handleDownload = () => {
-    toast({
-      title: "Funcionalidade em desenvolvimento",
-      description: "O download de boletins será implementado em breve.",
-    });
+  const handleDownload = async () => {
+    if (!certificate || !certificate.entryCertificate || !tenantData || !client) {
+      toast({
+        title: "Erro ao gerar certificado",
+        description: "Dados insuficientes para geração do PDF.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      const entryCert = certificate.entryCertificate;
+      
+      // Verificar se temos resultados
+      if (!entryCert.results || entryCert.results.length === 0) {
+        toast({
+          title: "Erro ao gerar certificado",
+          description: "Não há resultados de análise disponíveis para este certificado.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Preparar dados para o PDF
+      const pdfData: CertificateGenerationData = {
+        tenant: {
+          name: tenantData.name,
+          cnpj: tenantData.cnpj,
+          address: tenantData.address,
+          logoUrl: tenantData.logoUrl
+        },
+        product: {
+          technicalName: entryCert.productName || `Produto #${entryCert.productId}`,
+          commercialName: null, // Não temos esta informação aqui, poderia vir de API
+          internalCode: null,   // Não temos esta informação aqui, poderia vir de API
+        },
+        client: {
+          name: client.name,
+          cnpj: client.cnpj,
+        },
+        certificate: {
+          invoiceNumber: certificate.invoiceNumber,
+          issueDate: certificate.issueDate,
+          soldQuantity: String(certificate.soldQuantity),
+          customLot: certificate.customLot,
+          measureUnit: certificate.measureUnit,
+        },
+        entryCertificate: {
+          referenceDocument: entryCert.referenceDocument,
+          entryDate: entryCert.entryDate,
+          manufacturingDate: entryCert.manufacturingDate,
+          expirationDate: entryCert.expirationDate,
+        },
+        results: entryCert.results.map(result => ({
+          characteristicName: result.characteristicName,
+          unit: result.unit,
+          minValue: result.minValue ? String(result.minValue) : null,
+          maxValue: result.maxValue ? String(result.maxValue) : null,
+          obtainedValue: String(result.obtainedValue),
+          analysisMethod: result.analysisMethod,
+        })),
+      };
+
+      // Gerar o PDF e obter a URL
+      toast({
+        title: "Gerando PDF",
+        description: "Aguarde enquanto preparamos seu download...",
+      });
+
+      const pdfUrl = await generateCertificatePdf(pdfData);
+      
+      // Criar um link e simular o clique para download
+      const link = document.createElement('a');
+      link.href = pdfUrl;
+      link.download = `certificado-${certificate.invoiceNumber}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      toast({
+        title: "Download iniciado",
+        description: "O certificado foi gerado com sucesso!",
+      });
+    } catch (error) {
+      console.error('Erro ao gerar PDF:', error);
+      toast({
+        title: "Erro ao gerar certificado",
+        description: error instanceof Error ? error.message : "Ocorreu um erro desconhecido.",
+        variant: "destructive",
+      });
+    }
   };
 
   return (
