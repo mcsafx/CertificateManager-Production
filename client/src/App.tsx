@@ -5,6 +5,7 @@ import AuthPage from "@/pages/auth-page";
 import HomePage from "@/pages/home-page";
 import ProductsPage from "@/pages/products-page";
 import ProductDetailPage from "@/pages/product-detail-page";
+import PackageTypesPage from "@/pages/package-types-page";
 import SuppliersPage from "@/pages/suppliers-page";
 import ManufacturersPage from "@/pages/manufacturers-page";
 import ClientsPage from "@/pages/clients-page";
@@ -28,6 +29,7 @@ function Router() {
       <ProtectedRoute path="/issued-certificates/:id" component={IssuedCertificateDetailPage} />
       <ProtectedRoute path="/products" component={ProductsPage} />
       <ProtectedRoute path="/products/:id" component={ProductDetailPage} />
+      <ProtectedRoute path="/package-types" component={PackageTypesPage} />
       <ProtectedRoute path="/suppliers" component={SuppliersPage} />
       <ProtectedRoute path="/manufacturers" component={ManufacturersPage} />
       <ProtectedRoute path="/clients" component={ClientsPage} />

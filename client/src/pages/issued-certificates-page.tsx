@@ -115,9 +115,10 @@ export default function IssuedCertificatesPage() {
   
   // Handle downloading a certificate
   const handleDownload = (id: number) => {
+    window.location.href = `/issued-certificates/${id}`;
     toast({
-      title: "Funcionalidade em desenvolvimento",
-      description: "O download de boletins será implementado em breve.",
+      title: "Acesso à página de detalhes",
+      description: "Você será redirecionado para a página de detalhes onde poderá baixar o PDF.",
     });
   };
   

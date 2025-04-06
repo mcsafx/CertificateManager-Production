@@ -405,10 +405,7 @@ export default function SettingsPage() {
               <User className="h-4 w-4 mr-2" />
               Seu Perfil
             </TabsTrigger>
-            <TabsTrigger value="package-types" className="flex items-center">
-              <Package className="h-4 w-4 mr-2" />
-              Tipos de Embalagem
-            </TabsTrigger>
+
             {user?.role === "admin" && (
               <TabsTrigger value="users" className="flex items-center">
                 <Shield className="h-4 w-4 mr-2" />
