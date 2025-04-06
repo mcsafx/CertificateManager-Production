@@ -110,11 +110,7 @@ export default function IssuedCertificatesPage() {
   
   // Handle viewing a certificate
   const handleView = (id: number) => {
-    setSelectedCertificateId(id);
-    toast({
-      title: "Funcionalidade em desenvolvimento",
-      description: "A visualização de boletins emitidos será implementada em breve.",
-    });
+    window.location.href = `/issued-certificates/${id}`;
   };
   
   // Handle downloading a certificate

@@ -10,6 +10,7 @@ import ManufacturersPage from "@/pages/manufacturers-page";
 import ClientsPage from "@/pages/clients-page";
 import CertificatesPage from "@/pages/certificates-page";
 import IssuedCertificatesPage from "@/pages/issued-certificates-page";
+import IssuedCertificateDetailPage from "@/pages/issued-certificate-detail-page";
 import TraceabilityPage from "@/pages/traceability-page";
 import SettingsPage from "@/pages/settings-page";
 import { ProtectedRoute } from "./lib/protected-route";
@@ -24,6 +25,7 @@ function Router() {
       <ProtectedRoute path="/" component={HomePage} />
       <ProtectedRoute path="/certificates" component={CertificatesPage} />
       <ProtectedRoute path="/issued-certificates" component={IssuedCertificatesPage} />
+      <ProtectedRoute path="/issued-certificates/:id" component={IssuedCertificateDetailPage} />
       <ProtectedRoute path="/products" component={ProductsPage} />
       <ProtectedRoute path="/products/:id" component={ProductDetailPage} />
       <ProtectedRoute path="/suppliers" component={SuppliersPage} />

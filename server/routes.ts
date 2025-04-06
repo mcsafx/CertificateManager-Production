@@ -828,23 +828,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
         storage.getClient(certificate.clientId, user.tenantId)
       ]);
       
-      // Get entry certificate results
-      const results = entryCertificate 
-        ? await storage.getResultsByEntryCertificate(entryCertificate.id, user.tenantId)
-        : [];
+      // Enhance response data
+      let product = null;
+      let supplier = null;
+      let manufacturer = null;
+      let results = [];
       
-      // Get product info
-      let product;
       if (entryCertificate) {
-        product = await storage.getProduct(entryCertificate.productId, user.tenantId);
+        // Get entry certificate results
+        results = await storage.getResultsByEntryCertificate(entryCertificate.id, user.tenantId);
+        
+        // Get product, supplier and manufacturer info in parallel
+        [product, supplier, manufacturer] = await Promise.all([
+          storage.getProduct(entryCertificate.productId, user.tenantId),
+          storage.getSupplier(entryCertificate.supplierId, user.tenantId),
+          storage.getManufacturer(entryCertificate.manufacturerId, user.tenantId)
+        ]);
       }
       
+      // Prepare enhanced response
       res.json({
         ...certificate,
-        entryCertificate,
-        client,
-        product,
-        results
+        clientName: client?.name,
+        productName: product?.technicalName,
+        entryCertificate: {
+          ...entryCertificate,
+          supplierName: supplier?.name,
+          manufacturerName: manufacturer?.name,
+          productName: product?.technicalName,
+          results
+        },
+        client
       });
     } catch (error) {
       next(error);
