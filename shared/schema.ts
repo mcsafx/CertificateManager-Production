@@ -244,6 +244,20 @@ export const insertIssuedCertificateSchema = createInsertSchema(issuedCertificat
     soldQuantity: z.union([z.string(), z.number()]),
   });
 
+// Package Types
+export const packageTypes = pgTable("package_types", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  tenantId: integer("tenant_id").notNull(),
+  active: boolean("active").notNull().default(true),
+});
+
+export const insertPackageTypeSchema = createInsertSchema(packageTypes).pick({
+  name: true,
+  tenantId: true,
+  active: true,
+});
+
 // Type exports
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
@@ -265,3 +279,5 @@ export type EntryCertificateResult = typeof entryCertificateResults.$inferSelect
 export type InsertEntryCertificateResult = z.infer<typeof insertEntryCertificateResultSchema>;
 export type IssuedCertificate = typeof issuedCertificates.$inferSelect;
 export type InsertIssuedCertificate = z.infer<typeof insertIssuedCertificateSchema>;
+export type PackageType = typeof packageTypes.$inferSelect;
+export type InsertPackageType = z.infer<typeof insertPackageTypeSchema>;

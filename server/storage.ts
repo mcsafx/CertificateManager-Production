@@ -3,7 +3,8 @@ import { User, InsertUser, Tenant, InsertTenant, Product, InsertProduct,
          InsertSupplier, Manufacturer, InsertManufacturer, Client, 
          InsertClient, EntryCertificate, InsertEntryCertificate, 
          EntryCertificateResult, InsertEntryCertificateResult, 
-         IssuedCertificate, InsertIssuedCertificate } from "@shared/schema";
+         IssuedCertificate, InsertIssuedCertificate,
+         PackageType, InsertPackageType } from "@shared/schema";
 import session from "express-session";
 import createMemoryStore from "memorystore";
 import { hashPassword } from "./auth";
@@ -81,6 +82,13 @@ export interface IStorage {
   getIssuedCertificatesByTenant(tenantId: number, filters?: Record<string, any>): Promise<IssuedCertificate[]>;
   getIssuedCertificatesByEntryCertificate(entryCertificateId: number, tenantId: number): Promise<IssuedCertificate[]>;
 
+  // Package Types
+  getPackageType(id: number, tenantId: number): Promise<PackageType | undefined>;
+  createPackageType(packageType: InsertPackageType): Promise<PackageType>;
+  updatePackageType(id: number, tenantId: number, packageType: Partial<PackageType>): Promise<PackageType | undefined>;
+  getPackageTypesByTenant(tenantId: number): Promise<PackageType[]>;
+  deletePackageType(id: number, tenantId: number): Promise<boolean>;
+
   // Session Store
   sessionStore: session.Store;
 }
@@ -96,6 +104,7 @@ export class MemStorage implements IStorage {
   private entryCertificates: Map<number, EntryCertificate>;
   private entryCertificateResults: Map<number, EntryCertificateResult>;
   private issuedCertificates: Map<number, IssuedCertificate>;
+  private packageTypes: Map<number, PackageType>;
   
   private userIdCounter: number;
   private tenantIdCounter: number;
@@ -107,6 +116,7 @@ export class MemStorage implements IStorage {
   private entryCertificateIdCounter: number;
   private resultIdCounter: number;
   private issuedCertificateIdCounter: number;
+  private packageTypeIdCounter: number;
   
   sessionStore: session.Store;
 
@@ -121,6 +131,7 @@ export class MemStorage implements IStorage {
     this.entryCertificates = new Map();
     this.entryCertificateResults = new Map();
     this.issuedCertificates = new Map();
+    this.packageTypes = new Map();
     
     this.userIdCounter = 1;
     this.tenantIdCounter = 1;
@@ -132,6 +143,7 @@ export class MemStorage implements IStorage {
     this.entryCertificateIdCounter = 1;
     this.resultIdCounter = 1;
     this.issuedCertificateIdCounter = 1;
+    this.packageTypeIdCounter = 1;
     
     this.sessionStore = new MemoryStore({
       checkPeriod: 86400000, // prune expired entries every 24h
@@ -564,6 +576,43 @@ export class MemStorage implements IStorage {
     return Array.from(this.issuedCertificates.values()).filter(
       (cert) => cert.entryCertificateId === entryCertificateId && cert.tenantId === tenantId
     );
+  }
+
+  // Package Type methods
+  async getPackageType(id: number, tenantId: number): Promise<PackageType | undefined> {
+    const packageType = this.packageTypes.get(id);
+    if (packageType && packageType.tenantId === tenantId) {
+      return packageType;
+    }
+    return undefined;
+  }
+
+  async createPackageType(packageType: InsertPackageType): Promise<PackageType> {
+    const id = this.packageTypeIdCounter++;
+    const newPackageType: PackageType = { ...packageType, id };
+    this.packageTypes.set(id, newPackageType);
+    return newPackageType;
+  }
+
+  async updatePackageType(id: number, tenantId: number, packageTypeData: Partial<PackageType>): Promise<PackageType | undefined> {
+    const packageType = await this.getPackageType(id, tenantId);
+    if (!packageType) return undefined;
+    
+    const updatedPackageType = { ...packageType, ...packageTypeData };
+    this.packageTypes.set(id, updatedPackageType);
+    return updatedPackageType;
+  }
+
+  async getPackageTypesByTenant(tenantId: number): Promise<PackageType[]> {
+    return Array.from(this.packageTypes.values()).filter(
+      (packageType) => packageType.tenantId === tenantId && packageType.active
+    );
+  }
+
+  async deletePackageType(id: number, tenantId: number): Promise<boolean> {
+    const packageType = await this.getPackageType(id, tenantId);
+    if (!packageType) return false;
+    return this.packageTypes.delete(id);
   }
 }
 
