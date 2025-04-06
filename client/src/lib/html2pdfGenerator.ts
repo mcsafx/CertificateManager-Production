@@ -287,7 +287,7 @@ export async function generateCertificatePdf(data: CertificateGenerationData): P
         filename: `certificado-${data.certificate.invoiceNumber}.pdf`,
         image: { type: 'jpeg', quality: 0.98 },
         html2canvas: { scale: 2, useCORS: true },
-        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' as const }
       };
 
       // Gera o PDF a partir do HTML

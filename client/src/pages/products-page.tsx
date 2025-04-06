@@ -42,10 +42,18 @@ export default function ProductsPage() {
       <div className="p-6">
         <div className="flex justify-between items-center mb-6">
           <h1 className="text-2xl font-medium">Produtos</h1>
-          <Button onClick={handleAddNew}>
-            <Plus className="h-4 w-4 mr-2" />
-            Novo Produto
-          </Button>
+          <div className="flex space-x-3">
+            <Button variant="outline" asChild>
+              <a href="/package-types">
+                <Package className="h-4 w-4 mr-2" />
+                Tipos de Embalagem
+              </a>
+            </Button>
+            <Button onClick={handleAddNew}>
+              <Plus className="h-4 w-4 mr-2" />
+              Novo Produto
+            </Button>
+          </div>
         </div>
         
         <Card className="mb-6">
