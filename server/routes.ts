@@ -8,12 +8,93 @@ import {
   insertSupplierSchema, insertManufacturerSchema, 
   insertClientSchema, insertEntryCertificateSchema,
   insertEntryCertificateResultSchema, insertIssuedCertificateSchema,
-  insertTenantSchema
+  insertTenantSchema, insertPackageTypeSchema
 } from "@shared/schema";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Set up authentication routes
   setupAuth(app);
+  
+  // Package Types routes
+  app.get("/api/package-types", isAuthenticated, async (req, res, next) => {
+    try {
+      const user = req.user!;
+      const packageTypes = await storage.getPackageTypesByTenant(user.tenantId);
+      res.json(packageTypes);
+    } catch (error) {
+      next(error);
+    }
+  });
+  
+  app.post("/api/package-types", isAuthenticated, async (req, res, next) => {
+    try {
+      const user = req.user!;
+      const parsedBody = insertPackageTypeSchema.parse({
+        ...req.body,
+        tenantId: user.tenantId
+      });
+      
+      const packageType = await storage.createPackageType(parsedBody);
+      res.status(201).json(packageType);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: error.errors });
+      }
+      next(error);
+    }
+  });
+  
+  app.get("/api/package-types/:id", isAuthenticated, async (req, res, next) => {
+    try {
+      const user = req.user!;
+      const packageType = await storage.getPackageType(
+        Number(req.params.id), 
+        user.tenantId
+      );
+      
+      if (!packageType) {
+        return res.status(404).json({ message: "Package type not found" });
+      }
+      
+      res.json(packageType);
+    } catch (error) {
+      next(error);
+    }
+  });
+  
+  app.patch("/api/package-types/:id", isAuthenticated, async (req, res, next) => {
+    try {
+      const user = req.user!;
+      const packageType = await storage.updatePackageType(
+        Number(req.params.id), 
+        user.tenantId, 
+        req.body
+      );
+      
+      if (!packageType) {
+        return res.status(404).json({ message: "Package type not found" });
+      }
+      
+      res.json(packageType);
+    } catch (error) {
+      next(error);
+    }
+  });
+  
+  app.delete("/api/package-types/:id", isAuthenticated, async (req, res, next) => {
+    try {
+      const user = req.user!;
+      const success = await storage.deletePackageType(Number(req.params.id), user.tenantId);
+      
+      if (!success) {
+        return res.status(404).json({ message: "Package type not found" });
+      }
+      
+      res.status(204).end();
+    } catch (error) {
+      next(error);
+    }
+  });
 
   // Tenant routes (for admin)
   app.get("/api/tenants", isAdmin, async (req, res, next) => {
@@ -924,6 +1005,84 @@ export async function registerRoutes(app: Express): Promise<Server> {
           measureUnit: entryCertificate.measureUnit
         }
       });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // Package Types routes
+  app.get("/api/package-types", isAuthenticated, async (req, res, next) => {
+    try {
+      const user = req.user!;
+      const packageTypes = await storage.getPackageTypesByTenant(user.tenantId);
+      res.json(packageTypes);
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  app.post("/api/package-types", isAuthenticated, async (req, res, next) => {
+    try {
+      const user = req.user!;
+      const parsedBody = insertPackageTypeSchema.parse({
+        ...req.body,
+        tenantId: user.tenantId
+      });
+      
+      const packageType = await storage.createPackageType(parsedBody);
+      res.status(201).json(packageType);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: error.errors });
+      }
+      next(error);
+    }
+  });
+
+  app.get("/api/package-types/:id", isAuthenticated, async (req, res, next) => {
+    try {
+      const user = req.user!;
+      const packageType = await storage.getPackageType(Number(req.params.id), user.tenantId);
+      
+      if (!packageType) {
+        return res.status(404).json({ message: "Package type not found" });
+      }
+      
+      res.json(packageType);
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  app.patch("/api/package-types/:id", isAuthenticated, async (req, res, next) => {
+    try {
+      const user = req.user!;
+      const packageType = await storage.updatePackageType(
+        Number(req.params.id), 
+        user.tenantId, 
+        req.body
+      );
+      
+      if (!packageType) {
+        return res.status(404).json({ message: "Package type not found" });
+      }
+      
+      res.json(packageType);
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  app.delete("/api/package-types/:id", isAuthenticated, async (req, res, next) => {
+    try {
+      const user = req.user!;
+      const success = await storage.deletePackageType(Number(req.params.id), user.tenantId);
+      
+      if (!success) {
+        return res.status(404).json({ message: "Package type not found" });
+      }
+      
+      res.status(204).end();
     } catch (error) {
       next(error);
     }

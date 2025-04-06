@@ -30,12 +30,14 @@ import {
   Plus, 
   Trash2,
   UserPlus,
-  Key
+  Key,
+  Package
 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { SafeSelectItem } from "@/components/ui/safe-select-item";
 import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
 
 const userProfileSchema = z.object({
   name: z.string().min(1, "Nome é obrigatório"),
@@ -78,14 +80,22 @@ const newUserSchema = z.object({
   path: ["confirmPassword"],
 });
 
+const packageTypeSchema = z.object({
+  name: z.string().min(1, "Nome do tipo de embalagem é obrigatório"),
+  active: z.boolean().default(true),
+});
+
 type UserProfileFormValues = z.infer<typeof userProfileSchema>;
 type TenantProfileFormValues = z.infer<typeof tenantProfileSchema>;
 type NewUserFormValues = z.infer<typeof newUserSchema>;
+type PackageTypeFormValues = z.infer<typeof packageTypeSchema>;
 
 export default function SettingsPage() {
   const { toast } = useToast();
   const { user } = useAuth();
   const [isAddUserDialogOpen, setIsAddUserDialogOpen] = useState(false);
+  const [isAddPackageTypeDialogOpen, setIsAddPackageTypeDialogOpen] = useState(false);
+  const [editingPackageType, setEditingPackageType] = useState<null | { id: number; name: string; active: boolean }>(null);
   
   // User profile form
   const userProfileForm = useForm<UserProfileFormValues>({
@@ -131,6 +141,21 @@ export default function SettingsPage() {
   const { data: users, isLoading: isLoadingUsers } = useQuery({
     queryKey: ["/api/users"],
     enabled: !!user,
+  });
+  
+  // Fetch package types
+  const { data: packageTypes, isLoading: isLoadingPackageTypes } = useQuery({
+    queryKey: ["/api/package-types"],
+    enabled: !!user?.tenantId,
+  });
+  
+  // Package type form
+  const packageTypeForm = useForm<PackageTypeFormValues>({
+    resolver: zodResolver(packageTypeSchema),
+    defaultValues: {
+      name: "",
+      active: true,
+    },
   });
   
   // Update tenant profile
@@ -257,6 +282,107 @@ export default function SettingsPage() {
     updateUserProfileMutation.mutate(data);
   };
   
+  // Add package type mutation
+  const addPackageTypeMutation = useMutation({
+    mutationFn: async (data: PackageTypeFormValues) => {
+      const payload = {
+        ...data,
+        tenantId: user?.tenantId,
+      };
+      
+      await apiRequest("POST", "/api/package-types", payload);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/package-types"] });
+      setIsAddPackageTypeDialogOpen(false);
+      packageTypeForm.reset({ name: "", active: true });
+      setEditingPackageType(null);
+      toast({
+        title: "Tipo de embalagem adicionado",
+        description: "O tipo de embalagem foi adicionado com sucesso.",
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: "Erro",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+  
+  // Update package type mutation
+  const updatePackageTypeMutation = useMutation({
+    mutationFn: async (data: PackageTypeFormValues & { id: number }) => {
+      const { id, ...rest } = data;
+      await apiRequest("PATCH", `/api/package-types/${id}`, rest);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/package-types"] });
+      setIsAddPackageTypeDialogOpen(false);
+      packageTypeForm.reset({ name: "", active: true });
+      setEditingPackageType(null);
+      toast({
+        title: "Tipo de embalagem atualizado",
+        description: "O tipo de embalagem foi atualizado com sucesso.",
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: "Erro",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+  
+  // Delete package type mutation
+  const deletePackageTypeMutation = useMutation({
+    mutationFn: async (id: number) => {
+      await apiRequest("DELETE", `/api/package-types/${id}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/package-types"] });
+      toast({
+        title: "Tipo de embalagem removido",
+        description: "O tipo de embalagem foi removido com sucesso.",
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: "Erro",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+  
+  // Handle edit package type
+  const handleEditPackageType = (packageType: { id: number; name: string; active: boolean }) => {
+    setEditingPackageType(packageType);
+    packageTypeForm.reset({
+      name: packageType.name,
+      active: packageType.active,
+    });
+    setIsAddPackageTypeDialogOpen(true);
+  };
+  
+  // Handle delete package type
+  const handleDeletePackageType = (id: number) => {
+    if (confirm("Você realmente deseja remover este tipo de embalagem?")) {
+      deletePackageTypeMutation.mutate(id);
+    }
+  };
+  
+  // Handle package type form submit
+  const onPackageTypeFormSubmit = (data: PackageTypeFormValues) => {
+    if (editingPackageType) {
+      updatePackageTypeMutation.mutate({ ...data, id: editingPackageType.id });
+    } else {
+      addPackageTypeMutation.mutate(data);
+    }
+  };
+  
   // Handle new user form submit
   const onNewUserSubmit = (data: NewUserFormValues) => {
     addUserMutation.mutate(data);
@@ -278,6 +404,10 @@ export default function SettingsPage() {
             <TabsTrigger value="profile" className="flex items-center">
               <User className="h-4 w-4 mr-2" />
               Seu Perfil
+            </TabsTrigger>
+            <TabsTrigger value="package-types" className="flex items-center">
+              <Package className="h-4 w-4 mr-2" />
+              Tipos de Embalagem
             </TabsTrigger>
             {user?.role === "admin" && (
               <TabsTrigger value="users" className="flex items-center">
@@ -499,6 +629,146 @@ export default function SettingsPage() {
                 </Form>
               </CardContent>
             </Card>
+          </TabsContent>
+          
+          <TabsContent value="package-types">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <div>
+                  <CardTitle>Tipos de Embalagem</CardTitle>
+                  <CardDescription>
+                    Gerenciar os tipos de embalagem utilizados nos certificados.
+                  </CardDescription>
+                </div>
+                <Button onClick={() => setIsAddPackageTypeDialogOpen(true)}>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Novo Tipo
+                </Button>
+              </CardHeader>
+              <CardContent>
+                {isLoadingPackageTypes ? (
+                  <div className="flex justify-center items-center h-64">
+                    <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                  </div>
+                ) : (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Nome</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead className="text-right">Ações</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {packageTypes?.map((packageType) => (
+                        <TableRow key={packageType.id}>
+                          <TableCell className="font-medium">{packageType.name}</TableCell>
+                          <TableCell>
+                            {packageType.active ? (
+                              <Badge className="bg-green-100 text-green-800 hover:bg-green-100">
+                                Ativo
+                              </Badge>
+                            ) : (
+                              <Badge className="bg-red-100 text-red-800 hover:bg-red-100">
+                                Inativo
+                              </Badge>
+                            )}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <Button 
+                              variant="ghost" 
+                              size="icon"
+                              onClick={() => handleEditPackageType(packageType)}
+                            >
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                            <Button 
+                              variant="ghost" 
+                              size="icon"
+                              onClick={() => handleDeletePackageType(packageType.id)}
+                            >
+                              <Trash2 className="h-4 w-4 text-red-500" />
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                )}
+              </CardContent>
+            </Card>
+            
+            <Dialog open={isAddPackageTypeDialogOpen} onOpenChange={setIsAddPackageTypeDialogOpen}>
+              <DialogContent className="sm:max-w-[425px]">
+                <DialogHeader>
+                  <DialogTitle>
+                    {editingPackageType ? "Editar Tipo de Embalagem" : "Adicionar Tipo de Embalagem"}
+                  </DialogTitle>
+                </DialogHeader>
+                <Form {...packageTypeForm}>
+                  <form onSubmit={packageTypeForm.handleSubmit(onPackageTypeFormSubmit)} className="space-y-4">
+                    <FormField
+                      control={packageTypeForm.control}
+                      name="name"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Nome</FormLabel>
+                          <FormControl>
+                            <Input placeholder="Nome do tipo de embalagem" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    
+                    <FormField
+                      control={packageTypeForm.control}
+                      name="active"
+                      render={({ field }) => (
+                        <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
+                          <div className="space-y-0.5">
+                            <FormLabel>Ativo</FormLabel>
+                          </div>
+                          <FormControl>
+                            <Switch
+                              checked={field.value}
+                              onCheckedChange={field.onChange}
+                            />
+                          </FormControl>
+                        </FormItem>
+                      )}
+                    />
+                    
+                    <div className="flex justify-end gap-3 pt-4">
+                      <Button 
+                        type="button" 
+                        variant="outline" 
+                        onClick={() => {
+                          setIsAddPackageTypeDialogOpen(false);
+                          setEditingPackageType(null);
+                          packageTypeForm.reset();
+                        }}
+                      >
+                        Cancelar
+                      </Button>
+                      <Button 
+                        type="submit"
+                        disabled={addPackageTypeMutation.isPending || updatePackageTypeMutation.isPending}
+                      >
+                        {(addPackageTypeMutation.isPending || updatePackageTypeMutation.isPending) ? (
+                          <>
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            Salvando...
+                          </>
+                        ) : (
+                          editingPackageType ? "Atualizar" : "Adicionar"
+                        )}
+                      </Button>
+                    </div>
+                  </form>
+                </Form>
+              </DialogContent>
+            </Dialog>
           </TabsContent>
           
           {user?.role === "admin" && (
