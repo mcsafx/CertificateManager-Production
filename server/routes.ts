@@ -204,6 +204,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.get("/api/product-characteristics", isAuthenticated, async (req, res, next) => {
+    try {
+      const user = req.user!;
+      const productId = req.query.productId ? Number(req.query.productId) : undefined;
+      
+      let characteristics;
+      if (productId) {
+        characteristics = await storage.getCharacteristicsByProduct(productId, user.tenantId);
+      } else {
+        // Return all characteristics (could be limited to a tenant)
+        // Implementation depends on business requirements
+        characteristics = [];
+      }
+      
+      res.json(characteristics);
+    } catch (error) {
+      next(error);
+    }
+  });
+
   app.patch("/api/product-characteristics/:id", isAuthenticated, async (req, res, next) => {
     try {
       const user = req.user!;
