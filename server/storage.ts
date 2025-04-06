@@ -6,6 +6,7 @@ import { User, InsertUser, Tenant, InsertTenant, Product, InsertProduct,
          IssuedCertificate, InsertIssuedCertificate } from "@shared/schema";
 import session from "express-session";
 import createMemoryStore from "memorystore";
+import { hashPassword } from "./auth";
 
 const MemoryStore = createMemoryStore(session);
 
@@ -142,10 +143,11 @@ export class MemStorage implements IStorage {
       cnpj: "00000000000000",
       address: "System Address",
       active: true
-    }).then(tenant => {
+    }).then(async tenant => {
+      const hashedPassword = await hashPassword("admin123");
       this.createUser({
         username: "admin",
-        password: "admin123", // This will be hashed before storage in auth.ts
+        password: hashedPassword,
         name: "System Administrator",
         role: "admin",
         tenantId: tenant.id,
