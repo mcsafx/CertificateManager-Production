@@ -223,7 +223,7 @@ export function CertificateForm({ certificateId, onSuccess }: CertificateFormPro
         unit: "",
         minValue: null,
         maxValue: null,
-        obtainedValue: "",
+        obtainedValue: "0", // Definindo um valor padrão para evitar valores vazios
         analysisMethod: "",
       }
     ]);

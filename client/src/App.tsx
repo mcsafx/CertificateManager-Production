@@ -4,6 +4,7 @@ import NotFound from "@/pages/not-found";
 import AuthPage from "@/pages/auth-page";
 import HomePage from "@/pages/home-page";
 import ProductsPage from "@/pages/products-page";
+import ProductDetailPage from "@/pages/product-detail-page";
 import SuppliersPage from "@/pages/suppliers-page";
 import ManufacturersPage from "@/pages/manufacturers-page";
 import ClientsPage from "@/pages/clients-page";
@@ -24,6 +25,7 @@ function Router() {
       <ProtectedRoute path="/certificates" component={CertificatesPage} />
       <ProtectedRoute path="/issued-certificates" component={IssuedCertificatesPage} />
       <ProtectedRoute path="/products" component={ProductsPage} />
+      <ProtectedRoute path="/products/:id" component={ProductDetailPage} />
       <ProtectedRoute path="/suppliers" component={SuppliersPage} />
       <ProtectedRoute path="/manufacturers" component={ManufacturersPage} />
       <ProtectedRoute path="/clients" component={ClientsPage} />
