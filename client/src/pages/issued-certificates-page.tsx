@@ -5,7 +5,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Select, SelectContent, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { SafeSelectItem } from "@/components/ui/safe-select-item";
 import { useQuery } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { 
@@ -183,11 +184,11 @@ export default function IssuedCertificatesPage() {
                     <SelectValue placeholder="Todos os clientes" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Todos os clientes</SelectItem>
+                    <SafeSelectItem value="">Todos os clientes</SafeSelectItem>
                     {clients?.map((client) => (
-                      <SelectItem key={client.id} value={client.id.toString()}>
+                      <SafeSelectItem key={client.id} value={client.id.toString()}>
                         {client.name}
-                      </SelectItem>
+                      </SafeSelectItem>
                     ))}
                   </SelectContent>
                 </Select>
