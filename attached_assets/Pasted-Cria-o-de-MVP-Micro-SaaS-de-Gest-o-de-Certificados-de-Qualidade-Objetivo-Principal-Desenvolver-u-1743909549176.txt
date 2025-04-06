@@ -1,0 +1,235 @@
+Criação de MVP: Micro-SaaS de Gestão de Certificados de Qualidade
+
+Objetivo Principal: Desenvolver um MVP (Minimum Viable Product) de um sistema Micro-SaaS web, multi-tenant, para gestão de Certificados de Qualidade (Boletins de Análise) de produtos químicos. O sistema deve permitir que distribuidores químicos (os tenants/clientes do SaaS) cadastrem seus produtos, fornecedores, fabricantes, clientes, digitalizem os boletins recebidos dos fornecedores e emitam versões personalizadas desses boletins para seus próprios clientes.
+
+Público Alvo do SaaS: Distribuidores de produtos químicos que precisam gerenciar certificados de qualidade recebidos e emitir seus próprios certificados baseados nos originais.
+
+Requisitos Funcionais Essenciais (MVP):
+
+Estrutura Multi-Tenant e Autenticação:
+
+Autenticação: Sistema de login seguro para usuários.
+
+Gestão de Tenants (Empresas):
+
+Um superusuário (Master Admin) deve poder cadastrar novas empresas (tenants) que usarão o SaaS.
+
+Cada empresa terá seu ambiente de dados completamente isolado (produtos, fornecedores, clientes, boletins, usuários próprios).
+
+Gestão de Usuários por Tenant:
+
+Dentro de cada empresa (tenant), um administrador da empresa poderá cadastrar e gerenciar seus próprios usuários (inicialmente, talvez apenas um nível de usuário padrão por empresa no MVP).
+
+Perfil da Empresa (Tenant): Cada empresa cadastrada deve ter um local para registrar seus dados básicos (Nome, CNPJ, Endereço, Logo) que serão usados na emissão dos boletins personalizados.
+
+Módulos de Cadastro (CRUD Completo - Criar, Ler, Atualizar, Deletar):
+
+Produtos:
+
+Campos: Nome Técnico, Nome Comercial (opcional), Código Interno (ERP, opcional), Unidade de Medida Padrão.
+
+Características Padrão do Produto (sub-cadastro aninhado):
+
+Nome da Característica (ex: Pureza, Umidade, Densidade)
+
+Unidade de Medida da Característica (ex: %, ppm, g/cm³)
+
+Valor Mínimo Esperado
+
+Valor Máximo Esperado
+
+Método de Análise Padrão (opcional)
+
+Permitir edição/exclusão de produtos e suas características padrão.
+
+Fornecedores:
+
+Campos: Nome, CNPJ, Telefone, Endereço Completo, Código Interno (ERP, opcional).
+
+Fabricantes:
+
+Campos: Nome, País de Origem.
+
+Clientes:
+
+Campos: Nome, CNPJ, Telefone, Endereço Completo, Código Interno (ERP, opcional).
+
+Módulo Central: Cadastro de Boletins de Análise (Entrada):
+
+Tela de cadastro para digitalizar as informações dos boletins recebidos.
+
+Campos:
+
+Fornecedor (Seleção a partir do cadastro)
+
+Fabricante (Seleção a partir do cadastro)
+
+Documento de Referência da Entrada (ex: Nº Nota Fiscal, Nº Invoice, Ordem de Produção)
+
+Data de Entrada da Mercadoria
+
+Data/Hora da Digitação (Preenchido automaticamente pelo sistema)
+
+Produto (Seleção a partir do cadastro)
+
+Quantidade Recebida
+
+Unidade de Medida da Quantidade (pode ser diferente da padrão do produto)
+
+Tipo de Embalagem (ex: Tambor, IBC, Saco)
+
+Fator de Conversão (Opcional, se necessário para normalizar unidades)
+
+Lote do Fornecedor/Fabricante
+
+Data de Fabricação
+
+Data de Inspeção/Análise
+
+Data de Validade
+
+Características Analisadas (Resultados):
+
+O sistema deve automaticamente carregar as características padrão cadastradas para o produto selecionado.
+
+Para cada característica:
+
+Exibir Nome, Unidade, Mínimo, Máximo (vindos do cadastro do produto).
+
+Campo para inserir o Valor Obtido na análise do fornecedor.
+
+Campo para inserir o Método de Análise utilizado (pode sobrescrever o padrão).
+
+Permitir adicionar novas características que não estavam no cadastro padrão do produto, mas vieram neste boletim específico (com Nome, Unidade, Mín/Max (opcional), Valor Obtido, Método).
+
+Lote Interno: Campo para designar o lote que este material receberá dentro da empresa do usuário. (Nota MVP: Implementar como campo de texto simples inicialmente. A lógica de fórmulas pode ser uma melhoria futura).
+
+Status do Boletim: Campo para indicar se o boletim foi Aprovado ou Reprovado (baseado na análise interna dos resultados vs. especificações).
+
+Anexo: Funcionalidade para fazer upload do arquivo original do boletim (PDF ou Imagem) e associá-lo a este registro.
+
+Módulo: Emissão de Boletim Personalizado (Saída):
+
+Funcionalidade para gerar um novo boletim para o cliente final, baseado em um boletim de entrada já cadastrado.
+
+Processo:
+
+Usuário busca/seleciona um Boletim de Entrada existente (pelo Lote Interno, Produto, etc.).
+
+Tela para inserir dados da venda:
+
+Cliente (Seleção a partir do cadastro de clientes).
+
+Número da Nota Fiscal de Saída.
+
+Data da Emissão (padrão data atual, mas editável).
+
+Quantidade Vendida.
+
+Unidade de Medida da Venda.
+
+Lote Personalizado (pode ser o mesmo Lote Interno ou um lote específico para a venda/cliente).
+
+Geração do Boletim:
+
+O sistema deve gerar um documento (visualização na tela e opção de Impressão/PDF).
+
+Layout:
+
+Cabeçalho com os dados da Empresa do Usuário (Tenant - Nome, Logo, Endereço, CNPJ - obtidos do Perfil da Empresa).
+
+Dados do Cliente Destinatário.
+
+Dados da Venda (NF, Data, Quantidade, Lote Personalizado).
+
+Dados do Produto (Nome Técnico/Comercial).
+
+Datas relevantes (Fabricação, Validade - verificar se a data de análise original deve constar).
+
+Tabela de Características: Listar todas as características e seus Valores Obtidos do boletim de entrada original, junto com Unidade, Mín/Máx (se aplicável) e Método de Análise.
+
+IMPORTANTE: Ocultar completamente qualquer informação sobre o Fornecedor e Fabricante originais.
+
+Rodapé com informações adicionais (ex: "Certificado emitido por [Nome da Empresa Usuário]").
+
+Funcionalidades de Busca e Consulta:
+
+Implementar filtros de busca robustos na lista de Boletins de Entrada por:
+
+Produto
+
+Fornecedor
+
+Fabricante
+
+Lote do Fornecedor
+
+Lote Interno
+
+Documento de Referência da Entrada
+
+Intervalo de Datas (Entrada, Fabricação, Validade)
+
+Implementar filtros de busca na lista de Boletins Emitidos (Personalizados) por:
+
+Cliente
+
+Produto
+
+Nota Fiscal de Saída
+
+Lote Personalizado
+
+Intervalo de Datas de Emissão
+
+Relatório de Rastreabilidade/Estoque (Extrato - MVP Simplificado):
+
+Uma tela de consulta que, para um determinado Lote Interno de um Produto:
+
+Mostre a entrada original (Quantidade, Data, Doc. Referência).
+
+Liste todas as saídas (Boletins Emitidos) vinculadas a esse lote (Cliente, Data, NF Saída, Quantidade Saída).
+
+Calcule e exiba o Saldo Remanescente do lote.
+
+Nota MVP: Foco na rastreabilidade por lote. Um controle de estoque completo pode ser futuro.
+
+Impressão/Exportação:
+
+Permitir a impressão ou exportação para PDF dos Boletins de Entrada (formato interno) e dos Boletins Emitidos (formato personalizado para o cliente).
+
+Permitir a reimpressão de boletins já emitidos.
+
+Requisitos Não-Funcionais (Diretrizes Técnicas e de Qualidade):
+
+Arquitetura:
+
+API-First: Desenvolver um backend robusto com APIs bem definidas.
+
+Código Limpo: Seguir princípios SOLID, DRY, KISS. Código bem comentado e organizado.
+
+Segurança: Implementar práticas básicas de segurança web (prevenção contra XSS, SQL Injection, gerenciamento seguro de senhas e sessões, autorização adequada por tenant).
+
+Escalabilidade: A arquitetura deve permitir crescimento futuro (novos módulos, mais usuários, mais tenants). A separação por tenant no banco de dados deve ser planejada desde o início (schema por tenant ou coluna tenant_id em todas as tabelas relevantes).
+
+UI/UX: Interface limpa, intuitiva e amigável. Design responsivo (adaptável a diferentes tamanhos de tela, no mínimo desktop). Foco na facilidade de uso para as tarefas principais (cadastro de boletim, emissão de personalizado).
+
+Testabilidade: Estruturar o código para ser facilmente testável (testes unitários e de integração são desejáveis, mesmo que não implementados extensivamente no MVP).
+
+Manutenibilidade: O código e a arquitetura devem facilitar futuras modificações e adições de funcionalidades.
+
+Entregáveis Esperados do MVP:
+
+Aplicação web funcional com os módulos e funcionalidades descritos acima.
+
+Sistema de login/autenticação e estrutura multi-tenant básica operacional.
+
+Capacidade de realizar o fluxo principal: Cadastrar Produto -> Cadastrar Fornecedor/Fabricante -> Cadastrar Boletim de Entrada -> Cadastrar Cliente -> Emitir Boletim Personalizado.
+
+Funcionalidades de busca e o relatório de rastreabilidade simplificado.
+
+Capacidade de impressão/exportação dos boletins.
+
+Prioridade: Foco em entregar o fluxo principal de valor (entrada e saída de boletins) de forma robusta e segura dentro da estrutura multi-tenant. Funcionalidades acessórias ou complexidades (como fórmulas de lote) podem ser adiadas para versões futuras.
+
+Este prompt fornece uma base sólida e detalhada. A IA ou equipe de desenvolvimento terá um guia claro sobre o que precisa ser construído, as entidades envolvidas, os fluxos de trabalho principais e os requisitos técnicos e de qualidade esperados para o MVP.
