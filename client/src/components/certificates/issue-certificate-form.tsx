@@ -8,7 +8,8 @@ import { Client, EntryCertificate, Product } from "@shared/schema";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Loader2 } from "lucide-react";
 import { useState, useEffect } from "react";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Select, SelectContent, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { SafeSelectItem } from "@/components/ui/safe-select-item";
 
 interface IssueCertificateFormProps {
   entryCertificateId?: number;
@@ -177,9 +178,9 @@ export function IssueCertificateForm({ entryCertificateId, onSuccess }: IssueCer
               </SelectTrigger>
               <SelectContent>
                 {clients?.map((client) => (
-                  <SelectItem key={client.id} value={client.id.toString()}>
+                  <SafeSelectItem key={client.id} value={client.id.toString()}>
                     {client.name}
-                  </SelectItem>
+                  </SafeSelectItem>
                 ))}
               </SelectContent>
             </Select>

@@ -1,7 +1,8 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Select, SelectContent, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { SafeSelectItem } from "@/components/ui/safe-select-item";
 import { Product, Supplier, Manufacturer } from "@shared/schema";
 import { useQuery } from "@tanstack/react-query";
 import { Search, X } from "lucide-react";
@@ -80,11 +81,11 @@ export function CertificateFilter({ onFilterChange }: CertificateFilterProps) {
                 <SelectValue placeholder="Todos os produtos" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">Todos os produtos</SelectItem>
+                <SafeSelectItem value="">Todos os produtos</SafeSelectItem>
                 {products?.map((product) => (
-                  <SelectItem key={product.id} value={product.id.toString()}>
+                  <SafeSelectItem key={product.id} value={product.id.toString()}>
                     {product.technicalName}
-                  </SelectItem>
+                  </SafeSelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -100,11 +101,11 @@ export function CertificateFilter({ onFilterChange }: CertificateFilterProps) {
                 <SelectValue placeholder="Todos os fornecedores" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">Todos os fornecedores</SelectItem>
+                <SafeSelectItem value="">Todos os fornecedores</SafeSelectItem>
                 {suppliers?.map((supplier) => (
-                  <SelectItem key={supplier.id} value={supplier.id.toString()}>
+                  <SafeSelectItem key={supplier.id} value={supplier.id.toString()}>
                     {supplier.name}
-                  </SelectItem>
+                  </SafeSelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -120,11 +121,11 @@ export function CertificateFilter({ onFilterChange }: CertificateFilterProps) {
                 <SelectValue placeholder="Todos os fabricantes" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">Todos os fabricantes</SelectItem>
+                <SafeSelectItem value="">Todos os fabricantes</SafeSelectItem>
                 {manufacturers?.map((manufacturer) => (
-                  <SelectItem key={manufacturer.id} value={manufacturer.id.toString()}>
+                  <SafeSelectItem key={manufacturer.id} value={manufacturer.id.toString()}>
                     {manufacturer.name}
-                  </SelectItem>
+                  </SafeSelectItem>
                 ))}
               </SelectContent>
             </Select>

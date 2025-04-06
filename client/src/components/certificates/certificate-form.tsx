@@ -5,6 +5,7 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { SafeSelectItem } from "@/components/ui/safe-select-item";
 import { Supplier, Manufacturer, Product, ProductCharacteristic, EntryCertificate, EntryCertificateResult } from "@shared/schema";
 import { toISODateString, formatNumber } from "@/lib/utils";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -321,9 +322,9 @@ export function CertificateForm({ certificateId, onSuccess }: CertificateFormPro
                 </SelectTrigger>
                 <SelectContent>
                   {suppliers?.map((supplier) => (
-                    <SelectItem key={supplier.id} value={supplier.id.toString()}>
+                    <SafeSelectItem key={supplier.id} value={supplier.id.toString()}>
                       {supplier.name}
-                    </SelectItem>
+                    </SafeSelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -341,9 +342,9 @@ export function CertificateForm({ certificateId, onSuccess }: CertificateFormPro
                 </SelectTrigger>
                 <SelectContent>
                   {manufacturers?.map((manufacturer) => (
-                    <SelectItem key={manufacturer.id} value={manufacturer.id.toString()}>
+                    <SafeSelectItem key={manufacturer.id} value={manufacturer.id.toString()}>
                       {manufacturer.name}
-                    </SelectItem>
+                    </SafeSelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -385,9 +386,9 @@ export function CertificateForm({ certificateId, onSuccess }: CertificateFormPro
                 </SelectTrigger>
                 <SelectContent>
                   {products?.map((product) => (
-                    <SelectItem key={product.id} value={product.id.toString()}>
+                    <SafeSelectItem key={product.id} value={product.id.toString()}>
                       {product.technicalName}
-                    </SelectItem>
+                    </SafeSelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -433,11 +434,11 @@ export function CertificateForm({ certificateId, onSuccess }: CertificateFormPro
                   <SelectValue placeholder="Selecione" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="Tambor">Tambor</SelectItem>
-                  <SelectItem value="IBC">IBC</SelectItem>
-                  <SelectItem value="Saco">Saco</SelectItem>
-                  <SelectItem value="Bombona">Bombona</SelectItem>
-                  <SelectItem value="Granel">Granel</SelectItem>
+                  <SafeSelectItem value="Tambor">Tambor</SafeSelectItem>
+                  <SafeSelectItem value="IBC">IBC</SafeSelectItem>
+                  <SafeSelectItem value="Saco">Saco</SafeSelectItem>
+                  <SafeSelectItem value="Bombona">Bombona</SafeSelectItem>
+                  <SafeSelectItem value="Granel">Granel</SafeSelectItem>
                 </SelectContent>
               </Select>
             </div>
