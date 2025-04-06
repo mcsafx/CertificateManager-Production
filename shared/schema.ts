@@ -144,15 +144,21 @@ export const insertProductSchema = createInsertSchema(products).pick({
   tenantId: true,
 });
 
-export const insertProductCharacteristicSchema = createInsertSchema(productCharacteristics).pick({
-  productId: true,
-  name: true,
-  unit: true,
-  minValue: true,
-  maxValue: true,
-  analysisMethod: true,
-  tenantId: true,
-});
+export const insertProductCharacteristicSchema = createInsertSchema(productCharacteristics)
+  .pick({
+    productId: true,
+    name: true,
+    unit: true,
+    minValue: true,
+    maxValue: true,
+    analysisMethod: true,
+    tenantId: true,
+  })
+  .extend({
+    // Aceita tanto string quanto número para campos numéricos
+    minValue: z.union([z.string(), z.number(), z.null()]).optional(),
+    maxValue: z.union([z.string(), z.number(), z.null()]).optional(),
+  });
 
 export const insertSupplierSchema = createInsertSchema(suppliers).pick({
   name: true,
@@ -178,47 +184,65 @@ export const insertClientSchema = createInsertSchema(clients).pick({
   tenantId: true,
 });
 
-export const insertEntryCertificateSchema = createInsertSchema(entryCertificates).pick({
-  supplierId: true,
-  manufacturerId: true,
-  referenceDocument: true,
-  entryDate: true,
-  productId: true,
-  receivedQuantity: true,
-  measureUnit: true,
-  packageType: true,
-  conversionFactor: true,
-  supplierLot: true,
-  manufacturingDate: true,
-  inspectionDate: true,
-  expirationDate: true,
-  internalLot: true,
-  status: true,
-  originalFileUrl: true,
-  tenantId: true,
-});
+export const insertEntryCertificateSchema = createInsertSchema(entryCertificates)
+  .pick({
+    supplierId: true,
+    manufacturerId: true,
+    referenceDocument: true,
+    entryDate: true,
+    productId: true,
+    receivedQuantity: true,
+    measureUnit: true,
+    packageType: true,
+    conversionFactor: true,
+    supplierLot: true,
+    manufacturingDate: true,
+    inspectionDate: true,
+    expirationDate: true,
+    internalLot: true,
+    status: true,
+    originalFileUrl: true,
+    tenantId: true,
+  })
+  .extend({
+    // Aceita tanto string quanto número para campos numéricos
+    receivedQuantity: z.union([z.string(), z.number()]),
+    conversionFactor: z.union([z.string(), z.number(), z.null()]).optional(),
+  });
 
-export const insertEntryCertificateResultSchema = createInsertSchema(entryCertificateResults).pick({
-  entryCertificateId: true,
-  characteristicName: true,
-  unit: true,
-  minValue: true,
-  maxValue: true,
-  obtainedValue: true,
-  analysisMethod: true,
-  tenantId: true,
-});
+export const insertEntryCertificateResultSchema = createInsertSchema(entryCertificateResults)
+  .pick({
+    entryCertificateId: true,
+    characteristicName: true,
+    unit: true,
+    minValue: true,
+    maxValue: true,
+    obtainedValue: true,
+    analysisMethod: true,
+    tenantId: true,
+  })
+  .extend({
+    // Aceita tanto string quanto número para campos numéricos
+    minValue: z.union([z.string(), z.number(), z.null()]).optional(),
+    maxValue: z.union([z.string(), z.number(), z.null()]).optional(),
+    obtainedValue: z.union([z.string(), z.number()]),
+  });
 
-export const insertIssuedCertificateSchema = createInsertSchema(issuedCertificates).pick({
-  entryCertificateId: true,
-  clientId: true,
-  invoiceNumber: true,
-  issueDate: true,
-  soldQuantity: true,
-  measureUnit: true,
-  customLot: true,
-  tenantId: true,
-});
+export const insertIssuedCertificateSchema = createInsertSchema(issuedCertificates)
+  .pick({
+    entryCertificateId: true,
+    clientId: true,
+    invoiceNumber: true,
+    issueDate: true,
+    soldQuantity: true,
+    measureUnit: true,
+    customLot: true,
+    tenantId: true,
+  })
+  .extend({
+    // Aceita tanto string quanto número para campos numéricos
+    soldQuantity: z.union([z.string(), z.number()]),
+  });
 
 // Type exports
 export type InsertUser = z.infer<typeof insertUserSchema>;
