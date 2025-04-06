@@ -7,6 +7,7 @@ import {
 import { insertUserSchema, User as SelectUser, InsertUser } from "@shared/schema";
 import { getQueryFn, apiRequest, queryClient } from "../lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { useLocation } from "wouter";
 
 type AuthContextType = {
   user: SelectUser | null;
@@ -22,6 +23,8 @@ type LoginData = Pick<InsertUser, "username" | "password">;
 export const AuthContext = createContext<AuthContextType | null>(null);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const { toast } = useToast();
+  const [_, navigate] = useLocation();
+  
   const {
     data: user,
     error,
@@ -39,13 +42,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     onSuccess: (user: SelectUser) => {
       queryClient.setQueryData(["/api/user"], user);
       toast({
-        title: "Login successful",
-        description: `Welcome back, ${user.name}!`,
+        title: "Login bem-sucedido",
+        description: `Bem-vindo de volta, ${user.name}!`,
       });
+      // Redirecionar para a página inicial após o login
+      navigate("/");
     },
     onError: (error: Error) => {
       toast({
-        title: "Login failed",
+        title: "Falha no login",
         description: error.message,
         variant: "destructive",
       });
@@ -60,13 +65,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     onSuccess: (user: SelectUser) => {
       queryClient.setQueryData(["/api/user"], user);
       toast({
-        title: "Registration successful",
-        description: `Welcome, ${user.name}!`,
+        title: "Registro bem-sucedido",
+        description: `Bem-vindo, ${user.name}!`,
       });
+      // Redirecionar para a página inicial após o registro
+      navigate("/");
     },
     onError: (error: Error) => {
       toast({
-        title: "Registration failed",
+        title: "Falha no registro",
         description: error.message,
         variant: "destructive",
       });
@@ -80,13 +87,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     onSuccess: () => {
       queryClient.setQueryData(["/api/user"], null);
       toast({
-        title: "Logged out",
-        description: "You have been successfully logged out.",
+        title: "Desconectado",
+        description: "Você foi desconectado com sucesso.",
       });
+      // Redirecionar para a página de autenticação após o logout
+      navigate("/auth");
     },
     onError: (error: Error) => {
       toast({
-        title: "Logout failed",
+        title: "Falha ao desconectar",
         description: error.message,
         variant: "destructive",
       });
