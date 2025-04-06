@@ -33,7 +33,8 @@ import {
   Key
 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Select, SelectContent, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { SafeSelectItem } from "@/components/ui/safe-select-item";
 import { Badge } from "@/components/ui/badge";
 
 const userProfileSchema = z.object({
@@ -659,8 +660,8 @@ export default function SettingsPage() {
                                 </SelectTrigger>
                               </FormControl>
                               <SelectContent>
-                                <SelectItem value="user">Usuário</SelectItem>
-                                <SelectItem value="admin">Administrador</SelectItem>
+                                <SafeSelectItem value="user">Usuário</SafeSelectItem>
+                                <SafeSelectItem value="admin">Administrador</SafeSelectItem>
                               </SelectContent>
                             </Select>
                             <FormMessage />
