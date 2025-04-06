@@ -1,6 +1,6 @@
 import passport from "passport";
 import { Strategy as LocalStrategy } from "passport-local";
-import { Express } from "express";
+import { Express, Request, Response, NextFunction } from "express";
 import session from "express-session";
 import { scrypt, randomBytes, timingSafeEqual } from "crypto";
 import { promisify } from "util";
@@ -36,8 +36,10 @@ export function setupAuth(app: Express) {
     saveUninitialized: false,
     store: storage.sessionStore,
     cookie: {
-      secure: process.env.NODE_ENV === "production",
-      maxAge: 1000 * 60 * 60 * 24 // 1 day
+      secure: false, // Set to false for development
+      maxAge: 1000 * 60 * 60 * 24, // 1 day
+      httpOnly: true,
+      sameSite: 'lax'
     }
   };
 
@@ -142,7 +144,7 @@ export function setupAuth(app: Express) {
 }
 
 // Middleware to check if user is authenticated
-export function isAuthenticated(req: Express.Request, res: Express.Response, next: Express.NextFunction) {
+export function isAuthenticated(req: Request, res: Response, next: NextFunction) {
   if (req.isAuthenticated()) {
     return next();
   }
@@ -150,7 +152,7 @@ export function isAuthenticated(req: Express.Request, res: Express.Response, nex
 }
 
 // Middleware to check if user is admin
-export function isAdmin(req: Express.Request, res: Express.Response, next: Express.NextFunction) {
+export function isAdmin(req: Request, res: Response, next: NextFunction) {
   if (req.isAuthenticated() && req.user && (req.user as SelectUser).role === "admin") {
     return next();
   }
@@ -159,7 +161,7 @@ export function isAdmin(req: Express.Request, res: Express.Response, next: Expre
 
 // Middleware to check if user belongs to tenant
 export function isTenantMember(tenantId: number) {
-  return (req: Express.Request, res: Express.Response, next: Express.NextFunction) => {
+  return (req: Request, res: Response, next: NextFunction) => {
     if (req.isAuthenticated() && req.user && (req.user as SelectUser).tenantId === tenantId) {
       return next();
     }
