@@ -12,6 +12,11 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { Loader2, Plus, Trash2, Upload } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
 
 interface CertificateFormProps {
   certificateId?: number;
@@ -23,6 +28,38 @@ export function CertificateForm({ certificateId, onSuccess }: CertificateFormPro
   
   const [isEditing, setIsEditing] = useState(!!certificateId);
   const [formStep, setFormStep] = useState(1);
+  const [isSupplierDialogOpen, setIsSupplierDialogOpen] = useState(false);
+  const [isManufacturerDialogOpen, setIsManufacturerDialogOpen] = useState(false);
+  
+  // Supplier form schema
+  const supplierSchema = z.object({
+    name: z.string().min(1, "Nome é obrigatório"),
+    active: z.boolean().default(true),
+  });
+  
+  // Manufacturer form schema
+  const manufacturerSchema = z.object({
+    name: z.string().min(1, "Nome é obrigatório"),
+    active: z.boolean().default(true),
+  });
+  
+  // Supplier form
+  const supplierForm = useForm<z.infer<typeof supplierSchema>>({
+    resolver: zodResolver(supplierSchema),
+    defaultValues: {
+      name: "",
+      active: true,
+    },
+  });
+  
+  // Manufacturer form
+  const manufacturerForm = useForm<z.infer<typeof manufacturerSchema>>({
+    resolver: zodResolver(manufacturerSchema),
+    defaultValues: {
+      name: "",
+      active: true,
+    },
+  });
   
   // Certificate data state
   const [formData, setFormData] = useState({
@@ -66,6 +103,10 @@ export function CertificateForm({ certificateId, onSuccess }: CertificateFormPro
   
   const { data: products } = useQuery<Product[]>({
     queryKey: ["/api/products"],
+  });
+  
+  const { data: packageTypes } = useQuery<any[]>({
+    queryKey: ["/api/package-types"],
   });
   
   // Fetch product characteristics when product changes
@@ -131,6 +172,74 @@ export function CertificateForm({ certificateId, onSuccess }: CertificateFormPro
   }, [characteristics, formData.productId, isEditing]);
   
   // Save or update certificate
+  // Add supplier mutation
+  const addSupplierMutation = useMutation({
+    mutationFn: async (data: z.infer<typeof supplierSchema>) => {
+      const payload = {
+        ...data,
+        tenantId: 1, // Default tenant
+      };
+      const response = await apiRequest("POST", "/api/suppliers", payload);
+      return await response.json();
+    },
+    onSuccess: (newSupplier) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/suppliers"] });
+      setIsSupplierDialogOpen(false);
+      supplierForm.reset();
+      
+      // Automatically select the new supplier
+      if (newSupplier && newSupplier.id) {
+        handleSelectChange("supplierId", newSupplier.id.toString());
+      }
+      
+      toast({
+        title: "Fornecedor adicionado",
+        description: "O fornecedor foi adicionado com sucesso.",
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: "Erro ao adicionar fornecedor",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+  
+  // Add manufacturer mutation
+  const addManufacturerMutation = useMutation({
+    mutationFn: async (data: z.infer<typeof manufacturerSchema>) => {
+      const payload = {
+        ...data,
+        tenantId: 1, // Default tenant
+      };
+      const response = await apiRequest("POST", "/api/manufacturers", payload);
+      return await response.json();
+    },
+    onSuccess: (newManufacturer) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/manufacturers"] });
+      setIsManufacturerDialogOpen(false);
+      manufacturerForm.reset();
+      
+      // Automatically select the new manufacturer
+      if (newManufacturer && newManufacturer.id) {
+        handleSelectChange("manufacturerId", newManufacturer.id.toString());
+      }
+      
+      toast({
+        title: "Fabricante adicionado",
+        description: "O fabricante foi adicionado com sucesso.",
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: "Erro ao adicionar fabricante",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+  
   const saveMutation = useMutation({
     mutationFn: async () => {
       const certificatePayload = {
@@ -312,42 +421,62 @@ export function CertificateForm({ certificateId, onSuccess }: CertificateFormPro
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
               <Label htmlFor="supplierId">Fornecedor *</Label>
-              <Select
-                value={formData.supplierId}
-                onValueChange={(value) => handleSelectChange("supplierId", value)}
-                required
-              >
-                <SelectTrigger id="supplierId">
-                  <SelectValue placeholder="Selecione um fornecedor" />
-                </SelectTrigger>
-                <SelectContent>
-                  {suppliers?.map((supplier) => (
-                    <SafeSelectItem key={supplier.id} value={supplier.id.toString()}>
-                      {supplier.name}
-                    </SafeSelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <div className="flex gap-2">
+                <Select
+                  value={formData.supplierId}
+                  onValueChange={(value) => handleSelectChange("supplierId", value)}
+                  required
+                >
+                  <SelectTrigger id="supplierId">
+                    <SelectValue placeholder="Selecione um fornecedor" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {suppliers?.map((supplier) => (
+                      <SafeSelectItem key={supplier.id} value={supplier.id.toString()}>
+                        {supplier.name}
+                      </SafeSelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  size="icon"
+                  onClick={() => setIsSupplierDialogOpen(true)}
+                >
+                  <Plus className="h-4 w-4" />
+                </Button>
+              </div>
             </div>
             
             <div>
               <Label htmlFor="manufacturerId">Fabricante *</Label>
-              <Select
-                value={formData.manufacturerId}
-                onValueChange={(value) => handleSelectChange("manufacturerId", value)}
-                required
-              >
-                <SelectTrigger id="manufacturerId">
-                  <SelectValue placeholder="Selecione um fabricante" />
-                </SelectTrigger>
-                <SelectContent>
-                  {manufacturers?.map((manufacturer) => (
-                    <SafeSelectItem key={manufacturer.id} value={manufacturer.id.toString()}>
-                      {manufacturer.name}
-                    </SafeSelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <div className="flex gap-2">
+                <Select
+                  value={formData.manufacturerId}
+                  onValueChange={(value) => handleSelectChange("manufacturerId", value)}
+                  required
+                >
+                  <SelectTrigger id="manufacturerId">
+                    <SelectValue placeholder="Selecione um fabricante" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {manufacturers?.map((manufacturer) => (
+                      <SafeSelectItem key={manufacturer.id} value={manufacturer.id.toString()}>
+                        {manufacturer.name}
+                      </SafeSelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  size="icon"
+                  onClick={() => setIsManufacturerDialogOpen(true)}
+                >
+                  <Plus className="h-4 w-4" />
+                </Button>
+              </div>
             </div>
             
             <div>
@@ -434,13 +563,28 @@ export function CertificateForm({ certificateId, onSuccess }: CertificateFormPro
                   <SelectValue placeholder="Selecione" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SafeSelectItem value="Tambor">Tambor</SafeSelectItem>
-                  <SafeSelectItem value="IBC">IBC</SafeSelectItem>
-                  <SafeSelectItem value="Saco">Saco</SafeSelectItem>
-                  <SafeSelectItem value="Bombona">Bombona</SafeSelectItem>
-                  <SafeSelectItem value="Granel">Granel</SafeSelectItem>
+                  {packageTypes && packageTypes.length > 0 ? (
+                    packageTypes.filter(pkg => pkg.active).map((pkg) => (
+                      <SafeSelectItem key={pkg.id} value={pkg.name}>
+                        {pkg.name}
+                      </SafeSelectItem>
+                    ))
+                  ) : (
+                    <>
+                      <SafeSelectItem value="Tambor">Tambor</SafeSelectItem>
+                      <SafeSelectItem value="IBC">IBC</SafeSelectItem>
+                      <SafeSelectItem value="Saco">Saco</SafeSelectItem>
+                      <SafeSelectItem value="Bombona">Bombona</SafeSelectItem>
+                      <SafeSelectItem value="Granel">Granel</SafeSelectItem>
+                    </>
+                  )}
                 </SelectContent>
               </Select>
+              <div className="mt-1 text-xs text-right">
+                <a href="/package-types" target="_blank" className="text-blue-500 hover:underline">
+                  Gerenciar tipos de embalagem
+                </a>
+              </div>
             </div>
             
             <div>
@@ -718,6 +862,108 @@ export function CertificateForm({ certificateId, onSuccess }: CertificateFormPro
           </div>
         </div>
       </form>
+
+      {/* Supplier Dialog */}
+      <Dialog open={isSupplierDialogOpen} onOpenChange={setIsSupplierDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Adicionar Novo Fornecedor</DialogTitle>
+          </DialogHeader>
+          <Form {...supplierForm}>
+            <form onSubmit={supplierForm.handleSubmit((data) => addSupplierMutation.mutate(data))}>
+              <div className="space-y-4">
+                <FormField
+                  control={supplierForm.control}
+                  name="name"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Nome do Fornecedor *</FormLabel>
+                      <FormControl>
+                        <Input {...field} placeholder="Digite o nome do fornecedor" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                
+                <div className="flex justify-end space-x-2 pt-4">
+                  <Button 
+                    type="button"
+                    variant="outline"
+                    onClick={() => setIsSupplierDialogOpen(false)}
+                  >
+                    Cancelar
+                  </Button>
+                  <Button 
+                    type="submit"
+                    disabled={addSupplierMutation.isPending}
+                  >
+                    {addSupplierMutation.isPending ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Salvando...
+                      </>
+                    ) : (
+                      "Adicionar Fornecedor"
+                    )}
+                  </Button>
+                </div>
+              </div>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Manufacturer Dialog */}
+      <Dialog open={isManufacturerDialogOpen} onOpenChange={setIsManufacturerDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Adicionar Novo Fabricante</DialogTitle>
+          </DialogHeader>
+          <Form {...manufacturerForm}>
+            <form onSubmit={manufacturerForm.handleSubmit((data) => addManufacturerMutation.mutate(data))}>
+              <div className="space-y-4">
+                <FormField
+                  control={manufacturerForm.control}
+                  name="name"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Nome do Fabricante *</FormLabel>
+                      <FormControl>
+                        <Input {...field} placeholder="Digite o nome do fabricante" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                
+                <div className="flex justify-end space-x-2 pt-4">
+                  <Button 
+                    type="button"
+                    variant="outline"
+                    onClick={() => setIsManufacturerDialogOpen(false)}
+                  >
+                    Cancelar
+                  </Button>
+                  <Button 
+                    type="submit"
+                    disabled={addManufacturerMutation.isPending}
+                  >
+                    {addManufacturerMutation.isPending ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Salvando...
+                      </>
+                    ) : (
+                      "Adicionar Fabricante"
+                    )}
+                  </Button>
+                </div>
+              </div>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
