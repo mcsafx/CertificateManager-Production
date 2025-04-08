@@ -1,0 +1,35 @@
+Baseando-se no projeto inicial já concluído, ajuste a arquitetura do sistema para implementar uma solução modular. Divida o SaaS em três módulos principais:
+Plano A (Básico):
+•	Cadastro de produtos pais, e produtos filhos. Por exemplo: O produto é Refrigerante de Cola (produto pai), e a Coca-Cola 2 Litros e um subproduto, a Coca-Cola Lata é outro sub-produto, Pepsi Cola 1,5L é outro produto, etc...
+É importante que no cadastro do produto pai haja informações gerais, e nos produtos filhos ou subprodutos tenhamos os detalhes, por exemplo, fator de conversão da embalagem, medidas, peso líquido, peso bruto, etc..., incluindo upload de arquivos relacionados (fichas técnicas, etc.) limitado a 2mb.
+•	Oganização de produtos por árvore de produtos, de fabricantes | fornecedores | famílias | grupos | produtos
+•	Registro de boletins de análise via input manual, sem upload de arquivos.
+Plano B (Intermediário):
+•	Funcionalidades do Plano A.
+•	Cadastro de Fornecedores
+•	Registro de Entrada de Materiais
+•	Upload de arquivos adicionais, como fichas de segurança, certificados ISO e outros documentos técnicos limitado a 05 arquivos de no máximo 5mb cada arquivo
+•	Anexar arquivos (PDFs ou imagens) aos boletins de análise (limitado a 2 arquivos de no máximo 5mb cada arquivo)
+•	Rastreabilidade de todos os produtos que entraram, possibilitando filtras por diversos filtros como fabricante, numero de nota fiscal, etc
+Plano C (Completo):
+•	Funcionalidades dos Planos A e B.
+•	Cadastro de clientes e gestão de revenda.
+•	Emissão de certificados personalizados com ocultação de dados sensíveis de fornecedores.
+•	Rastreabilidade completa de estoques (entradas, saídas e saldos).
+
+•	Controle de destinação de materiais (ex.: revenda, aplicação em projetos ou envio a clientes para amostras).
+Implemente também uma estrutura escalável para futuras expansões, como um módulo de inventário independente para gestão de contagens personalizadas.
+Certifique-se de manter a arquitetura segura, multi-tenant e com design intuitivo. Reorganize o projeto para que os módulos funcionem de forma integrada, mas possam ser comercializados individualmente."
+
+Ao final das implementações, me informe o que mudou e se deu tudo certo.
+
+Espaço de Armazenamento Total:
+Planeje um espaço proporcional ao número médio de arquivos esperados por cliente. Por exemplo:
+
+Plano A: 5 GB por cliente.
+
+Plano B: 20 GB por cliente.
+
+Plano C: 50 GB por cliente.
+
+Esses números são uma base inicial e podem ser ajustados com base no comportamento real dos usuários ao longo do tempo.

@@ -1,7 +1,12 @@
-import { User, InsertUser, Tenant, InsertTenant, Product, InsertProduct, 
-         ProductCharacteristic, InsertProductCharacteristic, Supplier, 
-         InsertSupplier, Manufacturer, InsertManufacturer, Client, 
-         InsertClient, EntryCertificate, InsertEntryCertificate, 
+import { User, InsertUser, Tenant, InsertTenant, 
+         ProductCategory, InsertProductCategory, 
+         ProductSubcategory, InsertProductSubcategory,
+         ProductBase, InsertProductBase,
+         Product, InsertProduct, 
+         ProductFile, InsertProductFile,
+         ProductCharacteristic, InsertProductCharacteristic, 
+         Supplier, InsertSupplier, Manufacturer, InsertManufacturer, 
+         Client, InsertClient, EntryCertificate, InsertEntryCertificate, 
          EntryCertificateResult, InsertEntryCertificateResult, 
          IssuedCertificate, InsertIssuedCertificate,
          PackageType, InsertPackageType } from "@shared/schema";
@@ -26,13 +31,43 @@ export interface IStorage {
   createTenant(tenant: InsertTenant): Promise<Tenant>;
   updateTenant(id: number, tenant: Partial<Tenant>): Promise<Tenant | undefined>;
   getAllTenants(): Promise<Tenant[]>;
-
-  // Products
+  
+  // Product Categories
+  getProductCategory(id: number, tenantId: number): Promise<ProductCategory | undefined>;
+  createProductCategory(category: InsertProductCategory): Promise<ProductCategory>;
+  updateProductCategory(id: number, tenantId: number, category: Partial<ProductCategory>): Promise<ProductCategory | undefined>;
+  getProductCategoriesByTenant(tenantId: number): Promise<ProductCategory[]>;
+  deleteProductCategory(id: number, tenantId: number): Promise<boolean>;
+  
+  // Product Subcategories
+  getProductSubcategory(id: number, tenantId: number): Promise<ProductSubcategory | undefined>;
+  createProductSubcategory(subcategory: InsertProductSubcategory): Promise<ProductSubcategory>;
+  updateProductSubcategory(id: number, tenantId: number, subcategory: Partial<ProductSubcategory>): Promise<ProductSubcategory | undefined>;
+  getProductSubcategoriesByCategory(categoryId: number, tenantId: number): Promise<ProductSubcategory[]>;
+  getProductSubcategoriesByTenant(tenantId: number): Promise<ProductSubcategory[]>;
+  deleteProductSubcategory(id: number, tenantId: number): Promise<boolean>;
+  
+  // Product Base
+  getProductBase(id: number, tenantId: number): Promise<ProductBase | undefined>;
+  createProductBase(productBase: InsertProductBase): Promise<ProductBase>;
+  updateProductBase(id: number, tenantId: number, productBase: Partial<ProductBase>): Promise<ProductBase | undefined>;
+  getProductBasesBySubcategory(subcategoryId: number, tenantId: number): Promise<ProductBase[]>;
+  getProductBasesByTenant(tenantId: number): Promise<ProductBase[]>;
+  deleteProductBase(id: number, tenantId: number): Promise<boolean>;
+  
+  // Product Variants (Products)
   getProduct(id: number, tenantId: number): Promise<Product | undefined>;
   createProduct(product: InsertProduct): Promise<Product>;
   updateProduct(id: number, tenantId: number, product: Partial<Product>): Promise<Product | undefined>;
+  getProductsByBase(baseProductId: number, tenantId: number): Promise<Product[]>;
   getProductsByTenant(tenantId: number): Promise<Product[]>;
   deleteProduct(id: number, tenantId: number): Promise<boolean>;
+  
+  // Product Files
+  getProductFile(id: number, tenantId: number): Promise<ProductFile | undefined>;
+  createProductFile(file: InsertProductFile): Promise<ProductFile>;
+  getProductFilesByProduct(productId: number, tenantId: number): Promise<ProductFile[]>;
+  deleteProductFile(id: number, tenantId: number): Promise<boolean>;
 
   // Product Characteristics
   getProductCharacteristic(id: number, tenantId: number): Promise<ProductCharacteristic | undefined>;
@@ -96,7 +131,14 @@ export interface IStorage {
 export class MemStorage implements IStorage {
   private users: Map<number, User>;
   private tenants: Map<number, Tenant>;
+  
+  // Hierarquia de produtos
+  private productCategories: Map<number, ProductCategory>;
+  private productSubcategories: Map<number, ProductSubcategory>;
+  private productBases: Map<number, ProductBase>;
   private products: Map<number, Product>;
+  private productFiles: Map<number, ProductFile>;
+  
   private productCharacteristics: Map<number, ProductCharacteristic>;
   private suppliers: Map<number, Supplier>;
   private manufacturers: Map<number, Manufacturer>;
@@ -108,7 +150,11 @@ export class MemStorage implements IStorage {
   
   private userIdCounter: number;
   private tenantIdCounter: number;
+  private categoryIdCounter: number;
+  private subcategoryIdCounter: number;
+  private productBaseIdCounter: number;
   private productIdCounter: number;
+  private productFileIdCounter: number;
   private characteristicIdCounter: number;
   private supplierIdCounter: number;
   private manufacturerIdCounter: number;
@@ -123,7 +169,14 @@ export class MemStorage implements IStorage {
   constructor() {
     this.users = new Map();
     this.tenants = new Map();
+    
+    // Inicialização das novas estruturas hierárquicas
+    this.productCategories = new Map();
+    this.productSubcategories = new Map();
+    this.productBases = new Map();
     this.products = new Map();
+    this.productFiles = new Map();
+    
     this.productCharacteristics = new Map();
     this.suppliers = new Map();
     this.manufacturers = new Map();
@@ -135,7 +188,11 @@ export class MemStorage implements IStorage {
     
     this.userIdCounter = 1;
     this.tenantIdCounter = 1;
+    this.categoryIdCounter = 1;
+    this.subcategoryIdCounter = 1;
+    this.productBaseIdCounter = 1;
     this.productIdCounter = 1;
+    this.productFileIdCounter = 1;
     this.characteristicIdCounter = 1;
     this.supplierIdCounter = 1;
     this.manufacturerIdCounter = 1;
@@ -181,7 +238,12 @@ export class MemStorage implements IStorage {
 
   async createUser(user: InsertUser): Promise<User> {
     const id = this.userIdCounter++;
-    const newUser: User = { ...user, id };
+    const newUser: User = { 
+      ...user, 
+      id, 
+      role: user.role ?? 'user', 
+      active: user.active ?? true 
+    };
     this.users.set(id, newUser);
     return newUser;
   }
@@ -218,7 +280,17 @@ export class MemStorage implements IStorage {
 
   async createTenant(tenant: InsertTenant): Promise<Tenant> {
     const id = this.tenantIdCounter++;
-    const newTenant: Tenant = { ...tenant, id };
+    const newTenant: Tenant = { 
+      ...tenant, 
+      id,
+      active: tenant.active ?? true,
+      logoUrl: tenant.logoUrl ?? null,
+      plan: tenant.plan ?? "A",
+      storageLimit: tenant.storageLimit ?? 5,
+      storageUsed: tenant.storageUsed ?? 0,
+      planStartDate: tenant.planStartDate ?? null,
+      planEndDate: tenant.planEndDate ?? null
+    };
     this.tenants.set(id, newTenant);
     return newTenant;
   }
@@ -236,7 +308,180 @@ export class MemStorage implements IStorage {
     return Array.from(this.tenants.values());
   }
 
-  // Product methods
+  // Product Category methods
+  async getProductCategory(id: number, tenantId: number): Promise<ProductCategory | undefined> {
+    const category = this.productCategories.get(id);
+    if (category && category.tenantId === tenantId) {
+      return category;
+    }
+    return undefined;
+  }
+
+  async createProductCategory(category: InsertProductCategory): Promise<ProductCategory> {
+    const id = this.categoryIdCounter++;
+    const newCategory: ProductCategory = { 
+      ...category, 
+      id,
+      active: category.active ?? true,
+      description: category.description ?? null
+    };
+    this.productCategories.set(id, newCategory);
+    return newCategory;
+  }
+
+  async updateProductCategory(id: number, tenantId: number, categoryData: Partial<ProductCategory>): Promise<ProductCategory | undefined> {
+    const category = await this.getProductCategory(id, tenantId);
+    if (!category) return undefined;
+    
+    const updatedCategory = { ...category, ...categoryData };
+    this.productCategories.set(id, updatedCategory);
+    return updatedCategory;
+  }
+
+  async getProductCategoriesByTenant(tenantId: number): Promise<ProductCategory[]> {
+    return Array.from(this.productCategories.values()).filter(
+      (category) => category.tenantId === tenantId
+    );
+  }
+
+  async deleteProductCategory(id: number, tenantId: number): Promise<boolean> {
+    const category = await this.getProductCategory(id, tenantId);
+    if (!category) return false;
+    return this.productCategories.delete(id);
+  }
+
+  // Product Subcategory methods
+  async getProductSubcategory(id: number, tenantId: number): Promise<ProductSubcategory | undefined> {
+    const subcategory = this.productSubcategories.get(id);
+    if (subcategory && subcategory.tenantId === tenantId) {
+      return subcategory;
+    }
+    return undefined;
+  }
+
+  async createProductSubcategory(subcategory: InsertProductSubcategory): Promise<ProductSubcategory> {
+    const id = this.subcategoryIdCounter++;
+    const newSubcategory: ProductSubcategory = { 
+      ...subcategory, 
+      id,
+      active: subcategory.active ?? true,
+      description: subcategory.description ?? null
+    };
+    this.productSubcategories.set(id, newSubcategory);
+    return newSubcategory;
+  }
+
+  async updateProductSubcategory(id: number, tenantId: number, subcategoryData: Partial<ProductSubcategory>): Promise<ProductSubcategory | undefined> {
+    const subcategory = await this.getProductSubcategory(id, tenantId);
+    if (!subcategory) return undefined;
+    
+    const updatedSubcategory = { ...subcategory, ...subcategoryData };
+    this.productSubcategories.set(id, updatedSubcategory);
+    return updatedSubcategory;
+  }
+
+  async getProductSubcategoriesByCategory(categoryId: number, tenantId: number): Promise<ProductSubcategory[]> {
+    return Array.from(this.productSubcategories.values()).filter(
+      (subcategory) => subcategory.categoryId === categoryId && subcategory.tenantId === tenantId
+    );
+  }
+
+  async getProductSubcategoriesByTenant(tenantId: number): Promise<ProductSubcategory[]> {
+    return Array.from(this.productSubcategories.values()).filter(
+      (subcategory) => subcategory.tenantId === tenantId
+    );
+  }
+
+  async deleteProductSubcategory(id: number, tenantId: number): Promise<boolean> {
+    const subcategory = await this.getProductSubcategory(id, tenantId);
+    if (!subcategory) return false;
+    return this.productSubcategories.delete(id);
+  }
+
+  // Product Base methods
+  async getProductBase(id: number, tenantId: number): Promise<ProductBase | undefined> {
+    const productBase = this.productBases.get(id);
+    if (productBase && productBase.tenantId === tenantId) {
+      return productBase;
+    }
+    return undefined;
+  }
+
+  async createProductBase(productBase: InsertProductBase): Promise<ProductBase> {
+    const id = this.productBaseIdCounter++;
+    const newProductBase: ProductBase = { 
+      ...productBase, 
+      id,
+      active: productBase.active ?? true,
+      description: productBase.description ?? null,
+      commercialName: productBase.commercialName ?? null,
+      internalCode: productBase.internalCode ?? null
+    };
+    this.productBases.set(id, newProductBase);
+    return newProductBase;
+  }
+
+  async updateProductBase(id: number, tenantId: number, productBaseData: Partial<ProductBase>): Promise<ProductBase | undefined> {
+    const productBase = await this.getProductBase(id, tenantId);
+    if (!productBase) return undefined;
+    
+    const updatedProductBase = { ...productBase, ...productBaseData };
+    this.productBases.set(id, updatedProductBase);
+    return updatedProductBase;
+  }
+
+  async getProductBasesBySubcategory(subcategoryId: number, tenantId: number): Promise<ProductBase[]> {
+    return Array.from(this.productBases.values()).filter(
+      (productBase) => productBase.subcategoryId === subcategoryId && productBase.tenantId === tenantId
+    );
+  }
+
+  async getProductBasesByTenant(tenantId: number): Promise<ProductBase[]> {
+    return Array.from(this.productBases.values()).filter(
+      (productBase) => productBase.tenantId === tenantId
+    );
+  }
+
+  async deleteProductBase(id: number, tenantId: number): Promise<boolean> {
+    const productBase = await this.getProductBase(id, tenantId);
+    if (!productBase) return false;
+    return this.productBases.delete(id);
+  }
+
+  // Product File methods
+  async getProductFile(id: number, tenantId: number): Promise<ProductFile | undefined> {
+    const file = this.productFiles.get(id);
+    if (file && file.tenantId === tenantId) {
+      return file;
+    }
+    return undefined;
+  }
+
+  async createProductFile(file: InsertProductFile): Promise<ProductFile> {
+    const id = this.productFileIdCounter++;
+    const newFile: ProductFile = { 
+      ...file, 
+      id,
+      description: file.description ?? null,
+      uploadedAt: new Date()
+    };
+    this.productFiles.set(id, newFile);
+    return newFile;
+  }
+
+  async getProductFilesByProduct(productId: number, tenantId: number): Promise<ProductFile[]> {
+    return Array.from(this.productFiles.values()).filter(
+      (file) => file.productId === productId && file.tenantId === tenantId
+    );
+  }
+
+  async deleteProductFile(id: number, tenantId: number): Promise<boolean> {
+    const file = await this.getProductFile(id, tenantId);
+    if (!file) return false;
+    return this.productFiles.delete(id);
+  }
+
+  // Product Variant methods (antigo Product methods)
   async getProduct(id: number, tenantId: number): Promise<Product | undefined> {
     const product = this.products.get(id);
     if (product && product.tenantId === tenantId) {
@@ -247,7 +492,18 @@ export class MemStorage implements IStorage {
 
   async createProduct(product: InsertProduct): Promise<Product> {
     const id = this.productIdCounter++;
-    const newProduct: Product = { ...product, id };
+    const newProduct: Product = { 
+      ...product, 
+      id,
+      active: product.active ?? true,
+      commercialName: product.commercialName ?? null,
+      internalCode: product.internalCode ?? null,
+      sku: product.sku ?? null,
+      conversionFactor: product.conversionFactor ? String(product.conversionFactor) : null,
+      netWeight: product.netWeight ? String(product.netWeight) : null,
+      grossWeight: product.grossWeight ? String(product.grossWeight) : null,
+      specifications: product.specifications ?? null
+    };
     this.products.set(id, newProduct);
     return newProduct;
   }
@@ -264,6 +520,12 @@ export class MemStorage implements IStorage {
   async getProductsByTenant(tenantId: number): Promise<Product[]> {
     return Array.from(this.products.values()).filter(
       (product) => product.tenantId === tenantId
+    );
+  }
+  
+  async getProductsByBase(baseProductId: number, tenantId: number): Promise<Product[]> {
+    return Array.from(this.products.values()).filter(
+      (product) => product.baseProductId === baseProductId && product.tenantId === tenantId
     );
   }
 
@@ -284,7 +546,13 @@ export class MemStorage implements IStorage {
 
   async createProductCharacteristic(characteristic: InsertProductCharacteristic): Promise<ProductCharacteristic> {
     const id = this.characteristicIdCounter++;
-    const newCharacteristic: ProductCharacteristic = { ...characteristic, id };
+    const newCharacteristic: ProductCharacteristic = { 
+      ...characteristic, 
+      id,
+      minValue: characteristic.minValue ? String(characteristic.minValue) : null,
+      maxValue: characteristic.maxValue ? String(characteristic.maxValue) : null,
+      analysisMethod: characteristic.analysisMethod ?? null
+    };
     this.productCharacteristics.set(id, newCharacteristic);
     return newCharacteristic;
   }
@@ -321,7 +589,13 @@ export class MemStorage implements IStorage {
 
   async createSupplier(supplier: InsertSupplier): Promise<Supplier> {
     const id = this.supplierIdCounter++;
-    const newSupplier: Supplier = { ...supplier, id };
+    const newSupplier: Supplier = { 
+      ...supplier, 
+      id,
+      address: supplier.address ?? null,
+      internalCode: supplier.internalCode ?? null,
+      phone: supplier.phone ?? null
+    };
     this.suppliers.set(id, newSupplier);
     return newSupplier;
   }
@@ -395,7 +669,13 @@ export class MemStorage implements IStorage {
 
   async createClient(client: InsertClient): Promise<Client> {
     const id = this.clientIdCounter++;
-    const newClient: Client = { ...client, id };
+    const newClient: Client = { 
+      ...client, 
+      id,
+      address: client.address ?? null,
+      internalCode: client.internalCode ?? null,
+      phone: client.phone ?? null
+    };
     this.clients.set(id, newClient);
     return newClient;
   }
@@ -435,7 +715,11 @@ export class MemStorage implements IStorage {
     const newCertificate: EntryCertificate = { 
       ...certificate, 
       id, 
-      enteredAt: new Date() 
+      enteredAt: new Date(),
+      originalFileUrl: certificate.originalFileUrl ?? null,
+      conversionFactor: certificate.conversionFactor ? String(certificate.conversionFactor) : null,
+      receivedQuantity: typeof certificate.receivedQuantity === 'number' ? 
+        String(certificate.receivedQuantity) : certificate.receivedQuantity
     };
     this.entryCertificates.set(id, newCertificate);
     return newCertificate;
@@ -500,7 +784,14 @@ export class MemStorage implements IStorage {
 
   async createEntryCertificateResult(result: InsertEntryCertificateResult): Promise<EntryCertificateResult> {
     const id = this.resultIdCounter++;
-    const newResult: EntryCertificateResult = { ...result, id };
+    const newResult: EntryCertificateResult = { 
+      ...result, 
+      id,
+      minValue: result.minValue ? String(result.minValue) : null,
+      maxValue: result.maxValue ? String(result.maxValue) : null,
+      analysisMethod: result.analysisMethod ?? null,
+      obtainedValue: typeof result.obtainedValue === 'number' ? String(result.obtainedValue) : result.obtainedValue
+    };
     this.entryCertificateResults.set(id, newResult);
     return newResult;
   }
@@ -537,7 +828,11 @@ export class MemStorage implements IStorage {
 
   async createIssuedCertificate(certificate: InsertIssuedCertificate): Promise<IssuedCertificate> {
     const id = this.issuedCertificateIdCounter++;
-    const newCertificate: IssuedCertificate = { ...certificate, id };
+    const newCertificate: IssuedCertificate = { 
+      ...certificate, 
+      id,
+      soldQuantity: typeof certificate.soldQuantity === 'number' ? String(certificate.soldQuantity) : certificate.soldQuantity
+    };
     this.issuedCertificates.set(id, newCertificate);
     return newCertificate;
   }
@@ -589,7 +884,11 @@ export class MemStorage implements IStorage {
 
   async createPackageType(packageType: InsertPackageType): Promise<PackageType> {
     const id = this.packageTypeIdCounter++;
-    const newPackageType: PackageType = { ...packageType, id };
+    const newPackageType: PackageType = { 
+      ...packageType, 
+      id,
+      active: packageType.active ?? true 
+    };
     this.packageTypes.set(id, newPackageType);
     return newPackageType;
   }
