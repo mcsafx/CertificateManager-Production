@@ -6,121 +6,105 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useQuery } from "@tanstack/react-query";
-import { Loader2, Package, Pencil, Search, Trash2, Plus, ChevronLeft, Boxes, FolderTree } from "lucide-react";
-import { ProductForm } from "@/components/products/product-form";
-import { Product, ProductBase } from "@shared/schema";
+import { Loader2, Database, Pencil, Search, Trash2, Plus, ChevronLeft, Package } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import { ProductBaseForm } from "@/components/products/product-base-form";
+import { ProductBase, ProductSubcategory } from "@shared/schema";
 import { Link, useLocation } from "wouter";
 
-export default function ProductsPage() {
+export default function ProductBasePage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [selectedProductId, setSelectedProductId] = useState<number | null>(null);
-  const [baseProductId, setBaseProductId] = useState<number | null>(null);
+  const [selectedProductBaseId, setSelectedProductBaseId] = useState<number | null>(null);
+  const [subcategoryId, setSubcategoryId] = useState<number | null>(null);
   const [location] = useLocation();
+  const { toast } = useToast();
   
-  // Extract baseProductId from URL if present
+  // Extract subcategoryId from URL if present
   useEffect(() => {
     const params = new URLSearchParams(location.split("?")[1]);
-    const baseProductIdParam = params.get("baseProductId");
-    if (baseProductIdParam) {
-      setBaseProductId(Number(baseProductIdParam));
+    const subcategoryIdParam = params.get("subcategoryId");
+    if (subcategoryIdParam) {
+      setSubcategoryId(Number(subcategoryIdParam));
     }
   }, [location]);
   
-  // Get product base details if baseProductId is available
-  const { data: productBase } = useQuery<ProductBase>({
-    queryKey: [`/api/product-base/${baseProductId}`],
-    enabled: !!baseProductId,
+  // Get subcategory details if subcategoryId is available
+  const { data: subcategory } = useQuery<ProductSubcategory>({
+    queryKey: [`/api/product-subcategories/${subcategoryId}`],
+    enabled: !!subcategoryId,
   });
   
-  // Get products (variants)
-  const { data: products, isLoading } = useQuery<Product[]>({
-    queryKey: ["/api/products", { baseProductId }],
+  // Get product bases
+  const { data: productBases, isLoading } = useQuery<ProductBase[]>({
+    queryKey: ["/api/product-base", { subcategoryId }],
     queryFn: async () => {
-      const endpoint = baseProductId 
-        ? `/api/products?baseProductId=${baseProductId}`
-        : "/api/products";
+      const endpoint = subcategoryId 
+        ? `/api/product-base?subcategoryId=${subcategoryId}`
+        : "/api/product-base";
       const response = await fetch(endpoint);
       if (!response.ok) {
-        throw new Error("Failed to fetch products");
+        throw new Error("Failed to fetch product bases");
       }
       return response.json();
     },
   });
   
-  // Filter products based on search query
-  const filteredProducts = products
-    ? products.filter(product => 
-        product.technicalName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        (product.commercialName && product.commercialName.toLowerCase().includes(searchQuery.toLowerCase())) ||
-        (product.internalCode && product.internalCode.toLowerCase().includes(searchQuery.toLowerCase())) ||
-        (product.sku && product.sku.toLowerCase().includes(searchQuery.toLowerCase()))
+  // Filter product bases based on search query
+  const filteredProductBases = productBases
+    ? productBases.filter(base => 
+        base.technicalName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (base.commercialName && base.commercialName.toLowerCase().includes(searchQuery.toLowerCase())) ||
+        (base.internalCode && base.internalCode.toLowerCase().includes(searchQuery.toLowerCase())) ||
+        (base.description && base.description.toLowerCase().includes(searchQuery.toLowerCase()))
       )
     : [];
   
-  const handleEdit = (productId: number) => {
-    setSelectedProductId(productId);
+  const handleEdit = (productBaseId: number) => {
+    setSelectedProductBaseId(productBaseId);
     setIsDialogOpen(true);
   };
   
   const handleAddNew = () => {
-    setSelectedProductId(null);
+    setSelectedProductBaseId(null);
     setIsDialogOpen(true);
   };
 
   return (
     <Layout>
       <div className="p-6">
-        <div className="flex items-center mb-4 gap-2">
-          <div className="flex space-x-2">
-            <Button variant="outline" size="sm" asChild>
-              <Link href="/product-categories">
-                <FolderTree className="h-4 w-4 mr-1" />
-                Categorias
-              </Link>
-            </Button>
-            
-            {baseProductId && (
-              <Button variant="outline" size="sm" asChild>
-                <Link href="/product-base">
-                  <ChevronLeft className="h-4 w-4 mr-1" />
-                  Voltar para Produtos Base
-                </Link>
-              </Button>
-            )}
-          </div>
+        <div className="flex items-center mb-6 gap-2">
+          <Button variant="outline" size="sm" asChild>
+            <Link href={subcategoryId ? "/product-subcategories" : "/products"}>
+              <ChevronLeft className="h-4 w-4 mr-1" />
+              {subcategoryId ? "Voltar para Subcategorias" : "Voltar para Produtos"}
+            </Link>
+          </Button>
           
-          {productBase && (
+          {subcategory && (
             <h1 className="text-2xl font-medium ml-2">
-              Variantes de {productBase.technicalName}
+              Produtos Base de {subcategory.name}
             </h1>
           )}
           
-          {!productBase && (
+          {!subcategory && (
             <h1 className="text-2xl font-medium ml-2">
-              Produtos
+              Todos os Produtos Base
             </h1>
           )}
         </div>
         
         <div className="flex justify-between items-center mb-6">
-          <div className="flex space-x-3">
-            <Button variant="outline" asChild>
-              <Link href="/package-types">
-                <Boxes className="h-4 w-4 mr-2" />
-                Tipos de Embalagem
-              </Link>
-            </Button>
-          </div>
+          <div></div>
           <Button onClick={handleAddNew}>
             <Plus className="h-4 w-4 mr-2" />
-            {baseProductId ? "Nova Variante" : "Novo Produto"}
+            Novo Produto Base
           </Button>
         </div>
         
         <Card className="mb-6">
           <CardHeader>
-            <CardTitle>Buscar Produtos</CardTitle>
+            <CardTitle>Buscar Produtos Base</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="relative">
@@ -146,43 +130,44 @@ export default function ProductsPage() {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>SKU</TableHead>
                       <TableHead>Nome Técnico</TableHead>
                       <TableHead>Nome Comercial</TableHead>
                       <TableHead>Código Interno</TableHead>
                       <TableHead>Unidade Padrão</TableHead>
-                      <TableHead>Características</TableHead>
+                      <TableHead>Variantes</TableHead>
                       <TableHead className="text-right">Ações</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {filteredProducts.length === 0 ? (
+                    {filteredProductBases.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={7} className="text-center py-8 text-gray-500">
-                          <Package className="h-12 w-12 mx-auto mb-2 text-gray-300" />
+                        <TableCell colSpan={6} className="text-center py-8 text-gray-500">
+                          <Database className="h-12 w-12 mx-auto mb-2 text-gray-300" />
                           {searchQuery 
-                            ? "Nenhum produto encontrado com os critérios de busca"
-                            : "Nenhum produto cadastrado ainda"}
+                            ? "Nenhum produto base encontrado com os critérios de busca"
+                            : "Nenhum produto base cadastrado ainda"}
                         </TableCell>
                       </TableRow>
                     ) : (
-                      filteredProducts.map((product) => (
-                        <TableRow key={product.id}>
-                          <TableCell>{product.sku || "-"}</TableCell>
-                          <TableCell>{product.technicalName}</TableCell>
-                          <TableCell>{product.commercialName || "-"}</TableCell>
-                          <TableCell>{product.internalCode || "-"}</TableCell>
-                          <TableCell>{product.defaultMeasureUnit}</TableCell>
+                      filteredProductBases.map((base) => (
+                        <TableRow key={base.id}>
+                          <TableCell>{base.technicalName}</TableCell>
+                          <TableCell>{base.commercialName || "-"}</TableCell>
+                          <TableCell>{base.internalCode || "-"}</TableCell>
+                          <TableCell>{base.defaultMeasureUnit}</TableCell>
                           <TableCell>
                             <Button variant="ghost" size="sm" asChild>
-                              <Link href={`/products/${product.id}`}>Ver Características</Link>
+                              <Link href={`/products?baseProductId=${base.id}`}>
+                                <Package className="h-4 w-4 mr-2" />
+                                Ver Variantes
+                              </Link>
                             </Button>
                           </TableCell>
                           <TableCell className="text-right">
                             <Button 
                               variant="ghost" 
                               size="icon" 
-                              onClick={() => handleEdit(product.id)}
+                              onClick={() => handleEdit(base.id)}
                             >
                               <Pencil className="h-4 w-4" />
                             </Button>
@@ -205,12 +190,12 @@ export default function ProductsPage() {
         <DialogContent className="max-w-3xl">
           <DialogHeader>
             <DialogTitle>
-              {selectedProductId ? "Editar Produto" : (baseProductId ? "Nova Variante" : "Novo Produto")}
+              {selectedProductBaseId ? "Editar Produto Base" : "Novo Produto Base"}
             </DialogTitle>
           </DialogHeader>
-          <ProductForm 
-            productId={selectedProductId}
-            defaultBaseProductId={baseProductId} 
+          <ProductBaseForm 
+            productBaseId={selectedProductBaseId}
+            defaultSubcategoryId={subcategoryId} 
             onSuccess={() => setIsDialogOpen(false)}
           />
         </DialogContent>

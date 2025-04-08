@@ -5,6 +5,9 @@ import AuthPage from "@/pages/auth-page";
 import HomePage from "@/pages/home-page";
 import ProductsPage from "@/pages/products-page";
 import ProductDetailPage from "@/pages/product-detail-page";
+import ProductCategoriesPage from "@/pages/product-categories-page";
+import ProductSubcategoriesPage from "@/pages/product-subcategories-page";
+import ProductBasePage from "@/pages/product-base-page";
 import PackageTypesPage from "@/pages/package-types-page";
 import SuppliersPage from "@/pages/suppliers-page";
 import ManufacturersPage from "@/pages/manufacturers-page";
@@ -27,8 +30,14 @@ function Router() {
       <ProtectedRoute path="/certificates" component={CertificatesPage} />
       <ProtectedRoute path="/issued-certificates" component={IssuedCertificatesPage} />
       <ProtectedRoute path="/issued-certificates/:id" component={IssuedCertificateDetailPage} />
+      
+      {/* Produtos - Hierarquia */}
+      <ProtectedRoute path="/product-categories" component={ProductCategoriesPage} />
+      <ProtectedRoute path="/product-subcategories" component={ProductSubcategoriesPage} />
+      <ProtectedRoute path="/product-base" component={ProductBasePage} />
       <ProtectedRoute path="/products" component={ProductsPage} />
       <ProtectedRoute path="/products/:id" component={ProductDetailPage} />
+      
       <ProtectedRoute path="/package-types" component={PackageTypesPage} />
       <ProtectedRoute path="/suppliers" component={SuppliersPage} />
       <ProtectedRoute path="/manufacturers" component={ManufacturersPage} />

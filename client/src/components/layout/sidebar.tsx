@@ -9,7 +9,9 @@ import {
   ClipboardList, 
   Settings, 
   LogOut,
-  Home
+  Home,
+  FolderTree,
+  LayoutList
 } from "lucide-react";
 import { Link, useLocation } from "wouter";
 
@@ -38,6 +40,13 @@ export function Sidebar() {
   const [location] = useLocation();
   const { user, logoutMutation } = useAuth();
 
+  const isProductSection = 
+    location === "/products" || 
+    location === "/product-categories" || 
+    location === "/product-subcategories" || 
+    location === "/product-base" || 
+    location.startsWith("/products/");
+
   const handleLogout = () => {
     logoutMutation.mutate();
   };
@@ -64,21 +73,61 @@ export function Sidebar() {
           Boletins Emitidos
         </SidebarItem>
         
-        <SidebarItem href="/products" icon={Package} active={location === "/products"}>
-          Produtos
-        </SidebarItem>
+        <div className="py-2">
+          <div className="px-3 py-1 text-xs font-semibold text-gray-400 uppercase tracking-wider">
+            Produtos
+          </div>
+          
+          <SidebarItem 
+            href="/product-categories" 
+            icon={FolderTree} 
+            active={location === "/product-categories"}
+          >
+            Categorias
+          </SidebarItem>
+          
+          <SidebarItem 
+            href="/product-subcategories" 
+            icon={LayoutList} 
+            active={location === "/product-subcategories"}
+          >
+            Subcategorias
+          </SidebarItem>
+          
+          <SidebarItem 
+            href="/product-base" 
+            icon={Package} 
+            active={location === "/product-base"}
+          >
+            Produtos Base
+          </SidebarItem>
+          
+          <SidebarItem 
+            href="/products" 
+            icon={Package} 
+            active={location === "/products" || location.startsWith("/products/")}
+          >
+            Variantes de Produtos
+          </SidebarItem>
+        </div>
         
-        <SidebarItem href="/suppliers" icon={Building2} active={location === "/suppliers"}>
-          Fornecedores
-        </SidebarItem>
-        
-        <SidebarItem href="/manufacturers" icon={Factory} active={location === "/manufacturers"}>
-          Fabricantes
-        </SidebarItem>
-        
-        <SidebarItem href="/clients" icon={Users} active={location === "/clients"}>
-          Clientes
-        </SidebarItem>
+        <div className="py-2">
+          <div className="px-3 py-1 text-xs font-semibold text-gray-400 uppercase tracking-wider">
+            Parceiros
+          </div>
+          
+          <SidebarItem href="/suppliers" icon={Building2} active={location === "/suppliers"}>
+            Fornecedores
+          </SidebarItem>
+          
+          <SidebarItem href="/manufacturers" icon={Factory} active={location === "/manufacturers"}>
+            Fabricantes
+          </SidebarItem>
+          
+          <SidebarItem href="/clients" icon={Users} active={location === "/clients"}>
+            Clientes
+          </SidebarItem>
+        </div>
         
         <SidebarItem href="/traceability" icon={ClipboardList} active={location === "/traceability"}>
           Rastreabilidade
