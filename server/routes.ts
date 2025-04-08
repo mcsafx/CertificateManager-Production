@@ -8,7 +8,9 @@ import {
   insertSupplierSchema, insertManufacturerSchema, 
   insertClientSchema, insertEntryCertificateSchema,
   insertEntryCertificateResultSchema, insertIssuedCertificateSchema,
-  insertTenantSchema, insertPackageTypeSchema
+  insertTenantSchema, insertPackageTypeSchema,
+  insertProductCategorySchema, insertProductSubcategorySchema,
+  insertProductBaseSchema, insertProductFileSchema
 } from "@shared/schema";
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -175,11 +177,326 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Products routes
+  // Product Categories routes
+  app.get("/api/product-categories", isAuthenticated, async (req, res, next) => {
+    try {
+      const user = req.user!;
+      const categories = await storage.getProductCategoriesByTenant(user.tenantId);
+      res.json(categories);
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  app.post("/api/product-categories", isAuthenticated, async (req, res, next) => {
+    try {
+      const user = req.user!;
+      const parsedBody = insertProductCategorySchema.parse({
+        ...req.body,
+        tenantId: user.tenantId
+      });
+      
+      const category = await storage.createProductCategory(parsedBody);
+      res.status(201).json(category);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: error.errors });
+      }
+      next(error);
+    }
+  });
+
+  app.get("/api/product-categories/:id", isAuthenticated, async (req, res, next) => {
+    try {
+      const user = req.user!;
+      const category = await storage.getProductCategory(
+        Number(req.params.id), 
+        user.tenantId
+      );
+      
+      if (!category) {
+        return res.status(404).json({ message: "Category not found" });
+      }
+      
+      res.json(category);
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  app.patch("/api/product-categories/:id", isAuthenticated, async (req, res, next) => {
+    try {
+      const user = req.user!;
+      const category = await storage.updateProductCategory(
+        Number(req.params.id), 
+        user.tenantId, 
+        req.body
+      );
+      
+      if (!category) {
+        return res.status(404).json({ message: "Category not found" });
+      }
+      
+      res.json(category);
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  app.delete("/api/product-categories/:id", isAuthenticated, async (req, res, next) => {
+    try {
+      const user = req.user!;
+      const success = await storage.deleteProductCategory(Number(req.params.id), user.tenantId);
+      
+      if (!success) {
+        return res.status(404).json({ message: "Category not found" });
+      }
+      
+      res.status(204).end();
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // Product Subcategories routes
+  app.get("/api/product-subcategories", isAuthenticated, async (req, res, next) => {
+    try {
+      const user = req.user!;
+      const categoryId = req.query.categoryId ? Number(req.query.categoryId) : undefined;
+      
+      let subcategories;
+      if (categoryId) {
+        subcategories = await storage.getProductSubcategoriesByCategory(categoryId, user.tenantId);
+      } else {
+        subcategories = await storage.getProductSubcategoriesByTenant(user.tenantId);
+      }
+      
+      res.json(subcategories);
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  app.post("/api/product-subcategories", isAuthenticated, async (req, res, next) => {
+    try {
+      const user = req.user!;
+      const parsedBody = insertProductSubcategorySchema.parse({
+        ...req.body,
+        tenantId: user.tenantId
+      });
+      
+      const subcategory = await storage.createProductSubcategory(parsedBody);
+      res.status(201).json(subcategory);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: error.errors });
+      }
+      next(error);
+    }
+  });
+
+  app.get("/api/product-subcategories/:id", isAuthenticated, async (req, res, next) => {
+    try {
+      const user = req.user!;
+      const subcategory = await storage.getProductSubcategory(
+        Number(req.params.id), 
+        user.tenantId
+      );
+      
+      if (!subcategory) {
+        return res.status(404).json({ message: "Subcategory not found" });
+      }
+      
+      res.json(subcategory);
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  app.patch("/api/product-subcategories/:id", isAuthenticated, async (req, res, next) => {
+    try {
+      const user = req.user!;
+      const subcategory = await storage.updateProductSubcategory(
+        Number(req.params.id), 
+        user.tenantId, 
+        req.body
+      );
+      
+      if (!subcategory) {
+        return res.status(404).json({ message: "Subcategory not found" });
+      }
+      
+      res.json(subcategory);
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  app.delete("/api/product-subcategories/:id", isAuthenticated, async (req, res, next) => {
+    try {
+      const user = req.user!;
+      const success = await storage.deleteProductSubcategory(Number(req.params.id), user.tenantId);
+      
+      if (!success) {
+        return res.status(404).json({ message: "Subcategory not found" });
+      }
+      
+      res.status(204).end();
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // Product Base routes
+  app.get("/api/product-base", isAuthenticated, async (req, res, next) => {
+    try {
+      const user = req.user!;
+      const subcategoryId = req.query.subcategoryId ? Number(req.query.subcategoryId) : undefined;
+      
+      let productBases;
+      if (subcategoryId) {
+        productBases = await storage.getProductBasesBySubcategory(subcategoryId, user.tenantId);
+      } else {
+        productBases = await storage.getProductBasesByTenant(user.tenantId);
+      }
+      
+      res.json(productBases);
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  app.post("/api/product-base", isAuthenticated, async (req, res, next) => {
+    try {
+      const user = req.user!;
+      const parsedBody = insertProductBaseSchema.parse({
+        ...req.body,
+        tenantId: user.tenantId
+      });
+      
+      const productBase = await storage.createProductBase(parsedBody);
+      res.status(201).json(productBase);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: error.errors });
+      }
+      next(error);
+    }
+  });
+
+  app.get("/api/product-base/:id", isAuthenticated, async (req, res, next) => {
+    try {
+      const user = req.user!;
+      const productBase = await storage.getProductBase(
+        Number(req.params.id), 
+        user.tenantId
+      );
+      
+      if (!productBase) {
+        return res.status(404).json({ message: "Product base not found" });
+      }
+      
+      res.json(productBase);
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  app.patch("/api/product-base/:id", isAuthenticated, async (req, res, next) => {
+    try {
+      const user = req.user!;
+      const productBase = await storage.updateProductBase(
+        Number(req.params.id), 
+        user.tenantId, 
+        req.body
+      );
+      
+      if (!productBase) {
+        return res.status(404).json({ message: "Product base not found" });
+      }
+      
+      res.json(productBase);
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  app.delete("/api/product-base/:id", isAuthenticated, async (req, res, next) => {
+    try {
+      const user = req.user!;
+      const success = await storage.deleteProductBase(Number(req.params.id), user.tenantId);
+      
+      if (!success) {
+        return res.status(404).json({ message: "Product base not found" });
+      }
+      
+      res.status(204).end();
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // Product Files routes
+  app.post("/api/product-files", isAuthenticated, async (req, res, next) => {
+    try {
+      const user = req.user!;
+      const parsedBody = insertProductFileSchema.parse({
+        ...req.body,
+        tenantId: user.tenantId
+      });
+      
+      const productFile = await storage.createProductFile(parsedBody);
+      res.status(201).json(productFile);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: error.errors });
+      }
+      next(error);
+    }
+  });
+
+  app.get("/api/products/:productId/files", isAuthenticated, async (req, res, next) => {
+    try {
+      const user = req.user!;
+      const files = await storage.getProductFilesByProduct(
+        Number(req.params.productId), 
+        user.tenantId
+      );
+      
+      res.json(files);
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  app.delete("/api/product-files/:id", isAuthenticated, async (req, res, next) => {
+    try {
+      const user = req.user!;
+      const success = await storage.deleteProductFile(Number(req.params.id), user.tenantId);
+      
+      if (!success) {
+        return res.status(404).json({ message: "Product file not found" });
+      }
+      
+      res.status(204).end();
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // Products routes (modificado para variantes de produtos)
   app.get("/api/products", isAuthenticated, async (req, res, next) => {
     try {
       const user = req.user!;
-      const products = await storage.getProductsByTenant(user.tenantId);
+      const baseProductId = req.query.baseProductId ? Number(req.query.baseProductId) : undefined;
+      
+      let products;
+      if (baseProductId) {
+        products = await storage.getProductsByBase(baseProductId, user.tenantId);
+      } else {
+        products = await storage.getProductsByTenant(user.tenantId);
+      }
+      
       res.json(products);
     } catch (error) {
       next(error);
