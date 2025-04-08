@@ -20,15 +20,72 @@ export const tenants = pgTable("tenants", {
   address: text("address").notNull(),
   logoUrl: text("logo_url"),
   active: boolean("active").notNull().default(true),
+  // Campos relacionados aos planos de assinatura
+  plan: text("plan", { enum: ["A", "B", "C"] }).notNull().default("A"),
+  storageLimit: integer("storage_limit").notNull().default(5), // Em GB (5GB para plano A por padrão)
+  storageUsed: integer("storage_used").notNull().default(0), // Em MB
+  planStartDate: date("plan_start_date"),
+  planEndDate: date("plan_end_date"),
 });
 
-// Products
+// Categories and Subcategories
+export const productCategories = pgTable("product_categories", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  description: text("description"),
+  tenantId: integer("tenant_id").notNull(),
+  active: boolean("active").notNull().default(true),
+});
+
+export const productSubcategories = pgTable("product_subcategories", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  description: text("description"),
+  categoryId: integer("category_id").notNull(), // Referência à categoria pai
+  tenantId: integer("tenant_id").notNull(),
+  active: boolean("active").notNull().default(true),
+});
+
+// Products Base and Variants
+export const productBase = pgTable("product_base", {
+  id: serial("id").primaryKey(),
+  technicalName: text("technical_name").notNull(),
+  commercialName: text("commercial_name"),
+  description: text("description"),
+  subcategoryId: integer("subcategory_id").notNull(), // Referência à subcategoria
+  internalCode: text("internal_code"),
+  defaultMeasureUnit: text("default_measure_unit").notNull(),
+  tenantId: integer("tenant_id").notNull(),
+  active: boolean("active").notNull().default(true),
+});
+
+// Produto variante (antigo "products")
 export const products = pgTable("products", {
   id: serial("id").primaryKey(),
+  baseProductId: integer("base_product_id").notNull(), // Referência ao produto base
+  sku: text("sku"), // Código único para esta variante específica
   technicalName: text("technical_name").notNull(),
   commercialName: text("commercial_name"),
   internalCode: text("internal_code"),
   defaultMeasureUnit: text("default_measure_unit").notNull(),
+  conversionFactor: numeric("conversion_factor"), // Fator de conversão para esta variante
+  netWeight: numeric("net_weight"), // Peso líquido
+  grossWeight: numeric("gross_weight"), // Peso bruto
+  specifications: jsonb("specifications"), // Especificações adicionais em formato JSON
+  tenantId: integer("tenant_id").notNull(),
+  active: boolean("active").notNull().default(true),
+});
+
+// Product Files - Arquivos anexados aos produtos
+export const productFiles = pgTable("product_files", {
+  id: serial("id").primaryKey(),
+  productId: integer("product_id").notNull(),
+  fileName: text("file_name").notNull(),
+  fileUrl: text("file_url").notNull(),
+  fileSize: integer("file_size").notNull(), // tamanho em KB
+  fileType: text("file_type").notNull(), // MIME type
+  uploadedAt: timestamp("uploaded_at").notNull().defaultNow(),
+  description: text("description"),
   tenantId: integer("tenant_id").notNull(),
 });
 
@@ -134,13 +191,68 @@ export const insertTenantSchema = createInsertSchema(tenants).pick({
   address: true,
   logoUrl: true,
   active: true,
+  plan: true,
+  storageLimit: true,
+  storageUsed: true,
+  planStartDate: true,
+  planEndDate: true,
+});
+
+// Novos schemas para inserção
+export const insertProductCategorySchema = createInsertSchema(productCategories).pick({
+  name: true,
+  description: true,
+  tenantId: true,
+  active: true,
+});
+
+export const insertProductSubcategorySchema = createInsertSchema(productSubcategories).pick({
+  name: true,
+  description: true,
+  categoryId: true,
+  tenantId: true,
+  active: true,
+});
+
+export const insertProductBaseSchema = createInsertSchema(productBase).pick({
+  technicalName: true,
+  commercialName: true,
+  description: true,
+  subcategoryId: true,
+  internalCode: true,
+  defaultMeasureUnit: true,
+  tenantId: true,
+  active: true,
 });
 
 export const insertProductSchema = createInsertSchema(products).pick({
+  baseProductId: true,
+  sku: true,
   technicalName: true,
   commercialName: true,
   internalCode: true,
   defaultMeasureUnit: true,
+  conversionFactor: true,
+  netWeight: true,
+  grossWeight: true,
+  specifications: true,
+  tenantId: true,
+  active: true,
+}).extend({
+  // Aceita tanto string quanto número para campos numéricos
+  conversionFactor: z.union([z.string(), z.number(), z.null()]).optional(),
+  netWeight: z.union([z.string(), z.number(), z.null()]).optional(),
+  grossWeight: z.union([z.string(), z.number(), z.null()]).optional(),
+  specifications: z.any().optional(),
+});
+
+export const insertProductFileSchema = createInsertSchema(productFiles).pick({
+  productId: true,
+  fileName: true,
+  fileUrl: true,
+  fileSize: true,
+  fileType: true,
+  description: true,
   tenantId: true,
 });
 
@@ -263,8 +375,19 @@ export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
 export type Tenant = typeof tenants.$inferSelect;
 export type InsertTenant = z.infer<typeof insertTenantSchema>;
+
+// Novas exportações de tipos para a estrutura hierárquica de produtos
+export type ProductCategory = typeof productCategories.$inferSelect;
+export type InsertProductCategory = z.infer<typeof insertProductCategorySchema>;
+export type ProductSubcategory = typeof productSubcategories.$inferSelect;
+export type InsertProductSubcategory = z.infer<typeof insertProductSubcategorySchema>;
+export type ProductBase = typeof productBase.$inferSelect;
+export type InsertProductBase = z.infer<typeof insertProductBaseSchema>;
 export type Product = typeof products.$inferSelect;
 export type InsertProduct = z.infer<typeof insertProductSchema>;
+export type ProductFile = typeof productFiles.$inferSelect;
+export type InsertProductFile = z.infer<typeof insertProductFileSchema>;
+
 export type ProductCharacteristic = typeof productCharacteristics.$inferSelect;
 export type InsertProductCharacteristic = z.infer<typeof insertProductCharacteristicSchema>;
 export type Supplier = typeof suppliers.$inferSelect;
