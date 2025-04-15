@@ -526,7 +526,7 @@ export class MemStorage implements IStorage {
   
   async getProductBaseFilesByCategory(baseProductId: number, category: string, tenantId: number): Promise<ProductBaseFile[]> {
     return Array.from(this.productBaseFiles.values()).filter(
-      (file) => file.baseProductId === baseProductId && file.category === category && file.tenantId === tenantId
+      (file) => file.baseProductId === baseProductId && file.fileCategory === category && file.tenantId === tenantId
     );
   }
 
