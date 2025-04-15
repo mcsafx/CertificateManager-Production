@@ -63,11 +63,18 @@ export interface IStorage {
   getProductsByTenant(tenantId: number): Promise<Product[]>;
   deleteProduct(id: number, tenantId: number): Promise<boolean>;
   
-  // Product Files
+  // Product Files (para variantes)
   getProductFile(id: number, tenantId: number): Promise<ProductFile | undefined>;
   createProductFile(file: InsertProductFile): Promise<ProductFile>;
   getProductFilesByProduct(productId: number, tenantId: number): Promise<ProductFile[]>;
   deleteProductFile(id: number, tenantId: number): Promise<boolean>;
+  
+  // Product Base Files (para FISPQ e fichas técnicas)
+  getProductBaseFile(id: number, tenantId: number): Promise<ProductBaseFile | undefined>;
+  createProductBaseFile(file: InsertProductBaseFile): Promise<ProductBaseFile>;
+  getProductBaseFilesByBaseProduct(baseProductId: number, tenantId: number): Promise<ProductBaseFile[]>;
+  getProductBaseFilesByCategory(baseProductId: number, category: string, tenantId: number): Promise<ProductBaseFile[]>;
+  deleteProductBaseFile(id: number, tenantId: number): Promise<boolean>;
 
   // Product Characteristics
   getProductCharacteristic(id: number, tenantId: number): Promise<ProductCharacteristic | undefined>;
@@ -138,6 +145,7 @@ export class MemStorage implements IStorage {
   private productBases: Map<number, ProductBase>;
   private products: Map<number, Product>;
   private productFiles: Map<number, ProductFile>;
+  private productBaseFiles: Map<number, ProductBaseFile>;
   
   private productCharacteristics: Map<number, ProductCharacteristic>;
   private suppliers: Map<number, Supplier>;

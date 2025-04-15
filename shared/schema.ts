@@ -55,6 +55,13 @@ export const productBase = pgTable("product_base", {
   subcategoryId: integer("subcategory_id").notNull(), // Referência à subcategoria
   internalCode: text("internal_code"),
   defaultMeasureUnit: text("default_measure_unit").notNull(),
+  
+  // Informações de classificação e segurança
+  riskClass: text("risk_class"), // Classe ou Subclasse de Risco
+  riskNumber: text("risk_number"), // Número do Risco
+  unNumber: text("un_number"), // Número ONU
+  packagingGroup: text("packaging_group"), // Grupo de Embalagem
+  
   tenantId: integer("tenant_id").notNull(),
   active: boolean("active").notNull().default(true),
 });
@@ -76,7 +83,7 @@ export const products = pgTable("products", {
   active: boolean("active").notNull().default(true),
 });
 
-// Product Files - Arquivos anexados aos produtos
+// Product Files - Arquivos anexados aos produtos (variantes)
 export const productFiles = pgTable("product_files", {
   id: serial("id").primaryKey(),
   productId: integer("product_id").notNull(),
@@ -84,6 +91,20 @@ export const productFiles = pgTable("product_files", {
   fileUrl: text("file_url").notNull(),
   fileSize: integer("file_size").notNull(), // tamanho em KB
   fileType: text("file_type").notNull(), // MIME type
+  uploadedAt: timestamp("uploaded_at").notNull().defaultNow(),
+  description: text("description"),
+  tenantId: integer("tenant_id").notNull(),
+});
+
+// Product Base Files - Arquivos anexados aos produtos base (como FISPQ/SDS e Fichas Técnicas)
+export const productBaseFiles = pgTable("product_base_files", {
+  id: serial("id").primaryKey(),
+  baseProductId: integer("base_product_id").notNull(),
+  fileName: text("file_name").notNull(),
+  fileUrl: text("file_url").notNull(),
+  fileSize: integer("file_size").notNull(), // tamanho em KB
+  fileType: text("file_type").notNull(), // MIME type
+  fileCategory: text("file_category").notNull(), // Ex: "fispq", "technical_sheet"
   uploadedAt: timestamp("uploaded_at").notNull().defaultNow(),
   description: text("description"),
   tenantId: integer("tenant_id").notNull(),
@@ -221,6 +242,10 @@ export const insertProductBaseSchema = createInsertSchema(productBase).pick({
   subcategoryId: true,
   internalCode: true,
   defaultMeasureUnit: true,
+  riskClass: true,
+  riskNumber: true,
+  unNumber: true,
+  packagingGroup: true,
   tenantId: true,
   active: true,
 });
@@ -252,6 +277,17 @@ export const insertProductFileSchema = createInsertSchema(productFiles).pick({
   fileUrl: true,
   fileSize: true,
   fileType: true,
+  description: true,
+  tenantId: true,
+});
+
+export const insertProductBaseFileSchema = createInsertSchema(productBaseFiles).pick({
+  baseProductId: true,
+  fileName: true,
+  fileUrl: true,
+  fileSize: true,
+  fileType: true,
+  fileCategory: true,
   description: true,
   tenantId: true,
 });
@@ -387,6 +423,8 @@ export type Product = typeof products.$inferSelect;
 export type InsertProduct = z.infer<typeof insertProductSchema>;
 export type ProductFile = typeof productFiles.$inferSelect;
 export type InsertProductFile = z.infer<typeof insertProductFileSchema>;
+export type ProductBaseFile = typeof productBaseFiles.$inferSelect;
+export type InsertProductBaseFile = z.infer<typeof insertProductBaseFileSchema>;
 
 export type ProductCharacteristic = typeof productCharacteristics.$inferSelect;
 export type InsertProductCharacteristic = z.infer<typeof insertProductCharacteristicSchema>;
