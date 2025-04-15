@@ -456,53 +456,7 @@ export function ProductBaseForm({ productBaseId, defaultSubcategoryId, onSuccess
                             <span className="font-medium">{file.fileName}</span>
                             <p className="text-sm text-muted-foreground">{file.description}</p>
                           </div>
-                          <div className="flex gap-2">
-                            <Button 
-                              variant="outline" 
-                              size="sm"
-                              onClick={() => {
-                                // Em um ambiente real, isso abriria o documento em uma nova aba
-                                window.open(file.fileUrl, '_blank');
-                              }}
-                            >
-                              Visualizar
-                            </Button>
-                            <Button 
-                              variant="outline" 
-                              size="sm"
-                              onClick={() => {
-                                // Em um ambiente real, isso faria o download do arquivo
-                                const link = document.createElement('a');
-                                link.href = file.fileUrl;
-                                link.download = file.fileName;
-                                document.body.appendChild(link);
-                                link.click();
-                                document.body.removeChild(link);
-                              }}
-                            >
-                              Baixar
-                            </Button>
-                            <Button 
-                              variant="destructive" 
-                              size="sm"
-                              onClick={async () => {
-                                try {
-                                  await apiRequest("DELETE", `/api/product-base-files/${file.id}`);
-                                  toast({ title: "Arquivo removido com sucesso" });
-                                  queryClient.invalidateQueries({ 
-                                    queryKey: [`/api/product-base/${productBaseId}/files`] 
-                                  });
-                                } catch (error) {
-                                  toast({ 
-                                    title: "Erro ao remover arquivo", 
-                                    variant: "destructive" 
-                                  });
-                                }
-                              }}
-                            >
-                              Remover
-                            </Button>
-                          </div>
+                          <ProductBaseFileButtons file={file} />
                         </div>
                       ))}
                     {productBaseFiles.filter(file => file.fileCategory === 'fispq').length === 0 && (
@@ -588,53 +542,7 @@ export function ProductBaseForm({ productBaseId, defaultSubcategoryId, onSuccess
                             <span className="font-medium">{file.fileName}</span>
                             <p className="text-sm text-muted-foreground">{file.description}</p>
                           </div>
-                          <div className="flex gap-2">
-                            <Button 
-                              variant="outline" 
-                              size="sm"
-                              onClick={() => {
-                                // Em um ambiente real, isso abriria o documento em uma nova aba
-                                window.open(file.fileUrl, '_blank');
-                              }}
-                            >
-                              Visualizar
-                            </Button>
-                            <Button 
-                              variant="outline" 
-                              size="sm"
-                              onClick={() => {
-                                // Em um ambiente real, isso faria o download do arquivo
-                                const link = document.createElement('a');
-                                link.href = file.fileUrl;
-                                link.download = file.fileName;
-                                document.body.appendChild(link);
-                                link.click();
-                                document.body.removeChild(link);
-                              }}
-                            >
-                              Baixar
-                            </Button>
-                            <Button 
-                              variant="destructive" 
-                              size="sm"
-                              onClick={async () => {
-                                try {
-                                  await apiRequest("DELETE", `/api/product-base-files/${file.id}`);
-                                  toast({ title: "Arquivo removido com sucesso" });
-                                  queryClient.invalidateQueries({ 
-                                    queryKey: [`/api/product-base/${productBaseId}/files`] 
-                                  });
-                                } catch (error) {
-                                  toast({ 
-                                    title: "Erro ao remover arquivo", 
-                                    variant: "destructive" 
-                                  });
-                                }
-                              }}
-                            >
-                              Remover
-                            </Button>
-                          </div>
+                          <ProductBaseFileButtons file={file} />
                         </div>
                       ))}
                     {productBaseFiles.filter(file => file.fileCategory === 'technical_sheet').length === 0 && (
