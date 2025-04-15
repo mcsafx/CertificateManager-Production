@@ -13,10 +13,11 @@ import {
 } from "@shared/schema";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useState, useEffect } from "react";
-import { Loader2, AlertTriangle } from "lucide-react";
+import { Loader2, AlertTriangle, Eye, Download, Trash2 } from "lucide-react";
 import { Card, CardContent, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
+import { ProductBaseFileButtons } from "./product-base-file-buttons";
 
 interface ProductBaseFormProps {
   productBaseId: number | null;
@@ -455,26 +456,53 @@ export function ProductBaseForm({ productBaseId, defaultSubcategoryId, onSuccess
                             <span className="font-medium">{file.fileName}</span>
                             <p className="text-sm text-muted-foreground">{file.description}</p>
                           </div>
-                          <Button 
-                            variant="destructive" 
-                            size="sm"
-                            onClick={async () => {
-                              try {
-                                await apiRequest("DELETE", `/api/product-base-files/${file.id}`);
-                                toast({ title: "Arquivo removido com sucesso" });
-                                queryClient.invalidateQueries({ 
-                                  queryKey: [`/api/product-base/${productBaseId}/files`] 
-                                });
-                              } catch (error) {
-                                toast({ 
-                                  title: "Erro ao remover arquivo", 
-                                  variant: "destructive" 
-                                });
-                              }
-                            }}
-                          >
-                            Remover
-                          </Button>
+                          <div className="flex gap-2">
+                            <Button 
+                              variant="outline" 
+                              size="sm"
+                              onClick={() => {
+                                // Em um ambiente real, isso abriria o documento em uma nova aba
+                                window.open(file.fileUrl, '_blank');
+                              }}
+                            >
+                              Visualizar
+                            </Button>
+                            <Button 
+                              variant="outline" 
+                              size="sm"
+                              onClick={() => {
+                                // Em um ambiente real, isso faria o download do arquivo
+                                const link = document.createElement('a');
+                                link.href = file.fileUrl;
+                                link.download = file.fileName;
+                                document.body.appendChild(link);
+                                link.click();
+                                document.body.removeChild(link);
+                              }}
+                            >
+                              Baixar
+                            </Button>
+                            <Button 
+                              variant="destructive" 
+                              size="sm"
+                              onClick={async () => {
+                                try {
+                                  await apiRequest("DELETE", `/api/product-base-files/${file.id}`);
+                                  toast({ title: "Arquivo removido com sucesso" });
+                                  queryClient.invalidateQueries({ 
+                                    queryKey: [`/api/product-base/${productBaseId}/files`] 
+                                  });
+                                } catch (error) {
+                                  toast({ 
+                                    title: "Erro ao remover arquivo", 
+                                    variant: "destructive" 
+                                  });
+                                }
+                              }}
+                            >
+                              Remover
+                            </Button>
+                          </div>
                         </div>
                       ))}
                     {productBaseFiles.filter(file => file.fileCategory === 'fispq').length === 0 && (
@@ -560,26 +588,53 @@ export function ProductBaseForm({ productBaseId, defaultSubcategoryId, onSuccess
                             <span className="font-medium">{file.fileName}</span>
                             <p className="text-sm text-muted-foreground">{file.description}</p>
                           </div>
-                          <Button 
-                            variant="destructive" 
-                            size="sm"
-                            onClick={async () => {
-                              try {
-                                await apiRequest("DELETE", `/api/product-base-files/${file.id}`);
-                                toast({ title: "Arquivo removido com sucesso" });
-                                queryClient.invalidateQueries({ 
-                                  queryKey: [`/api/product-base/${productBaseId}/files`] 
-                                });
-                              } catch (error) {
-                                toast({ 
-                                  title: "Erro ao remover arquivo", 
-                                  variant: "destructive" 
-                                });
-                              }
-                            }}
-                          >
-                            Remover
-                          </Button>
+                          <div className="flex gap-2">
+                            <Button 
+                              variant="outline" 
+                              size="sm"
+                              onClick={() => {
+                                // Em um ambiente real, isso abriria o documento em uma nova aba
+                                window.open(file.fileUrl, '_blank');
+                              }}
+                            >
+                              Visualizar
+                            </Button>
+                            <Button 
+                              variant="outline" 
+                              size="sm"
+                              onClick={() => {
+                                // Em um ambiente real, isso faria o download do arquivo
+                                const link = document.createElement('a');
+                                link.href = file.fileUrl;
+                                link.download = file.fileName;
+                                document.body.appendChild(link);
+                                link.click();
+                                document.body.removeChild(link);
+                              }}
+                            >
+                              Baixar
+                            </Button>
+                            <Button 
+                              variant="destructive" 
+                              size="sm"
+                              onClick={async () => {
+                                try {
+                                  await apiRequest("DELETE", `/api/product-base-files/${file.id}`);
+                                  toast({ title: "Arquivo removido com sucesso" });
+                                  queryClient.invalidateQueries({ 
+                                    queryKey: [`/api/product-base/${productBaseId}/files`] 
+                                  });
+                                } catch (error) {
+                                  toast({ 
+                                    title: "Erro ao remover arquivo", 
+                                    variant: "destructive" 
+                                  });
+                                }
+                              }}
+                            >
+                              Remover
+                            </Button>
+                          </div>
                         </div>
                       ))}
                     {productBaseFiles.filter(file => file.fileCategory === 'technical_sheet').length === 0 && (
