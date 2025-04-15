@@ -10,7 +10,7 @@ import {
   insertEntryCertificateResultSchema, insertIssuedCertificateSchema,
   insertTenantSchema, insertPackageTypeSchema,
   insertProductCategorySchema, insertProductSubcategorySchema,
-  insertProductBaseSchema, insertProductFileSchema
+  insertProductBaseSchema, insertProductFileSchema, insertProductBaseFileSchema
 } from "@shared/schema";
 
 export async function registerRoutes(app: Express): Promise<Server> {

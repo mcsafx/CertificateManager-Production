@@ -4,6 +4,7 @@ import { User, InsertUser, Tenant, InsertTenant,
          ProductBase, InsertProductBase,
          Product, InsertProduct, 
          ProductFile, InsertProductFile,
+         ProductBaseFile, InsertProductBaseFile,
          ProductCharacteristic, InsertProductCharacteristic, 
          Supplier, InsertSupplier, Manufacturer, InsertManufacturer, 
          Client, InsertClient, EntryCertificate, InsertEntryCertificate, 
@@ -163,6 +164,7 @@ export class MemStorage implements IStorage {
   private productBaseIdCounter: number;
   private productIdCounter: number;
   private productFileIdCounter: number;
+  private productBaseFileIdCounter: number;
   private characteristicIdCounter: number;
   private supplierIdCounter: number;
   private manufacturerIdCounter: number;
@@ -184,6 +186,7 @@ export class MemStorage implements IStorage {
     this.productBases = new Map();
     this.products = new Map();
     this.productFiles = new Map();
+    this.productBaseFiles = new Map();
     
     this.productCharacteristics = new Map();
     this.suppliers = new Map();
@@ -201,6 +204,7 @@ export class MemStorage implements IStorage {
     this.productBaseIdCounter = 1;
     this.productIdCounter = 1;
     this.productFileIdCounter = 1;
+    this.productBaseFileIdCounter = 1;
     this.characteristicIdCounter = 1;
     this.supplierIdCounter = 1;
     this.manufacturerIdCounter = 1;
@@ -423,7 +427,11 @@ export class MemStorage implements IStorage {
       active: productBase.active ?? true,
       description: productBase.description ?? null,
       commercialName: productBase.commercialName ?? null,
-      internalCode: productBase.internalCode ?? null
+      internalCode: productBase.internalCode ?? null,
+      riskClass: productBase.riskClass ?? null,
+      riskNumber: productBase.riskNumber ?? null,
+      unNumber: productBase.unNumber ?? null,
+      packagingGroup: productBase.packagingGroup ?? null
     };
     this.productBases.set(id, newProductBase);
     return newProductBase;
@@ -487,6 +495,45 @@ export class MemStorage implements IStorage {
     const file = await this.getProductFile(id, tenantId);
     if (!file) return false;
     return this.productFiles.delete(id);
+  }
+  
+  // Product Base File methods
+  async getProductBaseFile(id: number, tenantId: number): Promise<ProductBaseFile | undefined> {
+    const file = this.productBaseFiles.get(id);
+    if (file && file.tenantId === tenantId) {
+      return file;
+    }
+    return undefined;
+  }
+
+  async createProductBaseFile(file: InsertProductBaseFile): Promise<ProductBaseFile> {
+    const id = this.productBaseFileIdCounter++;
+    const newFile: ProductBaseFile = { 
+      ...file, 
+      id,
+      description: file.description ?? null,
+      uploadedAt: new Date()
+    };
+    this.productBaseFiles.set(id, newFile);
+    return newFile;
+  }
+
+  async getProductBaseFilesByBaseProduct(baseProductId: number, tenantId: number): Promise<ProductBaseFile[]> {
+    return Array.from(this.productBaseFiles.values()).filter(
+      (file) => file.baseProductId === baseProductId && file.tenantId === tenantId
+    );
+  }
+  
+  async getProductBaseFilesByCategory(baseProductId: number, category: string, tenantId: number): Promise<ProductBaseFile[]> {
+    return Array.from(this.productBaseFiles.values()).filter(
+      (file) => file.baseProductId === baseProductId && file.category === category && file.tenantId === tenantId
+    );
+  }
+
+  async deleteProductBaseFile(id: number, tenantId: number): Promise<boolean> {
+    const file = await this.getProductBaseFile(id, tenantId);
+    if (!file) return false;
+    return this.productBaseFiles.delete(id);
   }
 
   // Product Variant methods (antigo Product methods)
