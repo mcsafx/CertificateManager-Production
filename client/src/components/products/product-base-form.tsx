@@ -5,10 +5,18 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { insertProductBaseSchema, ProductSubcategory, ProductBase } from "@shared/schema";
+import { 
+  insertProductBaseSchema, 
+  ProductSubcategory, 
+  ProductBase,
+  ProductBaseFile 
+} from "@shared/schema";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useState, useEffect } from "react";
-import { Loader2 } from "lucide-react";
+import { Loader2, AlertTriangle } from "lucide-react";
+import { Card, CardContent, CardTitle } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Badge } from "@/components/ui/badge";
 
 interface ProductBaseFormProps {
   productBaseId: number | null;
@@ -25,6 +33,27 @@ export function ProductBaseForm({ productBaseId, defaultSubcategoryId, onSuccess
     internalCode: "",
     defaultMeasureUnit: "",
     subcategoryId: defaultSubcategoryId ? defaultSubcategoryId.toString() : "",
+    // Novos campos para classificação de risco
+    riskClass: "",
+    riskNumber: "",
+    unNumber: "",
+    packagingGroup: "",
+  });
+  
+  // Estado para uploads de arquivos
+  const [fileUploads, setFileUploads] = useState({
+    fispq: null as File | null,
+    technicalSheet: null as File | null,
+    certificate: null as File | null,
+    other: null as File | null,
+  });
+  
+  // Estado para descrições de arquivos
+  const [fileDescriptions, setFileDescriptions] = useState({
+    fispq: "",
+    technicalSheet: "",
+    certificate: "",
+    other: "",
   });
 
   // Fetch subcategories for dropdown
@@ -35,6 +64,12 @@ export function ProductBaseForm({ productBaseId, defaultSubcategoryId, onSuccess
   // Fetch product base data if editing
   const { data: productBase, isLoading: productBaseLoading } = useQuery<ProductBase>({
     queryKey: [`/api/product-base/${productBaseId}`],
+    enabled: !!productBaseId,
+  });
+  
+  // Fetch product base files if editing
+  const { data: productBaseFiles, isLoading: filesLoading } = useQuery<ProductBaseFile[]>({
+    queryKey: [`/api/product-base/${productBaseId}/files`],
     enabled: !!productBaseId,
   });
 
@@ -48,6 +83,11 @@ export function ProductBaseForm({ productBaseId, defaultSubcategoryId, onSuccess
         internalCode: productBase.internalCode || "",
         defaultMeasureUnit: productBase.defaultMeasureUnit,
         subcategoryId: productBase.subcategoryId.toString(),
+        // Carregando os campos de classificação de risco
+        riskClass: productBase.riskClass || "",
+        riskNumber: productBase.riskNumber || "",
+        unNumber: productBase.unNumber || "",
+        packagingGroup: productBase.packagingGroup || "",
       });
     } else if (defaultSubcategoryId) {
       setFormValues(prev => ({
@@ -147,87 +187,411 @@ export function ProductBaseForm({ productBaseId, defaultSubcategoryId, onSuccess
     );
   }
 
+  // Função para lidar com o upload de arquivo
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>, fileType: 'fispq' | 'technicalSheet' | 'certificate' | 'other') => {
+    if (e.target.files && e.target.files[0]) {
+      setFileUploads({
+        ...fileUploads,
+        [fileType]: e.target.files[0]
+      });
+    }
+  };
+  
+  // Função para lidar com a descrição do arquivo
+  const handleFileDescriptionChange = (e: React.ChangeEvent<HTMLInputElement>, fileType: 'fispq' | 'technicalSheet' | 'certificate' | 'other') => {
+    setFileDescriptions({
+      ...fileDescriptions,
+      [fileType]: e.target.value
+    });
+  };
+  
+  // Função para fazer upload do arquivo após criar/atualizar o produto base
+  const uploadFile = async (file: File, description: string, baseProductId: number, fileCategory: string) => {
+    try {
+      // Criar um objeto FormData para o upload de arquivo
+      const formData = new FormData();
+      formData.append('file', file);
+      
+      // Primeiro, faça upload do arquivo para obter o URL (esta parte seria simulada no nosso caso)
+      // Em um ambiente real, você teria um endpoint para fazer upload de arquivos
+      const fileUrl = `/uploads/${Date.now()}_${file.name}`;
+      const fileSize = Math.round(file.size / 1024); // Converter para KB
+      
+      // Depois, crie o registro do arquivo no banco de dados
+      const fileData = {
+        baseProductId,
+        fileName: file.name,
+        fileUrl,
+        fileSize,
+        fileType: file.type,
+        fileCategory,
+        description,
+        tenantId: 1, // Será substituído pelo server com base no usuário autenticado
+      };
+      
+      await apiRequest("POST", "/api/product-base-files", fileData);
+      
+      return true;
+    } catch (error) {
+      console.error("Erro ao fazer upload do arquivo:", error);
+      return false;
+    }
+  };
+
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
-      <div className="space-y-2">
-        <Label htmlFor="subcategoryId">Subcategoria *</Label>
-        <Select 
-          required
-          value={formValues.subcategoryId} 
-          onValueChange={(value) => handleSelectChange("subcategoryId", value)}
-        >
-          <SelectTrigger>
-            <SelectValue placeholder="Selecione uma subcategoria" />
-          </SelectTrigger>
-          <SelectContent>
-            {subcategories?.map((subcategory) => (
-              <SelectItem key={subcategory.id} value={subcategory.id.toString()}>
-                {subcategory.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
-      
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="space-y-2">
-          <Label htmlFor="technicalName">Nome Técnico *</Label>
-          <Input
-            id="technicalName"
-            name="technicalName"
-            value={formValues.technicalName}
-            onChange={handleChange}
-            placeholder="Ex: Ácido Sulfúrico"
-            required
-          />
-        </div>
+      <Tabs defaultValue="info" className="w-full">
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="info">Informações Gerais</TabsTrigger>
+          <TabsTrigger value="files">Arquivos</TabsTrigger>
+        </TabsList>
         
-        <div className="space-y-2">
-          <Label htmlFor="commercialName">Nome Comercial</Label>
-          <Input
-            id="commercialName"
-            name="commercialName"
-            value={formValues.commercialName}
-            onChange={handleChange}
-            placeholder="Ex: SupraAcid S-98"
-          />
-        </div>
+        <TabsContent value="info" className="space-y-4 pt-4">
+          <div className="space-y-2">
+            <Label htmlFor="subcategoryId">Subcategoria *</Label>
+            <Select 
+              required
+              value={formValues.subcategoryId} 
+              onValueChange={(value) => handleSelectChange("subcategoryId", value)}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Selecione uma subcategoria" />
+              </SelectTrigger>
+              <SelectContent>
+                {subcategories?.map((subcategory) => (
+                  <SelectItem key={subcategory.id} value={subcategory.id.toString()}>
+                    {subcategory.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="technicalName">Nome Técnico *</Label>
+              <Input
+                id="technicalName"
+                name="technicalName"
+                value={formValues.technicalName}
+                onChange={handleChange}
+                placeholder="Ex: Ácido Sulfúrico"
+                required
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="commercialName">Nome Comercial</Label>
+              <Input
+                id="commercialName"
+                name="commercialName"
+                value={formValues.commercialName}
+                onChange={handleChange}
+                placeholder="Ex: SupraAcid S-98"
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="internalCode">Código Interno (ERP)</Label>
+              <Input
+                id="internalCode"
+                name="internalCode"
+                value={formValues.internalCode}
+                onChange={handleChange}
+                placeholder="Ex: AC-0023"
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="defaultMeasureUnit">Unidade de Medida Padrão *</Label>
+              <Input
+                id="defaultMeasureUnit"
+                name="defaultMeasureUnit"
+                value={formValues.defaultMeasureUnit}
+                onChange={handleChange}
+                placeholder="Ex: kg"
+                required
+              />
+            </div>
+          </div>
+          
+          <div className="space-y-2">
+            <Label htmlFor="description">Descrição</Label>
+            <Textarea
+              id="description"
+              name="description"
+              value={formValues.description}
+              onChange={handleChange}
+              placeholder="Ex: Ácido sulfúrico para uso industrial, alta pureza"
+              rows={3}
+            />
+          </div>
+          
+          {/* Seção de Classificação de Risco */}
+          <div className="pt-4">
+            <h3 className="text-lg font-medium mb-2">Classificação de Risco</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="riskClass">Classe/Subclasse de Risco</Label>
+                <Input
+                  id="riskClass"
+                  name="riskClass"
+                  value={formValues.riskClass}
+                  onChange={handleChange}
+                  placeholder="Ex: 8"
+                />
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="riskNumber">Número de Risco</Label>
+                <Input
+                  id="riskNumber"
+                  name="riskNumber"
+                  value={formValues.riskNumber}
+                  onChange={handleChange}
+                  placeholder="Ex: 80"
+                />
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="unNumber">Número ONU</Label>
+                <Input
+                  id="unNumber"
+                  name="unNumber"
+                  value={formValues.unNumber}
+                  onChange={handleChange}
+                  placeholder="Ex: 1830"
+                />
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="packagingGroup">Grupo de Embalagem</Label>
+                <Input
+                  id="packagingGroup"
+                  name="packagingGroup"
+                  value={formValues.packagingGroup}
+                  onChange={handleChange}
+                  placeholder="Ex: II"
+                />
+              </div>
+            </div>
+          </div>
+        </TabsContent>
         
-        <div className="space-y-2">
-          <Label htmlFor="internalCode">Código Interno (ERP)</Label>
-          <Input
-            id="internalCode"
-            name="internalCode"
-            value={formValues.internalCode}
-            onChange={handleChange}
-            placeholder="Ex: AC-0023"
-          />
-        </div>
-        
-        <div className="space-y-2">
-          <Label htmlFor="defaultMeasureUnit">Unidade de Medida Padrão *</Label>
-          <Input
-            id="defaultMeasureUnit"
-            name="defaultMeasureUnit"
-            value={formValues.defaultMeasureUnit}
-            onChange={handleChange}
-            placeholder="Ex: kg"
-            required
-          />
-        </div>
-      </div>
-      
-      <div className="space-y-2">
-        <Label htmlFor="description">Descrição</Label>
-        <Textarea
-          id="description"
-          name="description"
-          value={formValues.description}
-          onChange={handleChange}
-          placeholder="Ex: Ácido sulfúrico para uso industrial, alta pureza"
-          rows={3}
-        />
-      </div>
+        <TabsContent value="files" className="space-y-4 pt-4">
+          <div className="grid grid-cols-1 gap-4">
+            {/* Upload de FISPQ */}
+            <Card>
+              <CardContent className="p-4">
+                <h3 className="text-lg font-medium mb-2">FISPQ / FDS / SDS</h3>
+                
+                {!productBaseId ? (
+                  <div className="text-sm mb-4 flex items-center">
+                    <AlertTriangle className="h-4 w-4 text-yellow-500 mr-2" />
+                    <span>Salve o produto base primeiro para habilitar o upload de arquivos.</span>
+                  </div>
+                ) : (
+                  <>
+                    <div className="space-y-2">
+                      <Label htmlFor="fispq">Selecione o arquivo</Label>
+                      <Input
+                        id="fispq"
+                        type="file"
+                        accept=".pdf,.doc,.docx"
+                        onChange={(e) => handleFileChange(e, 'fispq')}
+                      />
+                    </div>
+                    <div className="space-y-2 mt-2">
+                      <Label htmlFor="fispqDescription">Descrição</Label>
+                      <Input
+                        id="fispqDescription"
+                        placeholder="Ex: FISPQ Atualizada 2025"
+                        value={fileDescriptions.fispq}
+                        onChange={(e) => handleFileDescriptionChange(e, 'fispq')}
+                      />
+                    </div>
+                    <Button 
+                      className="mt-4" 
+                      disabled={!fileUploads.fispq}
+                      onClick={async () => {
+                        if (fileUploads.fispq && productBaseId) {
+                          const success = await uploadFile(
+                            fileUploads.fispq, 
+                            fileDescriptions.fispq, 
+                            productBaseId,
+                            'fispq'
+                          );
+                          if (success) {
+                            toast({ title: "FISPQ enviada com sucesso!" });
+                            queryClient.invalidateQueries({ 
+                              queryKey: [`/api/product-base/${productBaseId}/files`] 
+                            });
+                            setFileUploads(prev => ({ ...prev, fispq: null }));
+                            setFileDescriptions(prev => ({ ...prev, fispq: "" }));
+                          } else {
+                            toast({ 
+                              title: "Erro ao enviar FISPQ", 
+                              variant: "destructive" 
+                            });
+                          }
+                        }
+                      }}
+                      type="button"
+                    >
+                      Fazer Upload
+                    </Button>
+                  </>
+                )}
+                
+                {/* Lista de FISPQs existentes */}
+                {productBaseId && productBaseFiles && (
+                  <div className="mt-4">
+                    <h4 className="text-sm font-medium mb-2">Arquivos Existentes</h4>
+                    {productBaseFiles
+                      .filter(file => file.fileCategory === 'fispq')
+                      .map(file => (
+                        <div key={file.id} className="flex justify-between items-center py-2 border-b">
+                          <div>
+                            <span className="font-medium">{file.fileName}</span>
+                            <p className="text-sm text-muted-foreground">{file.description}</p>
+                          </div>
+                          <Button 
+                            variant="destructive" 
+                            size="sm"
+                            onClick={async () => {
+                              try {
+                                await apiRequest("DELETE", `/api/product-base-files/${file.id}`);
+                                toast({ title: "Arquivo removido com sucesso" });
+                                queryClient.invalidateQueries({ 
+                                  queryKey: [`/api/product-base/${productBaseId}/files`] 
+                                });
+                              } catch (error) {
+                                toast({ 
+                                  title: "Erro ao remover arquivo", 
+                                  variant: "destructive" 
+                                });
+                              }
+                            }}
+                          >
+                            Remover
+                          </Button>
+                        </div>
+                      ))}
+                    {productBaseFiles.filter(file => file.fileCategory === 'fispq').length === 0 && (
+                      <p className="text-sm text-muted-foreground">Nenhum arquivo FISPQ cadastrado.</p>
+                    )}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+            
+            {/* Upload de Ficha Técnica */}
+            <Card>
+              <CardContent className="p-4">
+                <h3 className="text-lg font-medium mb-2">Ficha Técnica</h3>
+                
+                {!productBaseId ? (
+                  <div className="text-sm mb-4 flex items-center">
+                    <AlertTriangle className="h-4 w-4 text-yellow-500 mr-2" />
+                    <span>Salve o produto base primeiro para habilitar o upload de arquivos.</span>
+                  </div>
+                ) : (
+                  <>
+                    <div className="space-y-2">
+                      <Label htmlFor="technicalSheet">Selecione o arquivo</Label>
+                      <Input
+                        id="technicalSheet"
+                        type="file"
+                        accept=".pdf,.doc,.docx"
+                        onChange={(e) => handleFileChange(e, 'technicalSheet')}
+                      />
+                    </div>
+                    <div className="space-y-2 mt-2">
+                      <Label htmlFor="technicalSheetDescription">Descrição</Label>
+                      <Input
+                        id="technicalSheetDescription"
+                        placeholder="Ex: Especificações Técnicas"
+                        value={fileDescriptions.technicalSheet}
+                        onChange={(e) => handleFileDescriptionChange(e, 'technicalSheet')}
+                      />
+                    </div>
+                    <Button 
+                      className="mt-4" 
+                      disabled={!fileUploads.technicalSheet}
+                      onClick={async () => {
+                        if (fileUploads.technicalSheet && productBaseId) {
+                          const success = await uploadFile(
+                            fileUploads.technicalSheet, 
+                            fileDescriptions.technicalSheet, 
+                            productBaseId,
+                            'technical_sheet'
+                          );
+                          if (success) {
+                            toast({ title: "Ficha Técnica enviada com sucesso!" });
+                            queryClient.invalidateQueries({ 
+                              queryKey: [`/api/product-base/${productBaseId}/files`] 
+                            });
+                            setFileUploads(prev => ({ ...prev, technicalSheet: null }));
+                            setFileDescriptions(prev => ({ ...prev, technicalSheet: "" }));
+                          } else {
+                            toast({ 
+                              title: "Erro ao enviar Ficha Técnica", 
+                              variant: "destructive" 
+                            });
+                          }
+                        }
+                      }}
+                      type="button"
+                    >
+                      Fazer Upload
+                    </Button>
+                  </>
+                )}
+                
+                {/* Lista de Fichas Técnicas existentes */}
+                {productBaseId && productBaseFiles && (
+                  <div className="mt-4">
+                    <h4 className="text-sm font-medium mb-2">Arquivos Existentes</h4>
+                    {productBaseFiles
+                      .filter(file => file.fileCategory === 'technical_sheet')
+                      .map(file => (
+                        <div key={file.id} className="flex justify-between items-center py-2 border-b">
+                          <div>
+                            <span className="font-medium">{file.fileName}</span>
+                            <p className="text-sm text-muted-foreground">{file.description}</p>
+                          </div>
+                          <Button 
+                            variant="destructive" 
+                            size="sm"
+                            onClick={async () => {
+                              try {
+                                await apiRequest("DELETE", `/api/product-base-files/${file.id}`);
+                                toast({ title: "Arquivo removido com sucesso" });
+                                queryClient.invalidateQueries({ 
+                                  queryKey: [`/api/product-base/${productBaseId}/files`] 
+                                });
+                              } catch (error) {
+                                toast({ 
+                                  title: "Erro ao remover arquivo", 
+                                  variant: "destructive" 
+                                });
+                              }
+                            }}
+                          >
+                            Remover
+                          </Button>
+                        </div>
+                      ))}
+                    {productBaseFiles.filter(file => file.fileCategory === 'technical_sheet').length === 0 && (
+                      <p className="text-sm text-muted-foreground">Nenhuma ficha técnica cadastrada.</p>
+                    )}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+      </Tabs>
       
       <div className="flex justify-end space-x-2 pt-4">
         <Button
