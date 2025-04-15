@@ -483,6 +483,69 @@ export async function registerRoutes(app: Express): Promise<Server> {
       next(error);
     }
   });
+  
+  // Product Base Files routes
+  app.post("/api/product-base-files", isAuthenticated, async (req, res, next) => {
+    try {
+      const user = req.user!;
+      const parsedBody = insertProductBaseFileSchema.parse({
+        ...req.body,
+        tenantId: user.tenantId
+      });
+      
+      const productBaseFile = await storage.createProductBaseFile(parsedBody);
+      res.status(201).json(productBaseFile);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: error.errors });
+      }
+      next(error);
+    }
+  });
+
+  app.get("/api/product-base/:baseProductId/files", isAuthenticated, async (req, res, next) => {
+    try {
+      const user = req.user!;
+      const files = await storage.getProductBaseFilesByBaseProduct(
+        Number(req.params.baseProductId), 
+        user.tenantId
+      );
+      
+      res.json(files);
+    } catch (error) {
+      next(error);
+    }
+  });
+  
+  app.get("/api/product-base/:baseProductId/files/:category", isAuthenticated, async (req, res, next) => {
+    try {
+      const user = req.user!;
+      const files = await storage.getProductBaseFilesByCategory(
+        Number(req.params.baseProductId),
+        req.params.category,
+        user.tenantId
+      );
+      
+      res.json(files);
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  app.delete("/api/product-base-files/:id", isAuthenticated, async (req, res, next) => {
+    try {
+      const user = req.user!;
+      const success = await storage.deleteProductBaseFile(Number(req.params.id), user.tenantId);
+      
+      if (!success) {
+        return res.status(404).json({ message: "Product base file not found" });
+      }
+      
+      res.status(204).end();
+    } catch (error) {
+      next(error);
+    }
+  });
 
   // Products routes (modificado para variantes de produtos)
   app.get("/api/products", isAuthenticated, async (req, res, next) => {
