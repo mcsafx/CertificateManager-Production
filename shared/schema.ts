@@ -216,9 +216,9 @@ export const entryCertificateResults = pgTable("entry_certificate_results", {
   entryCertificateId: integer("entry_certificate_id").notNull().references(() => entryCertificates.id),
   characteristicName: text("characteristic_name").notNull(),
   unit: text("unit").notNull(),
-  minValue: numeric("min_value"),
-  maxValue: numeric("max_value"),
-  obtainedValue: numeric("obtained_value").notNull(),
+  minValue: text("min_value"),
+  maxValue: text("max_value"),
+  obtainedValue: text("obtained_value").notNull(),
   analysisMethod: text("analysis_method"),
   tenantId: integer("tenant_id").notNull().references(() => tenants.id),
 });
