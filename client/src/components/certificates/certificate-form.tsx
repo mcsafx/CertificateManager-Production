@@ -23,23 +23,7 @@ interface CertificateFormProps {
   onSuccess?: () => void;
 }
 
-// Função para verificar se um valor está dentro do intervalo
-function isValueWithinRange(min: string | null, max: string | null, value: string): boolean {
-  // Se algum dos valores não for numérico, retorna true (não aplica validação)
-  const minNum = min ? parseFloat(min) : null;
-  const maxNum = max ? parseFloat(max) : null;
-  const valueNum = parseFloat(value);
-
-  // Verifica se todos são números válidos
-  if ((min && isNaN(minNum!)) || (max && isNaN(maxNum!)) || isNaN(valueNum)) {
-    return true; // Caso não seja numérico, considera como válido
-  }
-
-  // Verifica se está dentro do intervalo
-  const withinMin = minNum === null || valueNum >= minNum;
-  const withinMax = maxNum === null || valueNum <= maxNum;
-  return withinMin && withinMax;
-}
+// Removido para definir dentro do componente
 
 export function CertificateForm({ certificateId, onSuccess }: CertificateFormProps) {
   const { toast } = useToast();
@@ -270,12 +254,19 @@ export function CertificateForm({ certificateId, onSuccess }: CertificateFormPro
         conversionFactor: formData.conversionFactor ? parseFloat(formData.conversionFactor) : null,
       };
       
-      const resultsPayload = results.map(result => ({
-        ...result,
-        minValue: result.minValue ? parseFloat(result.minValue) : null,
-        maxValue: result.maxValue ? parseFloat(result.maxValue) : null,
-        obtainedValue: parseFloat(result.obtainedValue),
-      }));
+      const resultsPayload = results.map(result => {
+        // Preservar valores textuais, convertendo para números apenas quando possível
+        const minValue = result.minValue ? isNaN(parseFloat(result.minValue)) ? result.minValue : parseFloat(result.minValue) : null;
+        const maxValue = result.maxValue ? isNaN(parseFloat(result.maxValue)) ? result.maxValue : parseFloat(result.maxValue) : null;
+        const obtainedValue = isNaN(parseFloat(result.obtainedValue)) ? result.obtainedValue : parseFloat(result.obtainedValue);
+        
+        return {
+          ...result,
+          minValue,
+          maxValue,
+          obtainedValue,
+        };
+      });
       
       if (isEditing && certificateId) {
         // Update existing certificate
@@ -360,6 +351,32 @@ export function CertificateForm({ certificateId, onSuccess }: CertificateFormPro
   
   const handleRemoveCharacteristic = (index: number) => {
     setResults(prev => prev.filter((_, i) => i !== index));
+  };
+  
+  // Função auxiliar para determinar a classe CSS com base nos valores
+  const getObtainedValueClass = (min: string | null, max: string | null, value: string): string => {
+    // Se algum dos valores estiver vazio, retorna classe padrão
+    if (!value || (!min && !max)) return "";
+    
+    // Tenta converter para números
+    const minNum = min ? parseFloat(min) : null;
+    const maxNum = max ? parseFloat(max) : null;
+    const valueNum = parseFloat(value);
+    
+    // Se não forem números válidos, retorna classe padrão
+    if ((min && isNaN(minNum!)) || (max && isNaN(maxNum!)) || isNaN(valueNum)) {
+      return ""; // Valores não numéricos não recebem indicador visual
+    }
+    
+    // Verifica se está dentro do intervalo e retorna a classe apropriada
+    const withinMin = minNum === null || valueNum >= minNum;
+    const withinMax = maxNum === null || valueNum <= maxNum;
+    
+    if (withinMin && withinMax) {
+      return "border-green-500 focus:ring-green-500"; // Dentro do intervalo
+    } else {
+      return "border-red-500 focus:ring-red-500"; // Fora do intervalo
+    }
   };
   
   const handleSubmit = (e: React.FormEvent) => {
