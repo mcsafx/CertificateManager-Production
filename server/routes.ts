@@ -131,7 +131,7 @@ Em um ambiente de produção, este seria o conteúdo real do arquivo.`);
       const supplier = await storage.getSupplier(certificate.supplierId, user.tenantId);
       const manufacturer = await storage.getManufacturer(certificate.manufacturerId, user.tenantId);
       const product = await storage.getProduct(certificate.productId, user.tenantId);
-      const results = await storage.getEntryCertificateResults(certificateId, user.tenantId);
+      const results = await storage.getResultsByEntryCertificate(certificateId, user.tenantId);
       
       // Formatar datas
       const formatDate = (date: Date) => {
@@ -281,7 +281,7 @@ Em um ambiente de produção, este seria o conteúdo real do arquivo.`);
                 </div>
                 <div class="info-item">
                   <div class="info-label">Data de Entrada:</div>
-                  <div class="info-value">${formatDate(certificate.entryDate)}</div>
+                  <div class="info-value">${certificate.entryDate ? formatDate(new Date(certificate.entryDate)) : 'N/A'}</div>
                 </div>
               </div>
             </div>
@@ -291,7 +291,7 @@ Em um ambiente de produção, este seria o conteúdo real do arquivo.`);
               <div class="info-grid">
                 <div class="info-item">
                   <div class="info-label">Produto:</div>
-                  <div class="info-value">${product ? product.name : 'N/A'}</div>
+                  <div class="info-value">${product ? product.technicalName : 'N/A'}</div>
                 </div>
                 <div class="info-item">
                   <div class="info-label">Código do Produto:</div>
@@ -315,15 +315,15 @@ Em um ambiente de produção, este seria o conteúdo real do arquivo.`);
                 </div>
                 <div class="info-item">
                   <div class="info-label">Data de Fabricação:</div>
-                  <div class="info-value">${formatDate(certificate.manufacturingDate)}</div>
+                  <div class="info-value">${certificate.manufacturingDate ? formatDate(new Date(certificate.manufacturingDate)) : 'N/A'}</div>
                 </div>
                 <div class="info-item">
                   <div class="info-label">Data de Validade:</div>
-                  <div class="info-value">${formatDate(certificate.expirationDate)}</div>
+                  <div class="info-value">${certificate.expirationDate ? formatDate(new Date(certificate.expirationDate)) : 'N/A'}</div>
                 </div>
                 <div class="info-item">
                   <div class="info-label">Data de Inspeção:</div>
-                  <div class="info-value">${formatDate(certificate.inspectionDate)}</div>
+                  <div class="info-value">${certificate.inspectionDate ? formatDate(new Date(certificate.inspectionDate)) : 'N/A'}</div>
                 </div>
                 <div class="info-item">
                   <div class="info-label">Status:</div>
