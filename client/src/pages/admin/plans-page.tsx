@@ -198,6 +198,10 @@ export default function PlansPage() {
       if (!response.ok) {
         throw new Error('Erro ao atualizar módulos do plano');
       }
+      // Se for 204 (No Content), não tente processar como JSON
+      if (response.status === 204) {
+        return null;
+      }
       return response.json();
     },
     onSuccess: () => {
@@ -260,6 +264,10 @@ export default function PlansPage() {
       if (!response.ok) {
         throw new Error('Erro ao excluir plano');
       }
+      // Se for 204 (No Content), não tente processar como JSON
+      if (response.status === 204) {
+        return null;
+      }
       return response.json();
     },
     onSuccess: () => {
@@ -285,6 +293,10 @@ export default function PlansPage() {
       const response = await apiRequest('DELETE', `/api/admin/modules/${id}`);
       if (!response.ok) {
         throw new Error('Erro ao excluir módulo');
+      }
+      // Se for 204 (No Content), não tente processar como JSON
+      if (response.status === 204) {
+        return null;
       }
       return response.json();
     },
