@@ -11,6 +11,7 @@ import { User, InsertUser, Tenant, InsertTenant,
          EntryCertificateResult, InsertEntryCertificateResult, 
          IssuedCertificate, InsertIssuedCertificate,
          PackageType, InsertPackageType,
+         plans, modules, planModules,
          users, tenants, productCategories, productSubcategories, productBase, products,
          productFiles, productBaseFiles, productCharacteristics, suppliers, manufacturers,
          clients, entryCertificates, entryCertificateResults, issuedCertificates, packageTypes } from "@shared/schema";
@@ -139,6 +140,16 @@ export interface IStorage {
   getPackageTypesByTenant(tenantId: number): Promise<PackageType[]>;
   deletePackageType(id: number, tenantId: number): Promise<boolean>;
 
+  // Plans and Modules
+  getAllPlans(): Promise<typeof plans.$inferSelect[]>;
+  getPlan(id: number): Promise<typeof plans.$inferSelect | undefined>;
+  getPlanByCode(code: string): Promise<typeof plans.$inferSelect | undefined>;
+  getAllModules(): Promise<typeof modules.$inferSelect[]>;
+  getModule(id: number): Promise<typeof modules.$inferSelect | undefined>;
+  getModulesByPlan(planId: number): Promise<typeof modules.$inferSelect[]>;
+  getModulesByPlanCode(code: string): Promise<typeof modules.$inferSelect[]>;
+  getTenantEnabledModules(tenantId: number): Promise<typeof modules.$inferSelect[]>;
+
   // Session Store
   sessionStore: session.Store;
 }
@@ -230,7 +241,9 @@ export class MemStorage implements IStorage {
       name: "Admin",
       cnpj: "00000000000000",
       address: "System Address",
-      active: true
+      active: true,
+      planId: 1,
+      storageUsed: 0
     }).then(async tenant => {
       const hashedPassword = await hashPassword("admin123");
       this.createUser({
@@ -304,8 +317,7 @@ export class MemStorage implements IStorage {
       id,
       active: tenant.active ?? true,
       logoUrl: tenant.logoUrl ?? null,
-      plan: tenant.plan ?? "A",
-      storageLimit: tenant.storageLimit ?? 5,
+      planId: tenant.planId ?? 1, // Plano básico por padrão
       storageUsed: tenant.storageUsed ?? 0,
       planStartDate: tenant.planStartDate ?? null,
       planEndDate: tenant.planEndDate ?? null
@@ -1038,14 +1050,20 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createTenant(tenant: InsertTenant): Promise<Tenant> {
+    // Se não for fornecido um planId, buscamos o plano básico (código A)
+    let planId = tenant.planId;
+    if (!planId) {
+      const [basicPlan] = await db.select().from(plans).where(eq(plans.code, "A"));
+      planId = basicPlan?.id || 1; // Fallback para o ID 1 se não encontrar
+    }
+
     const [newTenant] = await db.insert(tenants).values({
       ...tenant,
       active: tenant.active ?? true,
       logoUrl: tenant.logoUrl ?? null,
-      plan: tenant.plan ?? "A",
-      storageLimit: tenant.storageLimit ?? 5,
+      planId: planId,
       storageUsed: tenant.storageUsed ?? 0,
-      planStartDate: tenant.planStartDate ?? null,
+      planStartDate: tenant.planStartDate ?? new Date(),
       planEndDate: tenant.planEndDate ?? null
     }).returning();
     return newTenant;
@@ -1673,12 +1691,22 @@ if (isDatabaseConfigured) {
       const adminTenant = await storage.getTenantByName("Admin");
       
       if (!adminTenant) {
+        // Buscar o plano básico para associar ao tenant admin
+        const [basicPlan] = await db.select().from(plans).where(eq(plans.code, "A"));
+        
+        if (!basicPlan) {
+          throw new Error("Plano básico não encontrado. Verifique se a migração de planos foi executada corretamente.");
+        }
+        
         // Criar tenant admin
         const tenant = await storage.createTenant({
           name: "Admin",
           cnpj: "00000000000000",
           address: "System Address",
-          active: true
+          active: true,
+          planId: basicPlan.id,
+          planStartDate: new Date(),
+          storageUsed: 0
         });
         
         // Criar usuário admin
