@@ -565,6 +565,15 @@ export default function PlansPage() {
                                   size="icon"
                                   onClick={() => {
                                     setPlanToEdit(plan);
+                                    // Reset o form com os valores atuais do plano
+                                    planForm.reset({
+                                      name: plan.name,
+                                      code: plan.code,
+                                      description: plan.description || "",
+                                      maxStorage: plan.maxStorage || plan.storageLimit,
+                                      maxFileSize: plan.maxFileSize || 2,
+                                      price: parseFloat(plan.price),
+                                    });
                                     setOpenEditPlan(true);
                                   }}
                                 >
@@ -755,7 +764,6 @@ export default function PlansPage() {
                       <FormControl>
                         <Textarea 
                           placeholder="Descreva as características do plano" 
-                          defaultValue={planToEdit.description}
                           {...field} 
                         />
                       </FormControl>
@@ -773,7 +781,6 @@ export default function PlansPage() {
                         <FormControl>
                           <Input 
                             type="number" 
-                            defaultValue={planToEdit.maxStorage || planToEdit.storageLimit}
                             {...field} 
                           />
                         </FormControl>
