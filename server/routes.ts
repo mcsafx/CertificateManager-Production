@@ -114,6 +114,304 @@ Em um ambiente de produção, este seria o conteúdo real do arquivo.`);
     }
   });
   
+  // Rotas para visualização de certificados em HTML
+  app.get("/api/certificates/view/:id", isAuthenticated, async (req, res, next) => {
+    try {
+      const user = req.user!;
+      const certificateId = Number(req.params.id);
+      
+      // Obter o certificado e seus resultados
+      const certificate = await storage.getEntryCertificate(certificateId, user.tenantId);
+      
+      if (!certificate) {
+        return res.status(404).json({ message: "Certificado não encontrado" });
+      }
+      
+      // Buscar dados relacionados
+      const supplier = await storage.getSupplier(certificate.supplierId, user.tenantId);
+      const manufacturer = await storage.getManufacturer(certificate.manufacturerId, user.tenantId);
+      const product = await storage.getProduct(certificate.productId, user.tenantId);
+      const results = await storage.getEntryCertificateResults(certificateId, user.tenantId);
+      
+      // Formatar datas
+      const formatDate = (date: Date) => {
+        if (!date) return 'N/A';
+        return new Date(date).toLocaleDateString('pt-BR');
+      };
+      
+      // Renderizar HTML
+      res.setHeader('Content-Type', 'text/html');
+      res.send(`
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <title>Boletim de Entrada #${certificate.id}</title>
+          <meta charset="UTF-8">
+          <style>
+            body {
+              font-family: Arial, sans-serif;
+              margin: 0;
+              padding: 20px;
+              font-size: 12px;
+              line-height: 1.5;
+            }
+            .container {
+              max-width: 800px;
+              margin: 0 auto;
+              border: 1px solid #ddd;
+              padding: 20px;
+            }
+            .header {
+              text-align: center;
+              margin-bottom: 30px;
+              border-bottom: 2px solid #333;
+              padding-bottom: 10px;
+            }
+            .title {
+              font-size: 24px;
+              font-weight: bold;
+              margin-bottom: 5px;
+            }
+            .subtitle {
+              font-size: 16px;
+              color: #666;
+            }
+            .section {
+              margin-bottom: 30px;
+            }
+            .section-title {
+              font-size: 18px;
+              font-weight: bold;
+              margin-bottom: 10px;
+              border-bottom: 1px solid #ddd;
+              padding-bottom: 5px;
+            }
+            .info-grid {
+              display: grid;
+              grid-template-columns: repeat(2, 1fr);
+              gap: 15px;
+            }
+            .info-item {
+              margin-bottom: 10px;
+            }
+            .info-label {
+              font-weight: bold;
+              margin-bottom: 3px;
+            }
+            .info-value {
+              color: #333;
+            }
+            table {
+              width: 100%;
+              border-collapse: collapse;
+              margin-top: 10px;
+            }
+            th, td {
+              border: 1px solid #ddd;
+              padding: 8px;
+              text-align: left;
+            }
+            th {
+              background-color: #f2f2f2;
+              font-weight: bold;
+            }
+            .footer {
+              margin-top: 30px;
+              text-align: center;
+              font-size: 11px;
+              color: #666;
+              border-top: 1px solid #ddd;
+              padding-top: 10px;
+            }
+            .badge {
+              display: inline-block;
+              padding: 4px 8px;
+              border-radius: 4px;
+              font-size: 11px;
+              font-weight: bold;
+            }
+            .badge-approved {
+              background-color: #dcfce7;
+              color: #166534;
+            }
+            .badge-rejected {
+              background-color: #fee2e2;
+              color: #b91c1c;
+            }
+            .badge-pending {
+              background-color: #fef3c7;
+              color: #92400e;
+            }
+            @media print {
+              body {
+                padding: 0;
+              }
+              .container {
+                border: none;
+              }
+              .print-button {
+                display: none;
+              }
+            }
+          </style>
+        </head>
+        <body>
+          <div class="container">
+            <div class="header">
+              <div class="title">Boletim de Análise #${certificate.id}</div>
+              <div class="subtitle">Certificado de Qualidade</div>
+            </div>
+            
+            <button class="print-button" onclick="window.print()">Imprimir</button>
+            
+            <div class="section">
+              <div class="section-title">Informações do Fornecedor</div>
+              <div class="info-grid">
+                <div class="info-item">
+                  <div class="info-label">Fornecedor:</div>
+                  <div class="info-value">${supplier ? supplier.name : 'N/A'}</div>
+                </div>
+                <div class="info-item">
+                  <div class="info-label">Fabricante:</div>
+                  <div class="info-value">${manufacturer ? manufacturer.name : 'N/A'}</div>
+                </div>
+                <div class="info-item">
+                  <div class="info-label">Documento de Referência:</div>
+                  <div class="info-value">${certificate.referenceDocument || 'N/A'}</div>
+                </div>
+                <div class="info-item">
+                  <div class="info-label">Data de Entrada:</div>
+                  <div class="info-value">${formatDate(certificate.entryDate)}</div>
+                </div>
+              </div>
+            </div>
+            
+            <div class="section">
+              <div class="section-title">Informações do Produto</div>
+              <div class="info-grid">
+                <div class="info-item">
+                  <div class="info-label">Produto:</div>
+                  <div class="info-value">${product ? product.name : 'N/A'}</div>
+                </div>
+                <div class="info-item">
+                  <div class="info-label">Código do Produto:</div>
+                  <div class="info-value">${product ? product.sku : 'N/A'}</div>
+                </div>
+                <div class="info-item">
+                  <div class="info-label">Quantidade Recebida:</div>
+                  <div class="info-value">${certificate.receivedQuantity} ${certificate.measureUnit}</div>
+                </div>
+                <div class="info-item">
+                  <div class="info-label">Tipo de Embalagem:</div>
+                  <div class="info-value">${certificate.packageType || 'N/A'}</div>
+                </div>
+                <div class="info-item">
+                  <div class="info-label">Lote do Fornecedor:</div>
+                  <div class="info-value">${certificate.supplierLot || 'N/A'}</div>
+                </div>
+                <div class="info-item">
+                  <div class="info-label">Lote Interno:</div>
+                  <div class="info-value">${certificate.internalLot || 'N/A'}</div>
+                </div>
+                <div class="info-item">
+                  <div class="info-label">Data de Fabricação:</div>
+                  <div class="info-value">${formatDate(certificate.manufacturingDate)}</div>
+                </div>
+                <div class="info-item">
+                  <div class="info-label">Data de Validade:</div>
+                  <div class="info-value">${formatDate(certificate.expirationDate)}</div>
+                </div>
+                <div class="info-item">
+                  <div class="info-label">Data de Inspeção:</div>
+                  <div class="info-value">${formatDate(certificate.inspectionDate)}</div>
+                </div>
+                <div class="info-item">
+                  <div class="info-label">Status:</div>
+                  <div class="info-value">
+                    <span class="badge ${
+                      certificate.status === "Aprovado" ? "badge-approved" : 
+                      certificate.status === "Reprovado" ? "badge-rejected" : 
+                      "badge-pending"
+                    }">
+                      ${certificate.status}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <div class="section">
+              <div class="section-title">Características e Resultados</div>
+              <table>
+                <thead>
+                  <tr>
+                    <th>Característica</th>
+                    <th>Unidade</th>
+                    <th>Mínimo</th>
+                    <th>Máximo</th>
+                    <th>Resultado</th>
+                    <th>Método</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${results.map(result => `
+                    <tr>
+                      <td>${result.characteristicName}</td>
+                      <td>${result.unit}</td>
+                      <td>${result.minValue !== null ? result.minValue : '-'}</td>
+                      <td>${result.maxValue !== null ? result.maxValue : '-'}</td>
+                      <td>${result.obtainedValue}</td>
+                      <td>${result.analysisMethod || '-'}</td>
+                    </tr>
+                  `).join('')}
+                </tbody>
+              </table>
+            </div>
+            
+            <div class="footer">
+              <p>Certificado gerado em ${new Date().toLocaleString('pt-BR')} | CertQuality - Sistema de Gestão de Certificados</p>
+            </div>
+          </div>
+        </body>
+        </html>
+      `);
+    } catch (error) {
+      next(error);
+    }
+  });
+  
+  // Rota para download do arquivo original do certificado
+  app.get("/api/certificates/download/:id", isAuthenticated, async (req, res, next) => {
+    try {
+      const user = req.user!;
+      const certificateId = Number(req.params.id);
+      
+      // Obter o certificado
+      const certificate = await storage.getEntryCertificate(certificateId, user.tenantId);
+      
+      if (!certificate) {
+        return res.status(404).json({ message: "Certificado não encontrado" });
+      }
+      
+      // Verificar se o certificado tem um arquivo original
+      if (!certificate.originalFileUrl) {
+        return res.status(404).json({ message: "Este certificado não possui um arquivo original anexado" });
+      }
+      
+      // Em um ambiente real, você buscaria o arquivo do armazenamento e o enviaria
+      // Para este exemplo, vamos enviar um PDF de demonstração
+      const fileName = certificate.originalFileUrl.split('/').pop() || `certificado-${certificateId}.pdf`;
+      
+      res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
+      res.setHeader('Content-Type', 'application/pdf');
+      
+      // Enviamos um PDF de exemplo
+      res.send(Buffer.from('%PDF-1.5\n1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n3 0 obj\n<< /Type /Page /Parent 2 0 R /Resources 4 0 R /MediaBox [0 0 500 800] /Contents 6 0 R >>\nendobj\n4 0 obj\n<< /Font << /F1 5 0 R >> >>\nendobj\n5 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>\nendobj\n6 0 obj\n<< /Length 68 >>\nstream\nBT\n/F1 24 Tf\n100 700 Td\n(CERTIFICADO DE QUALIDADE) Tj\n100 650 Td\n/F1 16 Tf\n(Lote: ' + (certificate.supplierLot || 'N/A') + ') Tj\n100 600 Td\n(Documento: ' + (certificate.referenceDocument || 'N/A') + ') Tj\nET\nendstream\nendobj\nxref\n0 7\n0000000000 65535 f\n0000000009 00000 n\n0000000058 00000 n\n0000000115 00000 n\n0000000216 00000 n\n0000000259 00000 n\n0000000326 00000 n\ntrailer\n<< /Size 7 /Root 1 0 R >>\nstartxref\n444\n%%EOF'));
+    } catch (error) {
+      next(error);
+    }
+  });
+  
   // Package Types routes
   app.get("/api/package-types", isAuthenticated, async (req, res, next) => {
     try {

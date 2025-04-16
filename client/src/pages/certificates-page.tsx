@@ -60,15 +60,13 @@ export default function CertificatesPage() {
   };
   
   const handleView = (id: number) => {
-    setEditCertificateId(id);
-    setIsDialogOpen(true);
+    // Abrir o certificado em formato HTML em uma nova aba
+    window.open(`/api/certificates/view/${id}`, "_blank");
   };
   
   const handleDownload = (id: number) => {
-    toast({
-      title: "Funcionalidade em desenvolvimento",
-      description: "O download de boletins será implementado em breve.",
-    });
+    // Fazer download do arquivo original do certificado
+    window.open(`/api/certificates/download/${id}`, "_blank");
   };
   
   const handleDialogClose = () => {
