@@ -512,13 +512,14 @@ export async function generateCertificatePdf(data: CertificateGenerationData): P
       html2pdf()
         .from(element)
         .set(options)
-        .save()
-        .then(() => {
+        .outputPdf()
+        .then((pdf: any) => {
           // Remove o elemento temporário
           document.body.removeChild(element);
-          // Retornar um valor de sucesso que não será usado para abrir em nova aba
-          // mas indica que o download do PDF foi iniciado com sucesso
-          resolve('success');
+          // Criar blob URL para abrir em nova aba
+          const blob = new Blob([pdf], { type: 'application/pdf' });
+          const url = URL.createObjectURL(blob);
+          resolve(url);
         })
         .catch((error: Error) => {
           document.body.removeChild(element);
