@@ -512,11 +512,13 @@ export async function generateCertificatePdf(data: CertificateGenerationData): P
       html2pdf()
         .from(element)
         .set(options)
-        .outputPdf('datauristring')
-        .then((pdfString: string) => {
+        .save()
+        .then(() => {
           // Remove o elemento temporário
           document.body.removeChild(element);
-          resolve(pdfString);
+          // Retornar um valor de sucesso que não será usado para abrir em nova aba
+          // mas indica que o download do PDF foi iniciado com sucesso
+          resolve('success');
         })
         .catch((error: Error) => {
           document.body.removeChild(element);
