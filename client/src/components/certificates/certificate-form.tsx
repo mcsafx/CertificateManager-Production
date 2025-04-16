@@ -11,7 +11,7 @@ import { toISODateString, formatNumber } from "@/lib/utils";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
-import { Loader2, Plus, Trash2, Upload } from "lucide-react";
+import { Loader2, Plus, Trash2, Upload, Eye, FileEdit, FileText } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useForm } from "react-hook-form";
@@ -792,41 +792,78 @@ export function CertificateForm({ certificateId, onSuccess }: CertificateFormPro
             
             <div>
               <Label>Anexar Boletim Original</Label>
-              <div className="mt-2 border-2 border-dashed border-gray-300 rounded-lg p-8 text-center">
-                <Upload className="h-8 w-8 mx-auto text-gray-400" />
-                <p className="mt-2 text-sm text-gray-500">
-                  Arraste e solte um arquivo PDF ou imagem, ou{" "}
-                  <span className="text-primary">clique para escolher</span>
-                </p>
-                <Input
-                  ref={fileInputRef}
-                  type="file"
-                  className="hidden"
-                  accept=".pdf,.jpg,.jpeg,.png"
-                  onChange={(e) => {
-                    const file = e.target.files?.[0];
-                    if (file) {
-                      // Aqui você lidaria com o upload do arquivo
-                      setFormData({ ...formData, originalFileUrl: URL.createObjectURL(file) });
-                    }
-                  }}
-                />
-                <div className="mt-2">
-                  <Button 
-                    type="button" 
-                    variant="outline" 
-                    size="sm"
-                    onClick={() => fileInputRef.current?.click()}
-                  >
-                    Escolher Arquivo
-                  </Button>
+              {formData.originalFileUrl ? (
+                <div className="mt-2 border-2 border-gray-300 rounded-lg p-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-2">
+                      <FileText className="h-5 w-5 text-gray-400" />
+                      <p className="text-sm font-medium">
+                        {formData.originalFileUrl.split('/').pop()}
+                      </p>
+                    </div>
+                    <div className="flex space-x-2">
+                      <Button 
+                        type="button" 
+                        variant="ghost" 
+                        size="sm"
+                        onClick={() => window.open(formData.originalFileUrl, '_blank')}
+                      >
+                        <Eye className="h-4 w-4 mr-1" />
+                        Visualizar
+                      </Button>
+                      <Button 
+                        type="button" 
+                        variant="ghost" 
+                        size="sm"
+                        onClick={() => fileInputRef.current?.click()}
+                      >
+                        <FileEdit className="h-4 w-4 mr-1" />
+                        Substituir
+                      </Button>
+                      <Button 
+                        type="button" 
+                        variant="ghost" 
+                        size="sm"
+                        onClick={() => setFormData({ ...formData, originalFileUrl: '' })}
+                      >
+                        <Trash2 className="h-4 w-4 mr-1" />
+                        Remover
+                      </Button>
+                    </div>
+                  </div>
                 </div>
-                {formData.originalFileUrl && (
-                  <p className="mt-2 text-xs text-gray-500">
-                    Arquivo atual: {formData.originalFileUrl.split('/').pop()}
+              ) : (
+                <div className="mt-2 border-2 border-dashed border-gray-300 rounded-lg p-8 text-center">
+                  <Upload className="h-8 w-8 mx-auto text-gray-400" />
+                  <p className="mt-2 text-sm text-gray-500">
+                    Arraste e solte um arquivo PDF ou imagem, ou{" "}
+                    <span className="text-primary">clique para escolher</span>
                   </p>
-                )}
-              </div>
+                  <div className="mt-2">
+                    <Button 
+                      type="button" 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => fileInputRef.current?.click()}
+                    >
+                      Escolher Arquivo
+                    </Button>
+                  </div>
+                </div>
+              )}
+              <Input
+                ref={fileInputRef}
+                type="file"
+                className="hidden"
+                accept=".pdf,.jpg,.jpeg,.png"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) {
+                    // Aqui você lidaria com o upload do arquivo
+                    setFormData({ ...formData, originalFileUrl: URL.createObjectURL(file) });
+                  }
+                }}
+              />
             </div>
           </div>
         )}
