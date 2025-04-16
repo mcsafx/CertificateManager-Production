@@ -11,7 +11,8 @@ import { User, InsertUser, Tenant, InsertTenant,
          EntryCertificateResult, InsertEntryCertificateResult, 
          IssuedCertificate, InsertIssuedCertificate,
          PackageType, InsertPackageType,
-         plans, modules, planModules,
+         File, InsertFile,
+         plans, modules, planModules, files,
          users, tenants, productCategories, productSubcategories, productBase, products,
          productFiles, productBaseFiles, productCharacteristics, suppliers, manufacturers,
          clients, entryCertificates, entryCertificateResults, issuedCertificates, packageTypes } from "@shared/schema";
@@ -149,7 +150,14 @@ export interface IStorage {
   getModulesByPlan(planId: number): Promise<typeof modules.$inferSelect[]>;
   getModulesByPlanCode(code: string): Promise<typeof modules.$inferSelect[]>;
   getTenantEnabledModules(tenantId: number): Promise<typeof modules.$inferSelect[]>;
-
+  
+  // Files Management
+  getFile(id: number, tenantId: number): Promise<File | undefined>;
+  createFile(file: InsertFile): Promise<File>;
+  getFilesByTenant(tenantId: number, fileCategory?: string): Promise<File[]>;
+  getFilesByEntity(entityType: string, entityId: number, tenantId: number): Promise<File[]>;
+  deleteFile(id: number, tenantId: number): Promise<boolean>;
+  
   // Session Store
   sessionStore: session.Store;
 }
