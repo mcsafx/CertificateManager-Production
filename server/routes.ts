@@ -2131,6 +2131,97 @@ Em um ambiente de produção, este seria o conteúdo real do arquivo.`);
       next(error);
     }
   });
+  
+  // Plans and Modules routes
+  app.get("/api/plans", isAuthenticated, async (req, res) => {
+    try {
+      const plans = await storage.getAllPlans();
+      res.json(plans);
+    } catch (error) {
+      console.error("Error fetching plans:", error);
+      res.status(500).json({ message: "Error fetching plans" });
+    }
+  });
+
+  app.get("/api/plans/:id", isAuthenticated, async (req, res) => {
+    try {
+      const plan = await storage.getPlan(Number(req.params.id));
+      if (!plan) {
+        return res.status(404).json({ message: "Plan not found" });
+      }
+      res.json(plan);
+    } catch (error) {
+      console.error("Error fetching plan:", error);
+      res.status(500).json({ message: "Error fetching plan" });
+    }
+  });
+
+  app.get("/api/plans/code/:code", isAuthenticated, async (req, res) => {
+    try {
+      const plan = await storage.getPlanByCode(req.params.code);
+      if (!plan) {
+        return res.status(404).json({ message: "Plan not found" });
+      }
+      res.json(plan);
+    } catch (error) {
+      console.error("Error fetching plan by code:", error);
+      res.status(500).json({ message: "Error fetching plan by code" });
+    }
+  });
+
+  app.get("/api/modules", isAuthenticated, async (req, res) => {
+    try {
+      const modules = await storage.getAllModules();
+      res.json(modules);
+    } catch (error) {
+      console.error("Error fetching modules:", error);
+      res.status(500).json({ message: "Error fetching modules" });
+    }
+  });
+
+  app.get("/api/modules/:id", isAuthenticated, async (req, res) => {
+    try {
+      const module = await storage.getModule(Number(req.params.id));
+      if (!module) {
+        return res.status(404).json({ message: "Module not found" });
+      }
+      res.json(module);
+    } catch (error) {
+      console.error("Error fetching module:", error);
+      res.status(500).json({ message: "Error fetching module" });
+    }
+  });
+
+  app.get("/api/plans/:id/modules", isAuthenticated, async (req, res) => {
+    try {
+      const modules = await storage.getModulesByPlan(Number(req.params.id));
+      res.json(modules);
+    } catch (error) {
+      console.error("Error fetching modules by plan:", error);
+      res.status(500).json({ message: "Error fetching modules by plan" });
+    }
+  });
+
+  app.get("/api/plans/code/:code/modules", isAuthenticated, async (req, res) => {
+    try {
+      const modules = await storage.getModulesByPlanCode(req.params.code);
+      res.json(modules);
+    } catch (error) {
+      console.error("Error fetching modules by plan code:", error);
+      res.status(500).json({ message: "Error fetching modules by plan code" });
+    }
+  });
+
+  app.get("/api/tenant/modules", isAuthenticated, async (req, res) => {
+    const user = req.user!;
+    try {
+      const modules = await storage.getTenantEnabledModules(user.tenantId);
+      res.json(modules);
+    } catch (error) {
+      console.error("Error fetching tenant modules:", error);
+      res.status(500).json({ message: "Error fetching tenant modules" });
+    }
+  });
 
   const httpServer = createServer(app);
   return httpServer;

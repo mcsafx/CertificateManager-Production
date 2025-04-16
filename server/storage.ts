@@ -987,6 +987,124 @@ export class MemStorage implements IStorage {
     if (!packageType) return false;
     return this.packageTypes.delete(id);
   }
+
+  // Plans & Modules methods (implementação in-memory simplificada)
+  async getAllPlans(): Promise<typeof plans.$inferSelect[]> {
+    // Na implementação in-memory, retornamos apenas um plano básico simulado
+    return [{
+      id: 1,
+      code: "A",
+      name: "Básico",
+      description: "Plano Básico",
+      active: true,
+      priceMonthly: "80.00",
+      priceYearly: "800.00",
+      createdAt: new Date()
+    }];
+  }
+
+  async getPlan(id: number): Promise<typeof plans.$inferSelect | undefined> {
+    if (id === 1) {
+      return {
+        id: 1,
+        code: "A",
+        name: "Básico",
+        description: "Plano Básico",
+        active: true,
+        priceMonthly: "80.00",
+        priceYearly: "800.00",
+        createdAt: new Date()
+      };
+    }
+    return undefined;
+  }
+
+  async getPlanByCode(code: string): Promise<typeof plans.$inferSelect | undefined> {
+    if (code === "A") {
+      return {
+        id: 1,
+        code: "A",
+        name: "Básico",
+        description: "Plano Básico",
+        active: true,
+        priceMonthly: "80.00",
+        priceYearly: "800.00",
+        createdAt: new Date()
+      };
+    }
+    return undefined;
+  }
+
+  async getAllModules(): Promise<typeof modules.$inferSelect[]> {
+    // Simulamos módulos básicos
+    return [
+      {
+        id: 1,
+        code: "CERTIFICADOS_BASE",
+        name: "Certificados Base",
+        description: "Módulo básico para gestão de certificados",
+        active: true,
+        isCore: true,
+        createdAt: new Date()
+      }
+    ];
+  }
+
+  async getModule(id: number): Promise<typeof modules.$inferSelect | undefined> {
+    if (id === 1) {
+      return {
+        id: 1,
+        code: "CERTIFICADOS_BASE",
+        name: "Certificados Base",
+        description: "Módulo básico para gestão de certificados",
+        active: true,
+        isCore: true,
+        createdAt: new Date()
+      };
+    }
+    return undefined;
+  }
+
+  async getModulesByPlan(planId: number): Promise<typeof modules.$inferSelect[]> {
+    // No plano básico (id = 1), retornamos apenas o módulo de certificados base
+    if (planId === 1) {
+      return [
+        {
+          id: 1,
+          code: "CERTIFICADOS_BASE",
+          name: "Certificados Base",
+          description: "Módulo básico para gestão de certificados",
+          active: true,
+          isCore: true,
+          createdAt: new Date()
+        }
+      ];
+    }
+    return [];
+  }
+
+  async getModulesByPlanCode(code: string): Promise<typeof modules.$inferSelect[]> {
+    // No plano básico (code = "A"), retornamos apenas o módulo de certificados base
+    if (code === "A") {
+      return [
+        {
+          id: 1,
+          code: "CERTIFICADOS_BASE",
+          name: "Certificados Base",
+          description: "Módulo básico para gestão de certificados",
+          active: true,
+          isCore: true,
+          createdAt: new Date()
+        }
+      ];
+    }
+    return [];
+  }
+
+  async getTenantEnabledModules(tenantId: number): Promise<typeof modules.$inferSelect[]> {
+    // Todos os tenants no MemStorage usam o plano básico por padrão
+    return this.getModulesByPlan(1);
+  }
 }
 
 // Classe DatabaseStorage que implementa a interface IStorage
@@ -1672,6 +1790,79 @@ export class DatabaseStorage implements IStorage {
         eq(packageTypes.tenantId, tenantId)
       ));
     return result.rowCount > 0;
+  }
+
+  // Plans & Modules methods
+  async getAllPlans(): Promise<typeof plans.$inferSelect[]> {
+    return await db.select().from(plans).where(eq(plans.active, true));
+  }
+
+  async getPlan(id: number): Promise<typeof plans.$inferSelect | undefined> {
+    const [plan] = await db.select().from(plans).where(eq(plans.id, id));
+    return plan;
+  }
+
+  async getPlanByCode(code: string): Promise<typeof plans.$inferSelect | undefined> {
+    const [plan] = await db.select().from(plans).where(eq(plans.code, code));
+    return plan;
+  }
+
+  async getAllModules(): Promise<typeof modules.$inferSelect[]> {
+    return await db.select().from(modules).where(eq(modules.active, true));
+  }
+
+  async getModule(id: number): Promise<typeof modules.$inferSelect | undefined> {
+    const [module] = await db.select().from(modules).where(eq(modules.id, id));
+    return module;
+  }
+
+  async getModulesByPlan(planId: number): Promise<typeof modules.$inferSelect[]> {
+    return await db
+      .select({
+        id: modules.id,
+        code: modules.code,
+        name: modules.name,
+        description: modules.description,
+        active: modules.active,
+        isCore: modules.isCore,
+        createdAt: modules.createdAt
+      })
+      .from(planModules)
+      .innerJoin(modules, eq(planModules.moduleId, modules.id))
+      .where(and(
+        eq(planModules.planId, planId),
+        eq(modules.active, true)
+      ));
+  }
+
+  async getModulesByPlanCode(code: string): Promise<typeof modules.$inferSelect[]> {
+    return await db
+      .select({
+        id: modules.id,
+        code: modules.code,
+        name: modules.name,
+        description: modules.description,
+        active: modules.active,
+        isCore: modules.isCore,
+        createdAt: modules.createdAt
+      })
+      .from(planModules)
+      .innerJoin(modules, eq(planModules.moduleId, modules.id))
+      .innerJoin(plans, eq(planModules.planId, plans.id))
+      .where(and(
+        eq(plans.code, code),
+        eq(modules.active, true),
+        eq(plans.active, true)
+      ));
+  }
+
+  async getTenantEnabledModules(tenantId: number): Promise<typeof modules.$inferSelect[]> {
+    // Buscar o tenant para obter o planId
+    const [tenant] = await db.select().from(tenants).where(eq(tenants.id, tenantId));
+    if (!tenant) return [];
+
+    // Buscar todos os módulos disponíveis para o plano do tenant
+    return await this.getModulesByPlan(tenant.planId);
   }
 }
 
