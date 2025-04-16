@@ -2257,6 +2257,24 @@ Em um ambiente de produção, este seria o conteúdo real do arquivo.`);
     }
   });
   
+  // Obter detalhes de um arquivo específico por ID
+  app.get("/api/files/:id", isAuthenticated, async (req, res) => {
+    try {
+      const { tenantId } = req.user!;
+      const fileId = Number(req.params.id);
+      
+      const file = await storage.getFile(fileId, tenantId);
+      if (!file) {
+        return res.status(404).json({ message: 'Arquivo não encontrado' });
+      }
+      
+      res.json(file);
+    } catch (error) {
+      console.error('Erro ao obter detalhes do arquivo:', error);
+      res.status(500).json({ message: 'Erro ao obter detalhes do arquivo' });
+    }
+  });
+  
   // Upload de arquivo com verificação de limites
   app.post("/api/files/upload", 
     isAuthenticated, 
