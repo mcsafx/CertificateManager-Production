@@ -617,58 +617,10 @@ Em um ambiente de produção, este seria o conteúdo real do arquivo.`);
         return res.status(404).json({ message: "Este certificado não possui um arquivo original anexado" });
       }
       
-      // Extrair o nome original do arquivo com extensão
-      // Aqui preservamos o nome original do arquivo ao máximo
-      // Primeiro tentamos extrair do campo originalFileName, se existir
-      let originalFileName = '';
+      // Redirecionar para a URL original do arquivo
+      // Isso permite que o navegador abra o arquivo diretamente
+      return res.redirect(certificate.originalFileUrl);
       
-      if (certificate.originalFileName) {
-        // Se temos o nome original do arquivo armazenado, usamos ele
-        originalFileName = certificate.originalFileName;
-      } else {
-        // Senão, tentamos extrair da URL
-        const urlFilename = certificate.originalFileUrl.split('/').pop();
-        if (urlFilename) {
-          originalFileName = decodeURIComponent(urlFilename);
-        } else {
-          // Fallback para um nome genérico com o ID do certificado
-          originalFileName = `certificado-${certificateId}.pdf`;
-        }
-      }
-      
-      // Determinar o tipo de conteúdo com base na extensão do arquivo
-      const fileExtension = originalFileName.split('.').pop()?.toLowerCase() || 'pdf';
-      let contentType = 'application/octet-stream'; // Tipo padrão para download
-      
-      // Mapear extensões comuns para os tipos MIME corretos
-      const mimeTypes: Record<string, string> = {
-        'pdf': 'application/pdf',
-        'doc': 'application/msword',
-        'docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-        'xls': 'application/vnd.ms-excel',
-        'xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-        'jpg': 'image/jpeg',
-        'jpeg': 'image/jpeg',
-        'png': 'image/png',
-        'txt': 'text/plain'
-      };
-      
-      if (fileExtension in mimeTypes) {
-        contentType = mimeTypes[fileExtension];
-      }
-      
-      res.setHeader('Content-Disposition', `attachment; filename="${originalFileName}"`);
-      res.setHeader('Content-Type', contentType);
-      
-      // Em um ambiente real, você buscaria o arquivo real do armazenamento
-      // Para este exemplo, baseado na extensão, enviamos um conteúdo adequado
-      if (fileExtension === 'pdf') {
-        // Enviamos um PDF de exemplo
-        res.send(Buffer.from('%PDF-1.5\n1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n3 0 obj\n<< /Type /Page /Parent 2 0 R /Resources 4 0 R /MediaBox [0 0 500 800] /Contents 6 0 R >>\nendobj\n4 0 obj\n<< /Font << /F1 5 0 R >> >>\nendobj\n5 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>\nendobj\n6 0 obj\n<< /Length 68 >>\nstream\nBT\n/F1 24 Tf\n100 700 Td\n(CERTIFICADO DE QUALIDADE) Tj\n100 650 Td\n/F1 16 Tf\n(Lote: ' + (certificate.supplierLot || 'N/A') + ') Tj\n100 600 Td\n(Documento: ' + (certificate.referenceDocument || 'N/A') + ') Tj\nET\nendstream\nendobj\nxref\n0 7\n0000000000 65535 f\n0000000009 00000 n\n0000000058 00000 n\n0000000115 00000 n\n0000000216 00000 n\n0000000259 00000 n\n0000000326 00000 n\ntrailer\n<< /Size 7 /Root 1 0 R >>\nstartxref\n444\n%%EOF'));
-      } else {
-        // Para outros tipos de arquivo, enviamos um conteúdo genérico
-        res.send(Buffer.from(`Este é um arquivo ${fileExtension.toUpperCase()} de exemplo para o certificado #${certificateId}`));
-      }
     } catch (error) {
       next(error);
     }
