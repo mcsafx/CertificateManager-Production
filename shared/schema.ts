@@ -3,17 +3,7 @@ import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 import { relations } from "drizzle-orm";
 
-// User and Auth
-export const users = pgTable("users", {
-  id: serial("id").primaryKey(),
-  username: text("username").notNull().unique(),
-  password: text("password").notNull(),
-  name: text("name").notNull(),
-  role: text("role").notNull().default("user"),
-  tenantId: integer("tenant_id").notNull(),
-  active: boolean("active").notNull().default(true),
-});
-
+// Tenants (Empresas)
 export const tenants = pgTable("tenants", {
   id: serial("id").primaryKey(),
   name: text("name").notNull(),
@@ -29,12 +19,23 @@ export const tenants = pgTable("tenants", {
   planEndDate: date("plan_end_date"),
 });
 
+// Users (Usuários)
+export const users = pgTable("users", {
+  id: serial("id").primaryKey(),
+  username: text("username").notNull().unique(),
+  password: text("password").notNull(),
+  name: text("name").notNull(),
+  role: text("role").notNull().default("user"),
+  tenantId: integer("tenant_id").notNull().references(() => tenants.id),
+  active: boolean("active").notNull().default(true),
+});
+
 // Categories and Subcategories
 export const productCategories = pgTable("product_categories", {
   id: serial("id").primaryKey(),
   name: text("name").notNull(),
   description: text("description"),
-  tenantId: integer("tenant_id").notNull(),
+  tenantId: integer("tenant_id").notNull().references(() => tenants.id),
   active: boolean("active").notNull().default(true),
 });
 
@@ -42,8 +43,8 @@ export const productSubcategories = pgTable("product_subcategories", {
   id: serial("id").primaryKey(),
   name: text("name").notNull(),
   description: text("description"),
-  categoryId: integer("category_id").notNull(), // Referência à categoria pai
-  tenantId: integer("tenant_id").notNull(),
+  categoryId: integer("category_id").notNull().references(() => productCategories.id),
+  tenantId: integer("tenant_id").notNull().references(() => tenants.id),
   active: boolean("active").notNull().default(true),
 });
 
@@ -53,7 +54,7 @@ export const productBase = pgTable("product_base", {
   technicalName: text("technical_name").notNull(),
   commercialName: text("commercial_name"),
   description: text("description"),
-  subcategoryId: integer("subcategory_id").notNull(), // Referência à subcategoria
+  subcategoryId: integer("subcategory_id").notNull().references(() => productSubcategories.id),
   internalCode: text("internal_code"),
   defaultMeasureUnit: text("default_measure_unit").notNull(),
   
@@ -63,14 +64,14 @@ export const productBase = pgTable("product_base", {
   unNumber: text("un_number"), // Número ONU
   packagingGroup: text("packaging_group"), // Grupo de Embalagem
   
-  tenantId: integer("tenant_id").notNull(),
+  tenantId: integer("tenant_id").notNull().references(() => tenants.id),
   active: boolean("active").notNull().default(true),
 });
 
 // Produto variante (antigo "products")
 export const products = pgTable("products", {
   id: serial("id").primaryKey(),
-  baseProductId: integer("base_product_id").notNull(), // Referência ao produto base
+  baseProductId: integer("base_product_id").notNull().references(() => productBase.id),
   sku: text("sku"), // Código único para esta variante específica
   technicalName: text("technical_name").notNull(),
   commercialName: text("commercial_name"),
@@ -80,27 +81,27 @@ export const products = pgTable("products", {
   netWeight: numeric("net_weight"), // Peso líquido
   grossWeight: numeric("gross_weight"), // Peso bruto
   specifications: jsonb("specifications"), // Especificações adicionais em formato JSON
-  tenantId: integer("tenant_id").notNull(),
+  tenantId: integer("tenant_id").notNull().references(() => tenants.id),
   active: boolean("active").notNull().default(true),
 });
 
 // Product Files - Arquivos anexados aos produtos (variantes)
 export const productFiles = pgTable("product_files", {
   id: serial("id").primaryKey(),
-  productId: integer("product_id").notNull(),
+  productId: integer("product_id").notNull().references(() => products.id),
   fileName: text("file_name").notNull(),
   fileUrl: text("file_url").notNull(),
   fileSize: integer("file_size").notNull(), // tamanho em KB
   fileType: text("file_type").notNull(), // MIME type
   uploadedAt: timestamp("uploaded_at").notNull().defaultNow(),
   description: text("description"),
-  tenantId: integer("tenant_id").notNull(),
+  tenantId: integer("tenant_id").notNull().references(() => tenants.id),
 });
 
 // Product Base Files - Arquivos anexados aos produtos base (como FISPQ/SDS e Fichas Técnicas)
 export const productBaseFiles = pgTable("product_base_files", {
   id: serial("id").primaryKey(),
-  baseProductId: integer("base_product_id").notNull(),
+  baseProductId: integer("base_product_id").notNull().references(() => productBase.id),
   fileName: text("file_name").notNull(),
   fileUrl: text("file_url").notNull(),
   fileSize: integer("file_size").notNull(), // tamanho em KB
@@ -108,18 +109,18 @@ export const productBaseFiles = pgTable("product_base_files", {
   fileCategory: text("file_category").notNull(), // Ex: "fispq", "technical_sheet"
   uploadedAt: timestamp("uploaded_at").notNull().defaultNow(),
   description: text("description"),
-  tenantId: integer("tenant_id").notNull(),
+  tenantId: integer("tenant_id").notNull().references(() => tenants.id),
 });
 
 export const productCharacteristics = pgTable("product_characteristics", {
   id: serial("id").primaryKey(),
-  productId: integer("product_id").notNull(),
+  productId: integer("product_id").notNull().references(() => products.id),
   name: text("name").notNull(),
   unit: text("unit").notNull(),
   minValue: numeric("min_value"),
   maxValue: numeric("max_value"),
   analysisMethod: text("analysis_method"),
-  tenantId: integer("tenant_id").notNull(),
+  tenantId: integer("tenant_id").notNull().references(() => tenants.id),
 });
 
 // Suppliers, Manufacturers, Clients
@@ -130,14 +131,14 @@ export const suppliers = pgTable("suppliers", {
   phone: text("phone"),
   address: text("address"),
   internalCode: text("internal_code"),
-  tenantId: integer("tenant_id").notNull(),
+  tenantId: integer("tenant_id").notNull().references(() => tenants.id),
 });
 
 export const manufacturers = pgTable("manufacturers", {
   id: serial("id").primaryKey(),
   name: text("name").notNull(),
   country: text("country").notNull(),
-  tenantId: integer("tenant_id").notNull(),
+  tenantId: integer("tenant_id").notNull().references(() => tenants.id),
 });
 
 export const clients = pgTable("clients", {
@@ -147,18 +148,18 @@ export const clients = pgTable("clients", {
   phone: text("phone"),
   address: text("address"),
   internalCode: text("internal_code"),
-  tenantId: integer("tenant_id").notNull(),
+  tenantId: integer("tenant_id").notNull().references(() => tenants.id),
 });
 
 // Certificates
 export const entryCertificates = pgTable("entry_certificates", {
   id: serial("id").primaryKey(),
-  supplierId: integer("supplier_id").notNull(),
-  manufacturerId: integer("manufacturer_id").notNull(),
+  supplierId: integer("supplier_id").notNull().references(() => suppliers.id),
+  manufacturerId: integer("manufacturer_id").notNull().references(() => manufacturers.id),
   referenceDocument: text("reference_document").notNull(),
   entryDate: date("entry_date").notNull(),
   enteredAt: timestamp("entered_at").notNull().defaultNow(),
-  productId: integer("product_id").notNull(),
+  productId: integer("product_id").notNull().references(() => products.id),
   receivedQuantity: numeric("received_quantity").notNull(),
   measureUnit: text("measure_unit").notNull(),
   packageType: text("package_type").notNull(),
@@ -170,31 +171,31 @@ export const entryCertificates = pgTable("entry_certificates", {
   internalLot: text("internal_lot").notNull(),
   status: text("status").notNull(),
   originalFileUrl: text("original_file_url"),
-  tenantId: integer("tenant_id").notNull(),
+  tenantId: integer("tenant_id").notNull().references(() => tenants.id),
 });
 
 export const entryCertificateResults = pgTable("entry_certificate_results", {
   id: serial("id").primaryKey(),
-  entryCertificateId: integer("entry_certificate_id").notNull(),
+  entryCertificateId: integer("entry_certificate_id").notNull().references(() => entryCertificates.id),
   characteristicName: text("characteristic_name").notNull(),
   unit: text("unit").notNull(),
   minValue: numeric("min_value"),
   maxValue: numeric("max_value"),
   obtainedValue: numeric("obtained_value").notNull(),
   analysisMethod: text("analysis_method"),
-  tenantId: integer("tenant_id").notNull(),
+  tenantId: integer("tenant_id").notNull().references(() => tenants.id),
 });
 
 export const issuedCertificates = pgTable("issued_certificates", {
   id: serial("id").primaryKey(),
-  entryCertificateId: integer("entry_certificate_id").notNull(),
-  clientId: integer("client_id").notNull(),
+  entryCertificateId: integer("entry_certificate_id").notNull().references(() => entryCertificates.id),
+  clientId: integer("client_id").notNull().references(() => clients.id),
   invoiceNumber: text("invoice_number").notNull(),
   issueDate: date("issue_date").notNull(),
   soldQuantity: numeric("sold_quantity").notNull(),
   measureUnit: text("measure_unit").notNull(),
   customLot: text("custom_lot").notNull(),
-  tenantId: integer("tenant_id").notNull(),
+  tenantId: integer("tenant_id").notNull().references(() => tenants.id),
 });
 
 // Insert Schemas
@@ -397,7 +398,7 @@ export const insertIssuedCertificateSchema = createInsertSchema(issuedCertificat
 export const packageTypes = pgTable("package_types", {
   id: serial("id").primaryKey(),
   name: text("name").notNull(),
-  tenantId: integer("tenant_id").notNull(),
+  tenantId: integer("tenant_id").notNull().references(() => tenants.id),
   active: boolean("active").notNull().default(true),
 });
 
@@ -406,6 +407,179 @@ export const insertPackageTypeSchema = createInsertSchema(packageTypes).pick({
   tenantId: true,
   active: true,
 });
+
+// Relações entre tabelas
+export const tenantsRelations = relations(tenants, ({ many }) => ({
+  users: many(users),
+  productCategories: many(productCategories),
+  products: many(products),
+  productBase: many(productBase),
+}));
+
+export const usersRelations = relations(users, ({ one }) => ({
+  tenant: one(tenants, {
+    fields: [users.tenantId],
+    references: [tenants.id],
+  }),
+}));
+
+export const productCategoriesRelations = relations(productCategories, ({ one, many }) => ({
+  tenant: one(tenants, {
+    fields: [productCategories.tenantId],
+    references: [tenants.id],
+  }),
+  subcategories: many(productSubcategories),
+}));
+
+export const productSubcategoriesRelations = relations(productSubcategories, ({ one, many }) => ({
+  tenant: one(tenants, {
+    fields: [productSubcategories.tenantId],
+    references: [tenants.id],
+  }),
+  category: one(productCategories, {
+    fields: [productSubcategories.categoryId],
+    references: [productCategories.id],
+  }),
+  productBases: many(productBase),
+}));
+
+export const productBaseRelations = relations(productBase, ({ one, many }) => ({
+  tenant: one(tenants, {
+    fields: [productBase.tenantId],
+    references: [tenants.id],
+  }),
+  subcategory: one(productSubcategories, {
+    fields: [productBase.subcategoryId],
+    references: [productSubcategories.id],
+  }),
+  variants: many(products),
+  files: many(productBaseFiles),
+}));
+
+export const productsRelations = relations(products, ({ one, many }) => ({
+  tenant: one(tenants, {
+    fields: [products.tenantId],
+    references: [tenants.id],
+  }),
+  base: one(productBase, {
+    fields: [products.baseProductId],
+    references: [productBase.id],
+  }),
+  files: many(productFiles),
+  characteristics: many(productCharacteristics),
+  entryCertificates: many(entryCertificates),
+}));
+
+export const productFilesRelations = relations(productFiles, ({ one }) => ({
+  tenant: one(tenants, {
+    fields: [productFiles.tenantId],
+    references: [tenants.id],
+  }),
+  product: one(products, {
+    fields: [productFiles.productId],
+    references: [products.id],
+  }),
+}));
+
+export const productBaseFilesRelations = relations(productBaseFiles, ({ one }) => ({
+  tenant: one(tenants, {
+    fields: [productBaseFiles.tenantId],
+    references: [tenants.id],
+  }),
+  productBase: one(productBase, {
+    fields: [productBaseFiles.baseProductId],
+    references: [productBase.id],
+  }),
+}));
+
+export const productCharacteristicsRelations = relations(productCharacteristics, ({ one }) => ({
+  tenant: one(tenants, {
+    fields: [productCharacteristics.tenantId],
+    references: [tenants.id],
+  }),
+  product: one(products, {
+    fields: [productCharacteristics.productId],
+    references: [products.id],
+  }),
+}));
+
+export const suppliersRelations = relations(suppliers, ({ one, many }) => ({
+  tenant: one(tenants, {
+    fields: [suppliers.tenantId],
+    references: [tenants.id],
+  }),
+  entryCertificates: many(entryCertificates),
+}));
+
+export const manufacturersRelations = relations(manufacturers, ({ one, many }) => ({
+  tenant: one(tenants, {
+    fields: [manufacturers.tenantId],
+    references: [tenants.id],
+  }),
+  entryCertificates: many(entryCertificates),
+}));
+
+export const clientsRelations = relations(clients, ({ one, many }) => ({
+  tenant: one(tenants, {
+    fields: [clients.tenantId],
+    references: [tenants.id],
+  }),
+  issuedCertificates: many(issuedCertificates),
+}));
+
+export const entryCertificatesRelations = relations(entryCertificates, ({ one, many }) => ({
+  tenant: one(tenants, {
+    fields: [entryCertificates.tenantId],
+    references: [tenants.id],
+  }),
+  supplier: one(suppliers, {
+    fields: [entryCertificates.supplierId],
+    references: [suppliers.id],
+  }),
+  manufacturer: one(manufacturers, {
+    fields: [entryCertificates.manufacturerId],
+    references: [manufacturers.id],
+  }),
+  product: one(products, {
+    fields: [entryCertificates.productId],
+    references: [products.id],
+  }),
+  results: many(entryCertificateResults),
+  issuedCertificates: many(issuedCertificates),
+}));
+
+export const entryCertificateResultsRelations = relations(entryCertificateResults, ({ one }) => ({
+  tenant: one(tenants, {
+    fields: [entryCertificateResults.tenantId],
+    references: [tenants.id],
+  }),
+  entryCertificate: one(entryCertificates, {
+    fields: [entryCertificateResults.entryCertificateId],
+    references: [entryCertificates.id],
+  }),
+}));
+
+export const issuedCertificatesRelations = relations(issuedCertificates, ({ one }) => ({
+  tenant: one(tenants, {
+    fields: [issuedCertificates.tenantId],
+    references: [tenants.id],
+  }),
+  entryCertificate: one(entryCertificates, {
+    fields: [issuedCertificates.entryCertificateId],
+    references: [entryCertificates.id],
+  }),
+  client: one(clients, {
+    fields: [issuedCertificates.clientId],
+    references: [clients.id],
+  }),
+}));
+
+export const packageTypesRelations = relations(packageTypes, ({ one }) => ({
+  tenant: one(tenants, {
+    fields: [packageTypes.tenantId],
+    references: [tenants.id],
+  }),
+}));
 
 // Type exports
 export type InsertUser = z.infer<typeof insertUserSchema>;
