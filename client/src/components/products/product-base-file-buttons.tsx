@@ -34,8 +34,9 @@ export function ProductBaseFileButtons({ file, onDelete }: FileButtonsProps) {
         variant="outline" 
         size="sm"
         onClick={() => {
-          // Em um ambiente real, isso abriria o documento em uma nova aba
-          window.open(file.fileUrl, '_blank');
+          // Usar a API para visualizar o arquivo
+          const fileViewUrl = `/api/files/view/${file.id}?type=base`;
+          window.open(fileViewUrl, '_blank');
         }}
       >
         <Eye className="h-4 w-4 mr-1" /> Visualizar
@@ -44,9 +45,10 @@ export function ProductBaseFileButtons({ file, onDelete }: FileButtonsProps) {
         variant="outline" 
         size="sm"
         onClick={() => {
-          // Em um ambiente real, isso faria o download do arquivo
+          // Usar a API para download do arquivo
+          const fileDownloadUrl = `/api/files/download/${file.id}?type=base`;
           const link = document.createElement('a');
-          link.href = file.fileUrl;
+          link.href = fileDownloadUrl;
           link.download = file.fileName;
           document.body.appendChild(link);
           link.click();
