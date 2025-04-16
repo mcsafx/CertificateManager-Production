@@ -353,12 +353,14 @@ export const insertEntryCertificateSchema = createInsertSchema(entryCertificates
     internalLot: true,
     status: true,
     originalFileUrl: true,
+    originalFileName: true,
     tenantId: true,
   })
   .extend({
     // Aceita tanto string quanto número para campos numéricos
     receivedQuantity: z.union([z.string(), z.number()]),
     conversionFactor: z.union([z.string(), z.number(), z.null()]).optional(),
+    originalFileName: z.string().optional(),
   });
 
 export const insertEntryCertificateResultSchema = createInsertSchema(entryCertificateResults)

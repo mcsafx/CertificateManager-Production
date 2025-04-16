@@ -1668,13 +1668,35 @@ Em um ambiente de produção, este seria o conteúdo real do arquivo.`);
       const user = req.user!;
       
       // Parse and validate certificate data
-      const certificateData = insertEntryCertificateSchema.parse({
-        ...req.body.certificate,
+      let certificateData = req.body.certificate;
+      
+      // Se temos uma URL de arquivo original, extrair e preservar o nome original do arquivo
+      if (certificateData.originalFileUrl) {
+        const originalUrlParts = certificateData.originalFileUrl.split('/');
+        const filename = originalUrlParts[originalUrlParts.length - 1];
+        
+        // Tenta decodificar o nome do arquivo se ele estiver codificado na URL
+        try {
+          // Só tenta decodificar se o nome do arquivo parecer estar codificado
+          if (filename.includes('%')) {
+            certificateData.originalFileName = decodeURIComponent(filename);
+          } else {
+            certificateData.originalFileName = filename;
+          }
+        } catch (e) {
+          // Em caso de erro na decodificação, usa o nome como está
+          certificateData.originalFileName = filename;
+        }
+      }
+      
+      // Validar e processar os dados
+      const validatedData = insertEntryCertificateSchema.parse({
+        ...certificateData,
         tenantId: user.tenantId
       });
       
       // Create certificate
-      const certificate = await storage.createEntryCertificate(certificateData);
+      const certificate = await storage.createEntryCertificate(validatedData);
       
       // Handle results if provided
       if (req.body.results && Array.isArray(req.body.results)) {
@@ -1748,11 +1770,44 @@ Em um ambiente de produção, este seria o conteúdo real do arquivo.`);
       const user = req.user!;
       const certificateId = Number(req.params.id);
       
+      // Obter o certificado atual
+      const existingCertificate = await storage.getEntryCertificate(
+        certificateId, 
+        user.tenantId
+      );
+      
+      if (!existingCertificate) {
+        return res.status(404).json({ message: "Certificate not found" });
+      }
+      
+      // Preparar dados do certificado
+      let certificateData = req.body.certificate || {};
+      
+      // Se estiver atualizando o arquivo original, extrair e preservar o nome do arquivo
+      if (certificateData.originalFileUrl && 
+          (!existingCertificate.originalFileUrl || 
+           existingCertificate.originalFileUrl !== certificateData.originalFileUrl)) {
+        const originalUrlParts = certificateData.originalFileUrl.split('/');
+        const filename = originalUrlParts[originalUrlParts.length - 1];
+        
+        try {
+          // Só tenta decodificar se o nome do arquivo parecer estar codificado
+          if (filename.includes('%')) {
+            certificateData.originalFileName = decodeURIComponent(filename);
+          } else {
+            certificateData.originalFileName = filename;
+          }
+        } catch (e) {
+          // Em caso de erro na decodificação, usa o nome como está
+          certificateData.originalFileName = filename;
+        }
+      }
+      
       // Update certificate
       const certificate = await storage.updateEntryCertificate(
         certificateId, 
         user.tenantId, 
-        req.body.certificate || {}
+        certificateData
       );
       
       if (!certificate) {
