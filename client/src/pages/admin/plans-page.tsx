@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { CheckCircle2, Loader2, PlusCircle, Trash2 } from "lucide-react";
+import { CheckCircle2, Loader2, PlusCircle, Trash2, Pencil } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { apiRequest } from "@/lib/queryClient";
@@ -31,8 +31,10 @@ export default function PlansPage() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [openNewPlan, setOpenNewPlan] = useState(false);
+  const [openEditPlan, setOpenEditPlan] = useState(false);
   const [openNewModule, setOpenNewModule] = useState(false);
   const [planToDelete, setPlanToDelete] = useState<number | null>(null);
+  const [planToEdit, setPlanToEdit] = useState<any>(null);
   const [moduleToDelete, setModuleToDelete] = useState<number | null>(null);
   const [openDeletePlanDialog, setOpenDeletePlanDialog] = useState(false);
   const [openDeleteModuleDialog, setOpenDeleteModuleDialog] = useState(false);
@@ -216,6 +218,38 @@ export default function PlansPage() {
     }
   });
 
+  // Mutação para editar plano existente
+  const editPlanMutation = useMutation({
+    mutationFn: async (data: any) => {
+      const response = await apiRequest('PUT', `/api/admin/plans/${data.id}`, {
+        price: data.price,
+        maxStorage: data.maxStorage,
+        maxFileSize: data.maxFileSize,
+        description: data.description
+      });
+      if (!response.ok) {
+        throw new Error('Erro ao editar plano');
+      }
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/plans'] });
+      setOpenEditPlan(false);
+      setPlanToEdit(null);
+      toast({
+        title: "Plano atualizado",
+        description: "O plano foi atualizado com sucesso",
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: "Erro ao atualizar plano",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  });
+
   // Mutação para excluir plano
   const deletePlanMutation = useMutation({
     mutationFn: async (id: number) => {
@@ -271,6 +305,16 @@ export default function PlansPage() {
   // Função para lidar com o envio do formulário de plano
   function onSubmitPlan(values: z.infer<typeof planSchema>) {
     createPlanMutation.mutate(values);
+  }
+  
+  // Função para lidar com o envio do formulário de edição de plano
+  function onSubmitEditPlan(values: z.infer<typeof planSchema>) {
+    if (!planToEdit) return;
+    
+    editPlanMutation.mutate({
+      id: planToEdit.id,
+      ...values
+    });
   }
 
   // Função para lidar com o envio do formulário de módulo
@@ -515,16 +559,28 @@ export default function PlansPage() {
                               </Button>
                             </TableCell>
                             <TableCell className="text-right">
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => {
-                                  setPlanToDelete(plan.id);
-                                  setOpenDeletePlanDialog(true);
-                                }}
-                              >
-                                <Trash2 className="h-4 w-4 text-red-500" />
-                              </Button>
+                              <div className="flex justify-end space-x-1">
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => {
+                                    setPlanToEdit(plan);
+                                    setOpenEditPlan(true);
+                                  }}
+                                >
+                                  <Pencil className="h-4 w-4 text-blue-500" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => {
+                                    setPlanToDelete(plan.id);
+                                    setOpenDeletePlanDialog(true);
+                                  }}
+                                >
+                                  <Trash2 className="h-4 w-4 text-red-500" />
+                                </Button>
+                              </div>
                             </TableCell>
                           </TableRow>
                         ))}
@@ -674,6 +730,112 @@ export default function PlansPage() {
           </TabsContent>
         </Tabs>
       </div>
+
+      {/* Diálogo para edição de plano */}
+      <Dialog open={openEditPlan} onOpenChange={(open) => {
+        setOpenEditPlan(open);
+        if (!open) setPlanToEdit(null);
+      }}>
+        <DialogContent className="sm:max-w-[600px]">
+          <DialogHeader>
+            <DialogTitle>Editar Plano</DialogTitle>
+            <DialogDescription>
+              Atualize as informações do plano {planToEdit?.name}.
+            </DialogDescription>
+          </DialogHeader>
+          {planToEdit && (
+            <Form {...planForm}>
+              <form onSubmit={planForm.handleSubmit(onSubmitEditPlan)} className="space-y-4">
+                <FormField
+                  control={planForm.control}
+                  name="description"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Descrição</FormLabel>
+                      <FormControl>
+                        <Textarea 
+                          placeholder="Descreva as características do plano" 
+                          defaultValue={planToEdit.description}
+                          {...field} 
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <div className="grid grid-cols-2 gap-4">
+                  <FormField
+                    control={planForm.control}
+                    name="maxStorage"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Armazenamento Máximo (MB)</FormLabel>
+                        <FormControl>
+                          <Input 
+                            type="number" 
+                            defaultValue={planToEdit.maxStorage || planToEdit.storageLimit}
+                            {...field} 
+                          />
+                        </FormControl>
+                        <FormDescription>
+                          Limite total de armazenamento em MB.
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={planForm.control}
+                    name="maxFileSize"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Tamanho Máximo de Arquivo (MB)</FormLabel>
+                        <FormControl>
+                          <Input 
+                            type="number" 
+                            defaultValue={planToEdit.maxFileSize}
+                            {...field} 
+                          />
+                        </FormControl>
+                        <FormDescription>
+                          Tamanho máximo por arquivo em MB.
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+                <FormField
+                  control={planForm.control}
+                  name="price"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Preço (R$)</FormLabel>
+                      <FormControl>
+                        <Input 
+                          type="number" 
+                          step="0.01" 
+                          defaultValue={planToEdit.price}
+                          {...field} 
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <DialogFooter>
+                  <Button type="submit" disabled={editPlanMutation.isPending}>
+                    {editPlanMutation.isPending && (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    )}
+                    Atualizar Plano
+                  </Button>
+                </DialogFooter>
+              </form>
+            </Form>
+          )}
+        </DialogContent>
+      </Dialog>
 
       {/* Diálogo para editar módulos de um plano */}
       <Dialog open={openPlanModuleEditor} onOpenChange={setOpenPlanModuleEditor}>
