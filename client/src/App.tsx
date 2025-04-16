@@ -22,6 +22,7 @@ import AdminDashboardPage from "@/pages/admin/index";
 import AdminTenantsPage from "@/pages/admin/tenants-page";
 import AdminPlansPage from "@/pages/admin/plans-page";
 import AdminStoragePage from "@/pages/admin/storage-page";
+import AdminUsersPage from "@/pages/admin/users-page";
 import { ProtectedRoute } from "./lib/protected-route";
 import { AdminRoute } from "./lib/admin-route";
 import { AuthProvider } from "./hooks/use-auth";
@@ -56,6 +57,7 @@ function Router() {
       <AdminRoute path="/admin/tenants" component={AdminTenantsPage} />
       <AdminRoute path="/admin/plans" component={AdminPlansPage} />
       <AdminRoute path="/admin/storage" component={AdminStoragePage} />
+      <AdminRoute path="/admin/users" component={AdminUsersPage} />
       
       <Route component={NotFound} />
     </Switch>
