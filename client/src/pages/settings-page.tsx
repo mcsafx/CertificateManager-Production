@@ -96,6 +96,7 @@ export default function SettingsPage() {
   const [isAddUserDialogOpen, setIsAddUserDialogOpen] = useState(false);
   const [isAddPackageTypeDialogOpen, setIsAddPackageTypeDialogOpen] = useState(false);
   const [editingPackageType, setEditingPackageType] = useState<null | { id: number; name: string; active: boolean }>(null);
+  const [logoPreview, setLogoPreview] = useState<string | null>(null);
   
   // User profile form
   const userProfileForm = useForm<UserProfileFormValues>({
@@ -383,6 +384,63 @@ export default function SettingsPage() {
     }
   };
   
+  // Upload da logomarca
+  const uploadLogoMutation = useMutation({
+    mutationFn: async (logoUrl: string) => {
+      await apiRequest("PATCH", `/api/tenants/${user?.tenantId}`, {
+        logoUrl
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [`/api/tenants/${user?.tenantId}`] });
+      toast({
+        title: "Logomarca atualizada",
+        description: "A logomarca da empresa foi atualizada com sucesso.",
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: "Erro ao atualizar logomarca",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Função para lidar com o upload da logomarca
+  const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      
+      // Verificar o tamanho do arquivo (limite de 2MB para plano básico)
+      const sizeInMB = file.size / (1024 * 1024);
+      if (sizeInMB > 2) {
+        toast({
+          title: "Arquivo muito grande",
+          description: "O tamanho máximo permitido é de 2MB.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Criar uma URL temporária para preview
+      const logoUrl = URL.createObjectURL(file);
+      setLogoPreview(logoUrl);
+
+      // Em um ambiente de produção real, você faria o upload do arquivo
+      // Para este exemplo, usamos DataURL (Base64)
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        if (typeof reader.result === 'string') {
+          // Simular o URL que seria retornado pelo servidor após upload
+          const simulatedServerUrl = reader.result;
+          uploadLogoMutation.mutate(simulatedServerUrl);
+        }
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
   // Handle new user form submit
   const onNewUserSubmit = (data: NewUserFormValues) => {
     addUserMutation.mutate(data);
@@ -433,9 +491,9 @@ export default function SettingsPage() {
                       <div className="flex items-center justify-center mb-6">
                         <div className="relative">
                           <div className="w-32 h-32 bg-gray-200 rounded-md flex items-center justify-center">
-                            {tenant?.logoUrl ? (
+                            {logoPreview || tenant?.logoUrl ? (
                               <img 
-                                src={tenant.logoUrl} 
+                                src={logoPreview || tenant?.logoUrl} 
                                 alt="Logo da empresa" 
                                 className="max-w-full max-h-full p-2"
                               />
@@ -448,9 +506,17 @@ export default function SettingsPage() {
                             size="sm" 
                             className="absolute bottom-0 right-0 rounded-full"
                             type="button"
+                            onClick={() => document.getElementById('logo-upload')?.click()}
                           >
                             <Upload className="h-4 w-4" />
                           </Button>
+                          <input
+                            id="logo-upload"
+                            type="file"
+                            accept="image/*"
+                            className="hidden"
+                            onChange={handleLogoUpload}
+                          />
                         </div>
                       </div>
                       
