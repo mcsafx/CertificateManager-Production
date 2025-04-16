@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -26,6 +26,7 @@ interface CertificateFormProps {
 export function CertificateForm({ certificateId, onSuccess }: CertificateFormProps) {
   const { toast } = useToast();
   
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [isEditing, setIsEditing] = useState(!!certificateId);
   const [formStep, setFormStep] = useState(1);
   const [isSupplierDialogOpen, setIsSupplierDialogOpen] = useState(false);
@@ -798,12 +799,25 @@ export function CertificateForm({ certificateId, onSuccess }: CertificateFormPro
                   <span className="text-primary">clique para escolher</span>
                 </p>
                 <Input
+                  ref={fileInputRef}
                   type="file"
                   className="hidden"
                   accept=".pdf,.jpg,.jpeg,.png"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) {
+                      // Aqui você lidaria com o upload do arquivo
+                      setFormData({ ...formData, originalFileUrl: URL.createObjectURL(file) });
+                    }
+                  }}
                 />
                 <div className="mt-2">
-                  <Button type="button" variant="outline" size="sm">
+                  <Button 
+                    type="button" 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => fileInputRef.current?.click()}
+                  >
                     Escolher Arquivo
                   </Button>
                 </div>
