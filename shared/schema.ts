@@ -1,6 +1,7 @@
-import { pgTable, text, serial, integer, boolean, jsonb, varchar, timestamp, numeric, date } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, boolean, jsonb, varchar, timestamp, numeric, date, primaryKey, foreignKey } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
+import { relations } from "drizzle-orm";
 
 // User and Auth
 export const users = pgTable("users", {
