@@ -41,6 +41,23 @@ export interface IStorage {
   createTenant(tenant: InsertTenant): Promise<Tenant>;
   updateTenant(id: number, tenant: Partial<Tenant>): Promise<Tenant | undefined>;
   getAllTenants(): Promise<Tenant[]>;
+  deleteTenant(id: number): Promise<boolean>;
+  
+  // Planos e Módulos
+  getPlan(id: number): Promise<any | undefined>;
+  getPlans(): Promise<any[]>;
+  createPlan(plan: any): Promise<any>;
+  updatePlan(id: number, plan: Partial<any>): Promise<any | undefined>;
+  deletePlan(id: number): Promise<boolean>;
+  getModule(id: number): Promise<any | undefined>;
+  getModules(): Promise<any[]>;
+  getModulesByPlan(planId: number): Promise<any[]>;
+  
+  // Armazenamento
+  getAllFiles(): Promise<File[]>;
+  getStorageInfo(): Promise<{totalFiles: number, totalSizeMB: number}>;
+  getStorageUsageByTenant(): Promise<any[]>;
+  cleanupUnusedFiles(tenantId: number): Promise<{filesRemoved: number, spaceSaved: number}>;
   
   // Product Categories
   getProductCategory(id: number, tenantId: number): Promise<ProductCategory | undefined>;
@@ -1201,6 +1218,188 @@ export class MemStorage implements IStorage {
     // Todos os tenants no MemStorage usam o plano básico por padrão
     return this.getModulesByPlan(1);
   }
+  
+  // Implementação dos métodos administrativos
+  async deleteTenant(id: number): Promise<boolean> {
+    // Antes de remover o tenant, devemos remover todos os seus usuários
+    const tenantUsers = await this.getUsersByTenant(id);
+    for (const user of tenantUsers) {
+      await this.deleteUser(user.id);
+    }
+    
+    // Remover todas as entidades associadas ao tenant
+    // (Em uma implementação real, seria necessário remover todas as entidades)
+    
+    return this.tenants.delete(id);
+  }
+  
+  async getPlans(): Promise<any[]> {
+    return [
+      {
+        id: 1,
+        code: "BASIC",
+        name: "Básico",
+        description: "Plano básico com recursos limitados",
+        active: true,
+        price: "99.90",
+        storageLimit: 2, // em MB
+        maxUsers: 3,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        maxStorage: 2 // em MB
+      },
+      {
+        id: 2,
+        code: "INTERMEDIATE",
+        name: "Intermediário",
+        description: "Plano intermediário com mais recursos",
+        active: true,
+        price: "199.90",
+        storageLimit: 5, // em MB
+        maxUsers: 10,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        maxStorage: 5 // em MB
+      },
+      {
+        id: 3,
+        code: "COMPLETE",
+        name: "Completo",
+        description: "Plano completo com todos os recursos",
+        active: true,
+        price: "299.90",
+        storageLimit: 10, // em MB
+        maxUsers: 20,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        maxStorage: 10 // em MB
+      }
+    ];
+  }
+  
+  async createPlan(plan: any): Promise<any> {
+    // Em uma implementação real, seria adicionado ao banco de dados
+    return {
+      id: 4,
+      ...plan,
+      active: true,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      maxStorage: plan.storageLimit || 0
+    };
+  }
+  
+  async updatePlan(id: number, plan: Partial<any>): Promise<any | undefined> {
+    // Em uma implementação de memória, retornamos o plano atualizado
+    const plans = await this.getPlans();
+    const existingPlan = plans.find(p => p.id === id);
+    
+    if (!existingPlan) {
+      return undefined;
+    }
+    
+    return {
+      ...existingPlan,
+      ...plan,
+      updatedAt: new Date(),
+      maxStorage: plan.storageLimit || existingPlan.maxStorage
+    };
+  }
+  
+  async deletePlan(id: number): Promise<boolean> {
+    // Em uma implementação de memória, retornamos true (sucesso)
+    // Não podemos realmente excluir de uma array constante
+    return true;
+  }
+  
+  async getModules(): Promise<any[]> {
+    return [
+      {
+        id: 1,
+        code: "CERTIFICADOS_BASE",
+        name: "Certificados Base",
+        description: "Módulo básico para gestão de certificados",
+        active: true,
+        isCore: true,
+        createdAt: new Date()
+      },
+      {
+        id: 2,
+        code: "RASTREABILIDADE",
+        name: "Rastreabilidade",
+        description: "Módulo de rastreabilidade avançada",
+        active: true,
+        isCore: false,
+        createdAt: new Date()
+      },
+      {
+        id: 3,
+        code: "RELATORIOS",
+        name: "Relatórios Avançados",
+        description: "Relatórios e dashboards avançados",
+        active: true,
+        isCore: false,
+        createdAt: new Date()
+      }
+    ];
+  }
+  
+  async getAllFiles(): Promise<File[]> {
+    return Array.from(this.files.values());
+  }
+  
+  async getStorageInfo(): Promise<{totalFiles: number, totalSizeMB: number}> {
+    const files = Array.from(this.files.values());
+    const totalSizeMB = files.reduce((acc, file) => acc + (parseFloat(file.fileSizeMB) || 0), 0);
+    
+    return {
+      totalFiles: files.length,
+      totalSizeMB
+    };
+  }
+  
+  async getStorageUsageByTenant(): Promise<any[]> {
+    const files = Array.from(this.files.values());
+    const tenants = await this.getAllTenants();
+    const result = [];
+    
+    for (const tenant of tenants) {
+      const tenantFiles = files.filter(f => f.tenantId === tenant.id);
+      const storageUsed = tenantFiles.reduce((acc, file) => acc + (parseFloat(file.fileSizeMB) || 0), 0);
+      const plan = tenant.planId === 1 ? { maxStorage: 2 } : 
+                  tenant.planId === 2 ? { maxStorage: 5 } : 
+                  tenant.planId === 3 ? { maxStorage: 10 } : { maxStorage: 0 };
+      
+      result.push({
+        id: tenant.id,
+        name: tenant.name,
+        storageUsed,
+        fileCount: tenantFiles.length,
+        maxStorage: plan.maxStorage,
+        planName: tenant.planId === 1 ? 'Básico' : 
+                 tenant.planId === 2 ? 'Intermediário' : 
+                 tenant.planId === 3 ? 'Completo' : 'Desconhecido'
+      });
+    }
+    
+    return result;
+  }
+  
+  async cleanupUnusedFiles(tenantId: number): Promise<{filesRemoved: number, spaceSaved: number}> {
+    const files = Array.from(this.files.values()).filter(f => f.tenantId === tenantId && !f.entityId);
+    let filesRemoved = 0;
+    let spaceSaved = 0;
+    
+    for (const file of files) {
+      const success = await this.deleteFile(file.id, tenantId);
+      if (success) {
+        filesRemoved++;
+        spaceSaved += parseFloat(file.fileSizeMB) || 0;
+      }
+    }
+    
+    return { filesRemoved, spaceSaved };
+  }
 }
 
 // Classe DatabaseStorage que implementa a interface IStorage
@@ -2042,6 +2241,148 @@ export class DatabaseStorage implements IStorage {
 
     // Buscar todos os módulos disponíveis para o plano do tenant
     return await this.getModulesByPlan(tenant.planId);
+  }
+  
+  // Implementação dos métodos administrativos
+  async deleteTenant(id: number): Promise<boolean> {
+    // Antes de remover o tenant, devemos remover todos os usuários associados
+    const users = await this.getUsersByTenant(id);
+    for (const user of users) {
+      await this.deleteUser(user.id);
+    }
+    
+    // Remover o tenant
+    const result = await db.delete(tenants).where(eq(tenants.id, id));
+    return result.rowCount > 0;
+  }
+  
+  async getPlans(): Promise<any[]> {
+    return await db.select({
+      id: plans.id,
+      name: plans.name,
+      active: plans.active,
+      code: plans.code,
+      description: plans.description,
+      price: plans.price,
+      storageLimit: plans.storageLimit,
+      maxUsers: plans.maxUsers,
+      createdAt: plans.createdAt,
+      updatedAt: plans.updatedAt,
+      maxStorage: plans.storageLimit // Mapeamento para manter compatibilidade
+    }).from(plans);
+  }
+  
+  async createPlan(plan: any): Promise<any> {
+    const [newPlan] = await db.insert(plans).values({
+      name: plan.name,
+      code: plan.code || 'CUSTOM',
+      description: plan.description || null,
+      price: plan.price || '0',
+      storageLimit: plan.storageLimit || 0,
+      maxUsers: plan.maxUsers || 1,
+      active: plan.active ?? true,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    }).returning();
+    
+    return {
+      ...newPlan,
+      maxStorage: newPlan.storageLimit
+    };
+  }
+  
+  async updatePlan(id: number, plan: Partial<any>): Promise<any | undefined> {
+    const [updatedPlan] = await db.update(plans)
+      .set({
+        ...plan,
+        updatedAt: new Date()
+      })
+      .where(eq(plans.id, id))
+      .returning();
+      
+    if (!updatedPlan) return undefined;
+    
+    return {
+      ...updatedPlan,
+      maxStorage: updatedPlan.storageLimit
+    };
+  }
+  
+  async deletePlan(id: number): Promise<boolean> {
+    const result = await db.delete(plans).where(eq(plans.id, id));
+    return result.rowCount > 0;
+  }
+  
+  async getModules(): Promise<any[]> {
+    return await db.select().from(modules);
+  }
+  
+  async getAllFiles(): Promise<File[]> {
+    return await db.select().from(files);
+  }
+  
+  async getStorageInfo(): Promise<{totalFiles: number, totalSizeMB: number}> {
+    const allFiles = await this.getAllFiles();
+    const totalSizeMB = allFiles.reduce(
+      (acc, file) => acc + parseFloat(file.fileSizeMB), 
+      0
+    );
+    
+    return {
+      totalFiles: allFiles.length,
+      totalSizeMB
+    };
+  }
+  
+  async getStorageUsageByTenant(): Promise<any[]> {
+    const allTenants = await this.getAllTenants();
+    const result = [];
+    
+    for (const tenant of allTenants) {
+      const tenantFiles = await this.getFilesByTenant(tenant.id);
+      const storageUsed = tenantFiles.reduce(
+        (acc, file) => acc + parseFloat(file.fileSizeMB), 
+        0
+      );
+      
+      const plan = await this.getPlan(tenant.planId);
+      
+      result.push({
+        id: tenant.id,
+        name: tenant.name,
+        storageUsed,
+        fileCount: tenantFiles.length,
+        maxStorage: plan?.storageLimit || 0,
+        planName: plan?.name || 'Desconhecido'
+      });
+    }
+    
+    return result;
+  }
+  
+  async cleanupUnusedFiles(tenantId: number): Promise<{filesRemoved: number, spaceSaved: number}> {
+    const unusedFiles = await db.select()
+      .from(files)
+      .where(and(
+        eq(files.tenantId, tenantId),
+        sql`${files.entityId} IS NULL`
+      ));
+    
+    let filesRemoved = 0;
+    let spaceSaved = 0;
+    
+    for (const file of unusedFiles) {
+      // Em uma implementação completa, você removeria o arquivo físico aqui
+      
+      // Remover registro do banco de dados
+      const success = await this.deleteFile(file.id, tenantId);
+      if (success) {
+        filesRemoved++;
+        spaceSaved += parseFloat(file.fileSizeMB);
+      }
+    }
+    
+    return { filesRemoved, spaceSaved };
   }
 }
 
