@@ -568,7 +568,7 @@ export default function IssuedCertificateDetailPage() {
       
       // Configurações do PDF
       const options = {
-        margin: [10, 10],
+        margin: [5, 5],
         filename: `certificado-${pdfData.certificate.invoiceNumber}.pdf`,
         image: { type: 'jpeg', quality: 0.98 },
         html2canvas: { scale: 2, useCORS: true },
