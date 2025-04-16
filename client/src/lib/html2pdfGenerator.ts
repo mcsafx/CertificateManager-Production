@@ -96,28 +96,39 @@ function generateCertificateHTML(data: CertificateGenerationData): string {
     return data.results.map((result, index) => {
       const specificationValue = result.minValue && result.maxValue 
         ? `${result.minValue} - ${result.maxValue}`
-        : result.minValue || result.maxValue || 'N/A';
+        : result.minValue || result.maxValue || '-';
       
-      const isWithinRange = 
-        (result.minValue === null || parseFloat(result.obtainedValue) >= parseFloat(result.minValue)) && 
-        (result.maxValue === null || parseFloat(result.obtainedValue) <= parseFloat(result.maxValue));
+      // Tentativa de determinar se o valor está dentro do intervalo apenas se for numérico
+      let isWithinRange = true;
+      try {
+        if (
+          !isNaN(Number(result.obtainedValue)) && 
+          (result.minValue !== null || result.maxValue !== null)
+        ) {
+          isWithinRange = 
+            (result.minValue === null || parseFloat(result.obtainedValue) >= parseFloat(result.minValue)) && 
+            (result.maxValue === null || parseFloat(result.obtainedValue) <= parseFloat(result.maxValue));
+        }
+      } catch (e) {
+        isWithinRange = true; // Assume conformidade para valores não numéricos
+      }
 
-      const bgColor = index % 2 === 0 ? 'transparent' : '#f9f9f9';
-      const valueColor = isWithinRange ? '#388e3c' : '#d32f2f';
-
+      // Alternância entre linhas claras e escuras com tons de cinza
+      const bgColor = index % 2 === 0 ? '#f8f8f8' : '#ffffff';
+      
       return `
         <tr style="background-color: ${bgColor};">
-          <td style="padding: 10px; border-bottom: 1px solid #e0e0e0;">${result.characteristicName}</td>
-          <td style="padding: 10px; border-bottom: 1px solid #e0e0e0; text-align: center;">${result.unit || '-'}</td>
-          <td style="padding: 10px; border-bottom: 1px solid #e0e0e0; text-align: center;">${specificationValue}</td>
-          <td style="padding: 10px; border-bottom: 1px solid #e0e0e0; text-align: center; font-weight: bold; color: ${valueColor};">${result.obtainedValue}</td>
-          <td style="padding: 10px; border-bottom: 1px solid #e0e0e0; text-align: center;">${result.analysisMethod || '-'}</td>
+          <td style="padding: 8px 12px; border: 1px solid #ddd; font-weight: 500;">${result.characteristicName}</td>
+          <td style="padding: 8px 12px; border: 1px solid #ddd; text-align: center;">${result.unit || '-'}</td>
+          <td style="padding: 8px 12px; border: 1px solid #ddd; text-align: center;">${specificationValue}</td>
+          <td style="padding: 8px 12px; border: 1px solid #ddd; text-align: center; font-weight: bold;">${result.obtainedValue}</td>
+          <td style="padding: 8px 12px; border: 1px solid #ddd; text-align: center; font-size: 11px;">${result.analysisMethod || '-'}</td>
         </tr>
       `;
     }).join('');
   };
 
-  // Criar o HTML do certificado com design moderno e corporativo
+  // Criar o HTML do certificado com design elegante em preto e branco
   return `
     <!DOCTYPE html>
     <html>
@@ -141,8 +152,9 @@ function generateCertificateHTML(data: CertificateGenerationData): string {
         .page {
           width: 210mm;
           min-height: 297mm;
-          padding: 15mm;
+          padding: 20mm;
           position: relative;
+          box-sizing: border-box;
         }
         
         .watermark {
@@ -155,136 +167,157 @@ function generateCertificateHTML(data: CertificateGenerationData): string {
           justify-content: center;
           align-items: center;
           z-index: -1;
-          opacity: 0.035;
+          opacity: 0.03;
           pointer-events: none;
         }
         
         .watermark img {
-          width: 60%;
-          max-width: 400px;
+          width: 70%;
+          max-width: 500px;
         }
         
         .header {
           display: flex;
           justify-content: space-between;
-          align-items: center;
-          margin-bottom: 20px;
+          margin-bottom: 30px;
+          border-bottom: 1px solid #333;
           padding-bottom: 15px;
-          border-bottom: 2px solid #2196f3;
         }
         
         .logo-container {
           flex: 0 0 150px;
-          margin-right: 20px;
         }
         
         .logo {
           max-width: 100%;
-          max-height: 80px;
+          max-height: 70px;
           object-fit: contain;
         }
         
         .title-container {
           flex: 1;
+          text-align: center;
         }
         
         h1 {
-          font-size: 24px;
+          font-size: 22px;
           margin: 0 0 5px 0;
-          background: linear-gradient(45deg, #2196f3, #0d47a1);
-          -webkit-background-clip: text;
-          background-clip: text;
-          -webkit-text-fill-color: transparent;
+          color: #000;
           font-weight: 700;
+          letter-spacing: 1px;
+          text-transform: uppercase;
         }
         
         .certificate-number {
           font-size: 12px;
-          color: #666;
+          color: #555;
           margin-bottom: 5px;
+          letter-spacing: 0.5px;
         }
         
         .company-info {
           text-align: right;
-          flex: 1;
-          font-size: 12px;
+          font-size: 11px;
+          line-height: 1.5;
+          color: #444;
+          flex: 0 0 200px;
         }
         
         .company-name {
           font-weight: bold;
           font-size: 14px;
-          margin-bottom: 5px;
+          margin-bottom: 4px;
         }
         
         .section {
           margin-bottom: 25px;
-          padding: 20px;
-          background-color: #f9f9f9;
-          border-radius: 5px;
-          box-shadow: 0 2px 4px rgba(0,0,0,0.05);
         }
         
         .section-title {
-          font-size: 16px;
-          font-weight: 500;
-          margin: 0 0 15px 0;
-          padding-bottom: 8px;
-          color: #0d47a1;
-          border-bottom: 1px solid #e0e0e0;
+          font-size: 14px;
+          font-weight: 700;
+          margin: 0 0 10px 0;
+          padding: 6px 10px;
+          background-color: #eee;
+          border-left: 4px solid #333;
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+        }
+        
+        .columns {
+          display: flex;
+          gap: 20px;
+        }
+        
+        .column {
+          flex: 1;
         }
         
         .info-grid {
           display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 10px 20px;
+        }
+        
+        .info-grid.three-columns {
           grid-template-columns: 1fr 1fr 1fr;
-          gap: 20px;
         }
         
         .info-item {
-          margin-bottom: 10px;
+          margin-bottom: 8px;
         }
         
         .info-label {
-          font-weight: 500;
-          font-size: 12px;
-          color: #666;
+          font-weight: 600;
+          font-size: 11px;
+          color: #555;
           margin-bottom: 2px;
+          letter-spacing: 0.3px;
+          text-transform: uppercase;
         }
         
         .info-value {
-          font-size: 14px;
+          font-size: 13px;
+          color: #000;
+          border-bottom: 1px dotted #ccc;
+          padding-bottom: 2px;
         }
         
         .product-info {
-          margin-bottom: 5px;
+          margin-bottom: 15px;
         }
         
         .product-name {
-          font-size: 18px;
-          font-weight: 500;
-          color: #0d47a1;
+          font-size: 16px;
+          font-weight: 600;
+          color: #000;
+          letter-spacing: 0.5px;
+          margin-bottom: 5px;
         }
         
         table {
           width: 100%;
           border-collapse: collapse;
           font-size: 12px;
-          border-radius: 5px;
-          overflow: hidden;
-          box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+          border: 1px solid #ddd;
         }
         
         th {
-          background-color: #0d47a1;
+          background-color: #333;
           color: white;
-          padding: 12px;
+          padding: 10px;
           text-align: center;
           font-weight: 500;
+          font-size: 11px;
+          letter-spacing: 0.5px;
+          text-transform: uppercase;
         }
         
         td {
-          padding: 10px;
+          padding: 8px 10px;
           text-align: left;
-          border-bottom: 1px solid #e0e0e0;
+          border: 1px solid #ddd;
+          font-size: 12px;
         }
         
         .table-container {
@@ -293,55 +326,88 @@ function generateCertificateHTML(data: CertificateGenerationData): string {
           overflow-x: auto;
         }
         
-        .approval-section {
+        .observation-section {
           margin-top: 30px;
+          border: 1px solid #ddd;
+          padding: 15px;
+          background-color: #f9f9f9;
+        }
+        
+        .observation-title {
+          font-size: 12px;
+          font-weight: 600;
+          margin-bottom: 10px;
+          text-transform: uppercase;
+          color: #555;
+        }
+        
+        .observation-content {
+          min-height: 40px;
+          font-size: 12px;
+          color: #333;
+        }
+        
+        .signature-section {
+          margin-top: 40px;
           display: flex;
-          justify-content: space-between;
+          justify-content: center;
         }
         
-        .approval {
-          font-weight: 500;
-          font-size: 14px;
-        }
-        
-        .approved {
-          color: #388e3c;
-          font-weight: bold;
-        }
-        
-        .signature-area {
-          margin-top: 30px;
-          padding-top: 10px;
-          border-top: 1px solid #e0e0e0;
+        .signature-box {
           text-align: center;
+          width: 200px;
         }
         
         .signature-line {
           margin: 40px auto 5px auto;
-          width: 200px;
+          width: 180px;
           border-top: 1px solid #333;
         }
         
         .signature-name {
           font-size: 12px;
-          font-weight: 500;
+          font-weight: 600;
+          text-transform: uppercase;
         }
         
         .signature-title {
           font-size: 11px;
-          color: #666;
+          color: #555;
+        }
+        
+        .validity-section {
+          margin-top: 15px;
+          padding: 10px;
+          background-color: #f4f4f4;
+          text-align: center;
+          border: 1px solid #ddd;
+          font-size: 12px;
+        }
+        
+        .validity-label {
+          font-weight: 600;
+          margin-right: 5px;
         }
         
         .footer {
           position: absolute;
-          bottom: 15mm;
-          left: 15mm;
-          right: 15mm;
+          bottom: 20mm;
+          left: 20mm;
+          right: 20mm;
           text-align: center;
           font-size: 10px;
-          color: #888;
+          color: #666;
           padding-top: 10px;
-          border-top: 1px solid #e0e0e0;
+          border-top: 1px solid #ddd;
+        }
+        
+        .digital-note {
+          font-weight: 700;
+          font-size: 11px;
+          margin-top: 5px;
+          color: #333;
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
         }
         
         @media print {
@@ -353,8 +419,8 @@ function generateCertificateHTML(data: CertificateGenerationData): string {
           .page {
             width: 100%;
             min-height: auto;
+            padding: 15mm;
             box-shadow: none;
-            padding: 0;
           }
         }
       </style>
@@ -369,7 +435,7 @@ function generateCertificateHTML(data: CertificateGenerationData): string {
         
         <div class="header">
           <div class="logo-container">
-            ${data.tenant.logoUrl ? `<img src="${data.tenant.logoUrl}" class="logo" alt="${data.tenant.name} Logo">` : '<div style="width: 150px; height: 60px; background-color: #f0f0f0; display: flex; justify-content: center; align-items: center; color: #aaa;">Logo</div>'}
+            ${data.tenant.logoUrl ? `<img src="${data.tenant.logoUrl}" class="logo" alt="${data.tenant.name} Logo">` : '<div style="width: 150px; height: 60px; background-color: #f0f0f0; display: flex; justify-content: center; align-items: center; color: #555; font-size: 12px; text-align: center;">LOGOMARCA</div>'}
           </div>
           
           <div class="title-container">
@@ -379,29 +445,63 @@ function generateCertificateHTML(data: CertificateGenerationData): string {
           
           <div class="company-info">
             <div class="company-name">${data.tenant.name}</div>
-            ${data.tenant.cnpj ? `<div>${data.tenant.cnpj}</div>` : ''}
+            ${data.tenant.cnpj ? `<div>CNPJ: ${data.tenant.cnpj}</div>` : ''}
             ${data.tenant.address ? `<div>${data.tenant.address}</div>` : ''}
           </div>
         </div>
 
+        <div class="columns">
+          <div class="column">
+            <div class="section">
+              <div class="section-title">Identificação</div>
+              <div class="info-grid">
+                <div class="info-item">
+                  <div class="info-label">Emitente</div>
+                  <div class="info-value">${data.tenant.name}</div>
+                </div>
+                ${data.tenant.cnpj ? `
+                  <div class="info-item">
+                    <div class="info-label">CNPJ</div>
+                    <div class="info-value">${data.tenant.cnpj}</div>
+                  </div>
+                ` : ''}
+              </div>
+            </div>
+          </div>
+          
+          <div class="column">
+            <div class="section">
+              <div class="section-title">Destinatário</div>
+              <div class="info-grid">
+                <div class="info-item" style="grid-column: span 2;">
+                  <div class="info-label">Razão Social</div>
+                  <div class="info-value">${data.client.name}</div>
+                </div>
+                ${data.client.cnpj ? `
+                  <div class="info-item">
+                    <div class="info-label">CNPJ</div>
+                    <div class="info-value">${data.client.cnpj}</div>
+                  </div>
+                ` : ''}
+              </div>
+            </div>
+          </div>
+        </div>
+        
         <div class="section">
-          <div class="section-title">Informações do Produto</div>
+          <div class="section-title">Produto</div>
           <div class="product-info">
             <div class="product-name">${data.product.technicalName}</div>
             ${data.product.commercialName ? `<div>Nome Comercial: ${data.product.commercialName}</div>` : ''}
           </div>
           
-          <div class="info-grid" style="margin-top: 15px;">
+          <div class="info-grid three-columns" style="margin-top: 15px;">
             <div class="info-item">
               <div class="info-label">Nota Fiscal</div>
               <div class="info-value">${data.certificate.invoiceNumber}</div>
             </div>
             <div class="info-item">
-              <div class="info-label">Data de Emissão</div>
-              <div class="info-value">${formatDate(data.certificate.issueDate)}</div>
-            </div>
-            <div class="info-item">
-              <div class="info-label">Lote Personalizado</div>
+              <div class="info-label">Lote Interno</div>
               <div class="info-value">${data.certificate.customLot}</div>
             </div>
             <div class="info-item">
@@ -413,30 +513,18 @@ function generateCertificateHTML(data: CertificateGenerationData): string {
               <div class="info-value">${formatDate(data.entryCertificate.manufacturingDate)}</div>
             </div>
             <div class="info-item">
-              <div class="info-label">Validade</div>
+              <div class="info-label">Data de Validade</div>
               <div class="info-value">${formatDate(data.entryCertificate.expirationDate)}</div>
             </div>
-          </div>
-        </div>
-        
-        <div class="section">
-          <div class="section-title">Dados do Cliente</div>
-          <div class="info-grid">
-            <div class="info-item" style="grid-column: span 2;">
-              <div class="info-label">Nome</div>
-              <div class="info-value">${data.client.name}</div>
+            <div class="info-item">
+              <div class="info-label">Data de Emissão</div>
+              <div class="info-value">${formatDate(data.certificate.issueDate)}</div>
             </div>
-            ${data.client.cnpj ? `
-              <div class="info-item">
-                <div class="info-label">CNPJ</div>
-                <div class="info-value">${data.client.cnpj}</div>
-              </div>
-            ` : ''}
           </div>
         </div>
         
         <div class="section">
-          <div class="section-title">Resultados de Análise</div>
+          <div class="section-title">Características</div>
           <div class="table-container">
             <table>
               <thead>
@@ -444,7 +532,7 @@ function generateCertificateHTML(data: CertificateGenerationData): string {
                   <th>CARACTERÍSTICA</th>
                   <th>UNIDADE</th>
                   <th>ESPECIFICAÇÃO</th>
-                  <th>RESULTADO</th>
+                  <th>VALOR</th>
                   <th>MÉTODO</th>
                 </tr>
               </thead>
@@ -455,25 +543,30 @@ function generateCertificateHTML(data: CertificateGenerationData): string {
           </div>
         </div>
         
-        <div class="approval-section">
-          <div class="approval">
-            Status: <span class="approved">APROVADO</span>
-          </div>
-          <div class="validity">
-            Validade: ${data.entryCertificate.expirationDate ? 
-              calcValidityPeriod(data.entryCertificate.manufacturingDate, data.entryCertificate.expirationDate) : 'N/A'}
+        <div class="observation-section">
+          <div class="observation-title">Observações</div>
+          <div class="observation-content">
+            Referência: ${data.entryCertificate.referenceDocument || 'N/A'}
           </div>
         </div>
         
-        <div class="signature-area">
-          <div class="signature-line"></div>
-          <div class="signature-name">Controle de Qualidade</div>
-          <div class="signature-title">${data.tenant.name}</div>
+        <div class="validity-section">
+          <span class="validity-label">Validade do Produto:</span> 
+          ${data.entryCertificate.expirationDate ? 
+            calcValidityPeriod(data.entryCertificate.manufacturingDate, data.entryCertificate.expirationDate) : 'N/A'}
+        </div>
+        
+        <div class="signature-section">
+          <div class="signature-box">
+            <div class="signature-line"></div>
+            <div class="signature-name">Controle de Qualidade</div>
+            <div class="signature-title">${data.tenant.name}</div>
+          </div>
         </div>
         
         <div class="footer">
-          Este certificado foi gerado eletronicamente e é válido sem assinatura. 
-          Para verificar a autenticidade deste documento, entre em contato com nosso departamento de qualidade.
+          <p>Este documento foi gerado pelo sistema CertQuality em ${new Date().toLocaleDateString('pt-BR')}</p>
+          <p class="digital-note">ESTE DOCUMENTO FOI EMITIDO DIGITALMENTE E NÃO REQUER ASSINATURA</p>
         </div>
       </div>
     </body>
