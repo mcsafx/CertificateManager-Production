@@ -138,22 +138,17 @@ export default function IssuedCertificateDetailPage() {
       // Gerar o PDF e obter a URL
       toast({
         title: "Gerando PDF",
-        description: "Aguarde enquanto preparamos seu download...",
+        description: "Aguarde enquanto preparamos o documento...",
       });
 
       const pdfUrl = await generateCertificatePdf(pdfData);
       
-      // Criar um link e simular o clique para download
-      const link = document.createElement('a');
-      link.href = pdfUrl;
-      link.download = `certificado-${certificate.invoiceNumber}.pdf`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
+      // Abrir o PDF em uma nova aba ao invés de fazer download
+      window.open(pdfUrl, '_blank');
 
       toast({
-        title: "Download iniciado",
-        description: "O certificado foi gerado com sucesso!",
+        title: "Certificado gerado",
+        description: "O certificado foi aberto em uma nova aba.",
       });
     } catch (error) {
       console.error('Erro ao gerar PDF:', error);
