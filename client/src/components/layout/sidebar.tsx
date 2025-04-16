@@ -23,21 +23,26 @@ type SidebarItemProps = {
   active?: boolean;
 };
 
+// Correto modo de criar item de menu no React sem nesting de anchor
 const SidebarItem = ({ href, icon: Icon, children, active }: SidebarItemProps) => (
   <Link href={href}>
-    <a className={cn(
-      "p-3 flex items-center space-x-3 rounded-md transition-colors",
+    <div className={cn(
+      "p-3 flex items-center space-x-3 rounded-md transition-colors cursor-pointer",
       active 
         ? "bg-primary-light bg-opacity-10 text-primary" 
         : "hover:bg-gray-100 text-gray-500"
     )}>
       <Icon className="h-5 w-5" />
       <span>{children}</span>
-    </a>
+    </div>
   </Link>
 );
 
-export function Sidebar() {
+interface SidebarProps {
+  isMobile?: boolean;
+}
+
+export function Sidebar({ isMobile = false }: SidebarProps) {
   const [location] = useLocation();
   const { user, logoutMutation } = useAuth();
 
@@ -52,8 +57,14 @@ export function Sidebar() {
     logoutMutation.mutate();
   };
 
+  // Define classes com base se é mobile ou desktop
+  const sidebarClasses = cn(
+    "w-64 bg-white shadow-lg flex-col overflow-hidden border-r border-gray-200",
+    isMobile ? "flex h-full" : "hidden lg:flex" // Se for mobile, mostra sempre, senão esconde em telas pequenas
+  );
+
   return (
-    <aside className="w-64 bg-white shadow-lg hidden lg:flex flex-col overflow-hidden border-r border-gray-200">
+    <aside className={sidebarClasses}>
       <div className="p-4 border-b border-gray-200">
         <h1 className="text-xl font-bold">
           <span className="text-primary">Cert</span>

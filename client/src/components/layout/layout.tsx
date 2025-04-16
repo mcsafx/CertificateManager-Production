@@ -21,12 +21,12 @@ export function Layout({ children }: LayoutProps) {
   return (
     <div className="flex h-screen overflow-hidden bg-gray-50">
       {/* Desktop Sidebar */}
-      <Sidebar />
+      <Sidebar isMobile={false} />
       
       {/* Mobile Sidebar */}
       <Sheet open={isMobileSidebarOpen} onOpenChange={setIsMobileSidebarOpen}>
-        <SheetContent side="left" className="p-0 w-[250px]">
-          <Sidebar />
+        <SheetContent side="left" className="p-0 w-[280px] overflow-y-auto">
+          <Sidebar isMobile={true} />
         </SheetContent>
       </Sheet>
       
