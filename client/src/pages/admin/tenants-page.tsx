@@ -170,7 +170,7 @@ export default function TenantsPage() {
   }
 
   return (
-    <Layout>
+    <AdminLayout>
       <div className="container mx-auto py-10">
         <div className="flex justify-between items-center mb-6">
           <div>
@@ -404,6 +404,6 @@ export default function TenantsPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </Layout>
+    </AdminLayout>
   );
 }
