@@ -1228,6 +1228,45 @@ export class MemStorage implements IStorage {
     return this.getModulesByPlan(1);
   }
   
+  async getModules(): Promise<any[]> {
+    return this.getAllModules();
+  }
+  
+  async createModule(module: InsertModule): Promise<typeof modules.$inferSelect> {
+    return {
+      id: 2,
+      code: module.code,
+      name: module.name,
+      description: module.description || "",
+      active: module.active || true,
+      isCore: module.isCore || false,
+      createdAt: new Date()
+    };
+  }
+  
+  async updateModule(id: number, module: Partial<InsertModule>): Promise<typeof modules.$inferSelect | undefined> {
+    if (id === 1) {
+      return {
+        id: 1,
+        code: module.code || "CERTIFICADOS_BASE",
+        name: module.name || "Certificados Base",
+        description: module.description || "Módulo básico para gestão de certificados",
+        active: module.active !== undefined ? module.active : true,
+        isCore: module.isCore !== undefined ? module.isCore : true,
+        createdAt: new Date()
+      };
+    }
+    return undefined;
+  }
+  
+  async deleteModule(id: number): Promise<boolean> {
+    return id !== 1; // Não permitir excluir o módulo core
+  }
+  
+  async updatePlanModules(planId: number, moduleIds: number[]): Promise<boolean> {
+    return true; // Simulação sempre bem-sucedida
+  }
+  
   // Implementação dos métodos administrativos
   async deleteTenant(id: number): Promise<boolean> {
     // Antes de remover o tenant, devemos remover todos os seus usuários
@@ -2318,8 +2357,20 @@ export class DatabaseStorage implements IStorage {
   }
   
   async deletePlan(id: number): Promise<boolean> {
-    const result = await db.delete(plans).where(eq(plans.id, id));
-    return result.rowCount > 0;
+    try {
+      // Primeiro removemos todas as associações com módulos
+      await db.delete(planModules)
+        .where(eq(planModules.planId, id));
+      
+      // Depois excluímos o plano
+      const result = await db.delete(plans)
+        .where(eq(plans.id, id));
+      
+      return result.rowCount > 0;
+    } catch (error) {
+      console.error("Error deleting plan:", error);
+      throw error;
+    }
   }
   
   async getModules(): Promise<any[]> {
