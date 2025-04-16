@@ -504,7 +504,7 @@ export default function PlansPage() {
                             </TableCell>
                             <TableCell>{plan.maxStorage} MB</TableCell>
                             <TableCell>{plan.maxFileSize} MB</TableCell>
-                            <TableCell>R$ {plan.price.toFixed(2)}</TableCell>
+                            <TableCell>R$ {typeof plan.price === 'number' ? plan.price.toFixed(2) : parseFloat(plan.price).toFixed(2)}</TableCell>
                             <TableCell>
                               <Button
                                 variant="outline"
