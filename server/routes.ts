@@ -2631,6 +2631,67 @@ Em um ambiente de produção, este seria o conteúdo real do arquivo.`);
     }
   });
   
+  // Criar novo módulo
+  app.post("/api/admin/modules", isAdmin, async (req, res, next) => {
+    try {
+      const newModule = await storage.createModule(req.body);
+      res.status(201).json(newModule);
+    } catch (error) {
+      console.error('Erro ao criar módulo:', error);
+      next(error);
+    }
+  });
+  
+  // Atualizar módulo
+  app.put("/api/admin/modules/:id", isAdmin, async (req, res, next) => {
+    try {
+      const updatedModule = await storage.updateModule(Number(req.params.id), req.body);
+      if (!updatedModule) {
+        return res.status(404).json({ message: "Module not found" });
+      }
+      res.json(updatedModule);
+    } catch (error) {
+      console.error('Erro ao atualizar módulo:', error);
+      next(error);
+    }
+  });
+  
+  // Excluir módulo
+  app.delete("/api/admin/modules/:id", isAdmin, async (req, res, next) => {
+    try {
+      const success = await storage.deleteModule(Number(req.params.id));
+      if (!success) {
+        return res.status(404).json({ message: "Module not found" });
+      }
+      res.status(204).end();
+    } catch (error) {
+      console.error('Erro ao excluir módulo:', error);
+      next(error);
+    }
+  });
+  
+  // Atualizar módulos de um plano
+  app.put("/api/admin/plans/:id/modules", isAdmin, async (req, res, next) => {
+    try {
+      const planId = Number(req.params.id);
+      const { moduleIds } = req.body;
+      
+      if (!Array.isArray(moduleIds)) {
+        return res.status(400).json({ message: "moduleIds must be an array" });
+      }
+      
+      const success = await storage.updatePlanModules(planId, moduleIds);
+      if (!success) {
+        return res.status(404).json({ message: "Failed to update plan modules" });
+      }
+      
+      res.status(204).end();
+    } catch (error) {
+      console.error('Erro ao atualizar módulos do plano:', error);
+      next(error);
+    }
+  });
+  
   // Gerenciamento de armazenamento
   app.get("/api/admin/storage", isAdmin, async (req, res, next) => {
     try {
