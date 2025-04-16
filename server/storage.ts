@@ -10,10 +10,17 @@ import { User, InsertUser, Tenant, InsertTenant,
          Client, InsertClient, EntryCertificate, InsertEntryCertificate, 
          EntryCertificateResult, InsertEntryCertificateResult, 
          IssuedCertificate, InsertIssuedCertificate,
-         PackageType, InsertPackageType } from "@shared/schema";
+         PackageType, InsertPackageType,
+         users, tenants, productCategories, productSubcategories, productBase, products,
+         productFiles, productBaseFiles, productCharacteristics, suppliers, manufacturers,
+         clients, entryCertificates, entryCertificateResults, issuedCertificates, packageTypes } from "@shared/schema";
 import session from "express-session";
 import createMemoryStore from "memorystore";
 import { hashPassword } from "./auth";
+import { db } from "./db";
+import { eq, and, desc, sql } from "drizzle-orm";
+import connectPgSimple from "connect-pg-simple";
+import { pool } from "./db";
 
 const MemoryStore = createMemoryStore(session);
 
@@ -970,4 +977,725 @@ export class MemStorage implements IStorage {
   }
 }
 
-export const storage = new MemStorage();
+// Classe DatabaseStorage que implementa a interface IStorage
+export class DatabaseStorage implements IStorage {
+  sessionStore: session.Store;
+
+  constructor() {
+    const PostgresStore = connectPgSimple(session);
+    this.sessionStore = new PostgresStore({
+      pool,
+      createTableIfMissing: true,
+    });
+  }
+
+  // User methods
+  async getUser(id: number): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.id, id));
+    return user;
+  }
+
+  async getUserByUsername(username: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.username, username));
+    return user;
+  }
+
+  async createUser(user: InsertUser): Promise<User> {
+    const [newUser] = await db.insert(users).values({
+      ...user,
+      role: user.role ?? 'user',
+      active: user.active ?? true
+    }).returning();
+    return newUser;
+  }
+
+  async updateUser(id: number, userData: Partial<User>): Promise<User | undefined> {
+    const [user] = await db.update(users)
+      .set(userData)
+      .where(eq(users.id, id))
+      .returning();
+    return user;
+  }
+
+  async getUsersByTenant(tenantId: number): Promise<User[]> {
+    return await db.select().from(users).where(eq(users.tenantId, tenantId));
+  }
+
+  async deleteUser(id: number): Promise<boolean> {
+    const result = await db.delete(users).where(eq(users.id, id));
+    return result.rowCount > 0;
+  }
+
+  // Tenant methods
+  async getTenant(id: number): Promise<Tenant | undefined> {
+    const [tenant] = await db.select().from(tenants).where(eq(tenants.id, id));
+    return tenant;
+  }
+
+  async getTenantByName(name: string): Promise<Tenant | undefined> {
+    const [tenant] = await db.select().from(tenants).where(eq(tenants.name, name));
+    return tenant;
+  }
+
+  async createTenant(tenant: InsertTenant): Promise<Tenant> {
+    const [newTenant] = await db.insert(tenants).values({
+      ...tenant,
+      active: tenant.active ?? true,
+      logoUrl: tenant.logoUrl ?? null,
+      plan: tenant.plan ?? "A",
+      storageLimit: tenant.storageLimit ?? 5,
+      storageUsed: tenant.storageUsed ?? 0,
+      planStartDate: tenant.planStartDate ?? null,
+      planEndDate: tenant.planEndDate ?? null
+    }).returning();
+    return newTenant;
+  }
+
+  async updateTenant(id: number, tenantData: Partial<Tenant>): Promise<Tenant | undefined> {
+    const [tenant] = await db.update(tenants)
+      .set(tenantData)
+      .where(eq(tenants.id, id))
+      .returning();
+    return tenant;
+  }
+
+  async getAllTenants(): Promise<Tenant[]> {
+    return await db.select().from(tenants);
+  }
+
+  // Product Category methods
+  async getProductCategory(id: number, tenantId: number): Promise<ProductCategory | undefined> {
+    const [category] = await db.select().from(productCategories)
+      .where(and(
+        eq(productCategories.id, id),
+        eq(productCategories.tenantId, tenantId)
+      ));
+    return category;
+  }
+
+  async createProductCategory(category: InsertProductCategory): Promise<ProductCategory> {
+    const [newCategory] = await db.insert(productCategories).values({
+      ...category,
+      active: category.active ?? true,
+      description: category.description ?? null
+    }).returning();
+    return newCategory;
+  }
+
+  async updateProductCategory(id: number, tenantId: number, categoryData: Partial<ProductCategory>): Promise<ProductCategory | undefined> {
+    const [category] = await db.update(productCategories)
+      .set(categoryData)
+      .where(and(
+        eq(productCategories.id, id),
+        eq(productCategories.tenantId, tenantId)
+      ))
+      .returning();
+    return category;
+  }
+
+  async getProductCategoriesByTenant(tenantId: number): Promise<ProductCategory[]> {
+    return await db.select().from(productCategories)
+      .where(eq(productCategories.tenantId, tenantId));
+  }
+
+  async deleteProductCategory(id: number, tenantId: number): Promise<boolean> {
+    const result = await db.delete(productCategories)
+      .where(and(
+        eq(productCategories.id, id),
+        eq(productCategories.tenantId, tenantId)
+      ));
+    return result.rowCount > 0;
+  }
+
+  // Product Subcategory methods
+  async getProductSubcategory(id: number, tenantId: number): Promise<ProductSubcategory | undefined> {
+    const [subcategory] = await db.select().from(productSubcategories)
+      .where(and(
+        eq(productSubcategories.id, id),
+        eq(productSubcategories.tenantId, tenantId)
+      ));
+    return subcategory;
+  }
+
+  async createProductSubcategory(subcategory: InsertProductSubcategory): Promise<ProductSubcategory> {
+    const [newSubcategory] = await db.insert(productSubcategories).values({
+      ...subcategory,
+      active: subcategory.active ?? true,
+      description: subcategory.description ?? null
+    }).returning();
+    return newSubcategory;
+  }
+
+  async updateProductSubcategory(id: number, tenantId: number, subcategoryData: Partial<ProductSubcategory>): Promise<ProductSubcategory | undefined> {
+    const [subcategory] = await db.update(productSubcategories)
+      .set(subcategoryData)
+      .where(and(
+        eq(productSubcategories.id, id),
+        eq(productSubcategories.tenantId, tenantId)
+      ))
+      .returning();
+    return subcategory;
+  }
+
+  async getProductSubcategoriesByCategory(categoryId: number, tenantId: number): Promise<ProductSubcategory[]> {
+    return await db.select().from(productSubcategories)
+      .where(and(
+        eq(productSubcategories.categoryId, categoryId),
+        eq(productSubcategories.tenantId, tenantId)
+      ));
+  }
+
+  async getProductSubcategoriesByTenant(tenantId: number): Promise<ProductSubcategory[]> {
+    return await db.select().from(productSubcategories)
+      .where(eq(productSubcategories.tenantId, tenantId));
+  }
+
+  async deleteProductSubcategory(id: number, tenantId: number): Promise<boolean> {
+    const result = await db.delete(productSubcategories)
+      .where(and(
+        eq(productSubcategories.id, id),
+        eq(productSubcategories.tenantId, tenantId)
+      ));
+    return result.rowCount > 0;
+  }
+
+  // Product Base methods
+  async getProductBase(id: number, tenantId: number): Promise<ProductBase | undefined> {
+    const [productBaseItem] = await db.select().from(productBase)
+      .where(and(
+        eq(productBase.id, id),
+        eq(productBase.tenantId, tenantId)
+      ));
+    return productBaseItem;
+  }
+
+  async createProductBase(productBaseData: InsertProductBase): Promise<ProductBase> {
+    const [newProductBase] = await db.insert(productBase).values({
+      ...productBaseData,
+      active: productBaseData.active ?? true,
+      description: productBaseData.description ?? null,
+      riskClass: productBaseData.riskClass ?? null,
+      riskNumber: productBaseData.riskNumber ?? null,
+      unNumber: productBaseData.unNumber ?? null,
+      packagingGroup: productBaseData.packagingGroup ?? null
+    }).returning();
+    return newProductBase;
+  }
+
+  async updateProductBase(id: number, tenantId: number, productBaseData: Partial<ProductBase>): Promise<ProductBase | undefined> {
+    const [productBaseItem] = await db.update(productBase)
+      .set(productBaseData)
+      .where(and(
+        eq(productBase.id, id),
+        eq(productBase.tenantId, tenantId)
+      ))
+      .returning();
+    return productBaseItem;
+  }
+
+  async getProductBasesBySubcategory(subcategoryId: number, tenantId: number): Promise<ProductBase[]> {
+    return await db.select().from(productBase)
+      .where(and(
+        eq(productBase.subcategoryId, subcategoryId),
+        eq(productBase.tenantId, tenantId)
+      ));
+  }
+
+  async getProductBasesByTenant(tenantId: number): Promise<ProductBase[]> {
+    return await db.select().from(productBase)
+      .where(eq(productBase.tenantId, tenantId));
+  }
+
+  async deleteProductBase(id: number, tenantId: number): Promise<boolean> {
+    const result = await db.delete(productBase)
+      .where(and(
+        eq(productBase.id, id),
+        eq(productBase.tenantId, tenantId)
+      ));
+    return result.rowCount > 0;
+  }
+
+  // Product methods
+  async getProduct(id: number, tenantId: number): Promise<Product | undefined> {
+    const [product] = await db.select().from(products)
+      .where(and(
+        eq(products.id, id),
+        eq(products.tenantId, tenantId)
+      ));
+    return product;
+  }
+
+  async createProduct(productData: InsertProduct): Promise<Product> {
+    const [newProduct] = await db.insert(products).values({
+      ...productData,
+      active: productData.active ?? true,
+      specifications: productData.specifications ?? null
+    }).returning();
+    return newProduct;
+  }
+
+  async updateProduct(id: number, tenantId: number, productData: Partial<Product>): Promise<Product | undefined> {
+    const [product] = await db.update(products)
+      .set(productData)
+      .where(and(
+        eq(products.id, id),
+        eq(products.tenantId, tenantId)
+      ))
+      .returning();
+    return product;
+  }
+
+  async getProductsByBase(baseProductId: number, tenantId: number): Promise<Product[]> {
+    return await db.select().from(products)
+      .where(and(
+        eq(products.baseProductId, baseProductId),
+        eq(products.tenantId, tenantId)
+      ));
+  }
+
+  async getProductsByTenant(tenantId: number): Promise<Product[]> {
+    return await db.select().from(products)
+      .where(eq(products.tenantId, tenantId));
+  }
+
+  async deleteProduct(id: number, tenantId: number): Promise<boolean> {
+    const result = await db.delete(products)
+      .where(and(
+        eq(products.id, id),
+        eq(products.tenantId, tenantId)
+      ));
+    return result.rowCount > 0;
+  }
+
+  // Product Files methods
+  async getProductFile(id: number, tenantId: number): Promise<ProductFile | undefined> {
+    const [file] = await db.select().from(productFiles)
+      .where(and(
+        eq(productFiles.id, id),
+        eq(productFiles.tenantId, tenantId)
+      ));
+    return file;
+  }
+
+  async createProductFile(file: InsertProductFile): Promise<ProductFile> {
+    const [newFile] = await db.insert(productFiles).values(file).returning();
+    return newFile;
+  }
+
+  async getProductFilesByProduct(productId: number, tenantId: number): Promise<ProductFile[]> {
+    return await db.select().from(productFiles)
+      .where(and(
+        eq(productFiles.productId, productId),
+        eq(productFiles.tenantId, tenantId)
+      ));
+  }
+
+  async deleteProductFile(id: number, tenantId: number): Promise<boolean> {
+    const result = await db.delete(productFiles)
+      .where(and(
+        eq(productFiles.id, id),
+        eq(productFiles.tenantId, tenantId)
+      ));
+    return result.rowCount > 0;
+  }
+
+  // Product Base Files methods
+  async getProductBaseFile(id: number, tenantId: number): Promise<ProductBaseFile | undefined> {
+    const [file] = await db.select().from(productBaseFiles)
+      .where(and(
+        eq(productBaseFiles.id, id),
+        eq(productBaseFiles.tenantId, tenantId)
+      ));
+    return file;
+  }
+
+  async createProductBaseFile(file: InsertProductBaseFile): Promise<ProductBaseFile> {
+    const [newFile] = await db.insert(productBaseFiles).values(file).returning();
+    return newFile;
+  }
+
+  async getProductBaseFilesByBaseProduct(baseProductId: number, tenantId: number): Promise<ProductBaseFile[]> {
+    return await db.select().from(productBaseFiles)
+      .where(and(
+        eq(productBaseFiles.baseProductId, baseProductId),
+        eq(productBaseFiles.tenantId, tenantId)
+      ));
+  }
+
+  async getProductBaseFilesByCategory(baseProductId: number, category: string, tenantId: number): Promise<ProductBaseFile[]> {
+    return await db.select().from(productBaseFiles)
+      .where(and(
+        eq(productBaseFiles.baseProductId, baseProductId),
+        eq(productBaseFiles.fileCategory, category),
+        eq(productBaseFiles.tenantId, tenantId)
+      ));
+  }
+
+  async deleteProductBaseFile(id: number, tenantId: number): Promise<boolean> {
+    const result = await db.delete(productBaseFiles)
+      .where(and(
+        eq(productBaseFiles.id, id),
+        eq(productBaseFiles.tenantId, tenantId)
+      ));
+    return result.rowCount > 0;
+  }
+
+  // Product Characteristics methods
+  async getProductCharacteristic(id: number, tenantId: number): Promise<ProductCharacteristic | undefined> {
+    const [characteristic] = await db.select().from(productCharacteristics)
+      .where(and(
+        eq(productCharacteristics.id, id),
+        eq(productCharacteristics.tenantId, tenantId)
+      ));
+    return characteristic;
+  }
+
+  async createProductCharacteristic(characteristic: InsertProductCharacteristic): Promise<ProductCharacteristic> {
+    const [newCharacteristic] = await db.insert(productCharacteristics).values(characteristic).returning();
+    return newCharacteristic;
+  }
+
+  async updateProductCharacteristic(id: number, tenantId: number, characteristicData: Partial<ProductCharacteristic>): Promise<ProductCharacteristic | undefined> {
+    const [characteristic] = await db.update(productCharacteristics)
+      .set(characteristicData)
+      .where(and(
+        eq(productCharacteristics.id, id),
+        eq(productCharacteristics.tenantId, tenantId)
+      ))
+      .returning();
+    return characteristic;
+  }
+
+  async getCharacteristicsByProduct(productId: number, tenantId: number): Promise<ProductCharacteristic[]> {
+    return await db.select().from(productCharacteristics)
+      .where(and(
+        eq(productCharacteristics.productId, productId),
+        eq(productCharacteristics.tenantId, tenantId)
+      ));
+  }
+
+  async deleteProductCharacteristic(id: number, tenantId: number): Promise<boolean> {
+    const result = await db.delete(productCharacteristics)
+      .where(and(
+        eq(productCharacteristics.id, id),
+        eq(productCharacteristics.tenantId, tenantId)
+      ));
+    return result.rowCount > 0;
+  }
+
+  // Suppliers methods
+  async getSupplier(id: number, tenantId: number): Promise<Supplier | undefined> {
+    const [supplier] = await db.select().from(suppliers)
+      .where(and(
+        eq(suppliers.id, id),
+        eq(suppliers.tenantId, tenantId)
+      ));
+    return supplier;
+  }
+
+  async createSupplier(supplier: InsertSupplier): Promise<Supplier> {
+    const [newSupplier] = await db.insert(suppliers).values(supplier).returning();
+    return newSupplier;
+  }
+
+  async updateSupplier(id: number, tenantId: number, supplierData: Partial<Supplier>): Promise<Supplier | undefined> {
+    const [supplier] = await db.update(suppliers)
+      .set(supplierData)
+      .where(and(
+        eq(suppliers.id, id),
+        eq(suppliers.tenantId, tenantId)
+      ))
+      .returning();
+    return supplier;
+  }
+
+  async getSuppliersByTenant(tenantId: number): Promise<Supplier[]> {
+    return await db.select().from(suppliers)
+      .where(eq(suppliers.tenantId, tenantId));
+  }
+
+  async deleteSupplier(id: number, tenantId: number): Promise<boolean> {
+    const result = await db.delete(suppliers)
+      .where(and(
+        eq(suppliers.id, id),
+        eq(suppliers.tenantId, tenantId)
+      ));
+    return result.rowCount > 0;
+  }
+
+  // Manufacturers methods
+  async getManufacturer(id: number, tenantId: number): Promise<Manufacturer | undefined> {
+    const [manufacturer] = await db.select().from(manufacturers)
+      .where(and(
+        eq(manufacturers.id, id),
+        eq(manufacturers.tenantId, tenantId)
+      ));
+    return manufacturer;
+  }
+
+  async createManufacturer(manufacturer: InsertManufacturer): Promise<Manufacturer> {
+    const [newManufacturer] = await db.insert(manufacturers).values(manufacturer).returning();
+    return newManufacturer;
+  }
+
+  async updateManufacturer(id: number, tenantId: number, manufacturerData: Partial<Manufacturer>): Promise<Manufacturer | undefined> {
+    const [manufacturer] = await db.update(manufacturers)
+      .set(manufacturerData)
+      .where(and(
+        eq(manufacturers.id, id),
+        eq(manufacturers.tenantId, tenantId)
+      ))
+      .returning();
+    return manufacturer;
+  }
+
+  async getManufacturersByTenant(tenantId: number): Promise<Manufacturer[]> {
+    return await db.select().from(manufacturers)
+      .where(eq(manufacturers.tenantId, tenantId));
+  }
+
+  async deleteManufacturer(id: number, tenantId: number): Promise<boolean> {
+    const result = await db.delete(manufacturers)
+      .where(and(
+        eq(manufacturers.id, id),
+        eq(manufacturers.tenantId, tenantId)
+      ));
+    return result.rowCount > 0;
+  }
+
+  // Clients methods
+  async getClient(id: number, tenantId: number): Promise<Client | undefined> {
+    const [client] = await db.select().from(clients)
+      .where(and(
+        eq(clients.id, id),
+        eq(clients.tenantId, tenantId)
+      ));
+    return client;
+  }
+
+  async createClient(client: InsertClient): Promise<Client> {
+    const [newClient] = await db.insert(clients).values(client).returning();
+    return newClient;
+  }
+
+  async updateClient(id: number, tenantId: number, clientData: Partial<Client>): Promise<Client | undefined> {
+    const [client] = await db.update(clients)
+      .set(clientData)
+      .where(and(
+        eq(clients.id, id),
+        eq(clients.tenantId, tenantId)
+      ))
+      .returning();
+    return client;
+  }
+
+  async getClientsByTenant(tenantId: number): Promise<Client[]> {
+    return await db.select().from(clients)
+      .where(eq(clients.tenantId, tenantId));
+  }
+
+  async deleteClient(id: number, tenantId: number): Promise<boolean> {
+    const result = await db.delete(clients)
+      .where(and(
+        eq(clients.id, id),
+        eq(clients.tenantId, tenantId)
+      ));
+    return result.rowCount > 0;
+  }
+
+  // Entry Certificates methods
+  async getEntryCertificate(id: number, tenantId: number): Promise<EntryCertificate | undefined> {
+    const [certificate] = await db.select().from(entryCertificates)
+      .where(and(
+        eq(entryCertificates.id, id),
+        eq(entryCertificates.tenantId, tenantId)
+      ));
+    return certificate;
+  }
+
+  async createEntryCertificate(certificate: InsertEntryCertificate): Promise<EntryCertificate> {
+    const [newCertificate] = await db.insert(entryCertificates).values(certificate).returning();
+    return newCertificate;
+  }
+
+  async updateEntryCertificate(id: number, tenantId: number, certificateData: Partial<EntryCertificate>): Promise<EntryCertificate | undefined> {
+    const [certificate] = await db.update(entryCertificates)
+      .set(certificateData)
+      .where(and(
+        eq(entryCertificates.id, id),
+        eq(entryCertificates.tenantId, tenantId)
+      ))
+      .returning();
+    return certificate;
+  }
+
+  async getEntryCertificatesByTenant(tenantId: number, filters?: Record<string, any>): Promise<EntryCertificate[]> {
+    // Implementação básica sem filtros por enquanto
+    return await db.select().from(entryCertificates)
+      .where(eq(entryCertificates.tenantId, tenantId));
+  }
+
+  async deleteEntryCertificate(id: number, tenantId: number): Promise<boolean> {
+    const result = await db.delete(entryCertificates)
+      .where(and(
+        eq(entryCertificates.id, id),
+        eq(entryCertificates.tenantId, tenantId)
+      ));
+    return result.rowCount > 0;
+  }
+
+  // Entry Certificate Results methods
+  async getEntryCertificateResult(id: number, tenantId: number): Promise<EntryCertificateResult | undefined> {
+    const [result] = await db.select().from(entryCertificateResults)
+      .where(and(
+        eq(entryCertificateResults.id, id),
+        eq(entryCertificateResults.tenantId, tenantId)
+      ));
+    return result;
+  }
+
+  async createEntryCertificateResult(result: InsertEntryCertificateResult): Promise<EntryCertificateResult> {
+    const [newResult] = await db.insert(entryCertificateResults).values(result).returning();
+    return newResult;
+  }
+
+  async updateEntryCertificateResult(id: number, tenantId: number, resultData: Partial<EntryCertificateResult>): Promise<EntryCertificateResult | undefined> {
+    const [result] = await db.update(entryCertificateResults)
+      .set(resultData)
+      .where(and(
+        eq(entryCertificateResults.id, id),
+        eq(entryCertificateResults.tenantId, tenantId)
+      ))
+      .returning();
+    return result;
+  }
+
+  async getResultsByEntryCertificate(certificateId: number, tenantId: number): Promise<EntryCertificateResult[]> {
+    return await db.select().from(entryCertificateResults)
+      .where(and(
+        eq(entryCertificateResults.entryCertificateId, certificateId),
+        eq(entryCertificateResults.tenantId, tenantId)
+      ));
+  }
+
+  async deleteEntryCertificateResult(id: number, tenantId: number): Promise<boolean> {
+    const result = await db.delete(entryCertificateResults)
+      .where(and(
+        eq(entryCertificateResults.id, id),
+        eq(entryCertificateResults.tenantId, tenantId)
+      ));
+    return result.rowCount > 0;
+  }
+
+  // Issued Certificates methods
+  async getIssuedCertificate(id: number, tenantId: number): Promise<IssuedCertificate | undefined> {
+    const [certificate] = await db.select().from(issuedCertificates)
+      .where(and(
+        eq(issuedCertificates.id, id),
+        eq(issuedCertificates.tenantId, tenantId)
+      ));
+    return certificate;
+  }
+
+  async createIssuedCertificate(certificate: InsertIssuedCertificate): Promise<IssuedCertificate> {
+    const [newCertificate] = await db.insert(issuedCertificates).values(certificate).returning();
+    return newCertificate;
+  }
+
+  async getIssuedCertificatesByTenant(tenantId: number, filters?: Record<string, any>): Promise<IssuedCertificate[]> {
+    // Implementação básica sem filtros por enquanto
+    return await db.select().from(issuedCertificates)
+      .where(eq(issuedCertificates.tenantId, tenantId));
+  }
+
+  async getIssuedCertificatesByEntryCertificate(entryCertificateId: number, tenantId: number): Promise<IssuedCertificate[]> {
+    return await db.select().from(issuedCertificates)
+      .where(and(
+        eq(issuedCertificates.entryCertificateId, entryCertificateId),
+        eq(issuedCertificates.tenantId, tenantId)
+      ));
+  }
+
+  // Package Types methods
+  async getPackageType(id: number, tenantId: number): Promise<PackageType | undefined> {
+    const [packageType] = await db.select().from(packageTypes)
+      .where(and(
+        eq(packageTypes.id, id),
+        eq(packageTypes.tenantId, tenantId)
+      ));
+    return packageType;
+  }
+
+  async createPackageType(packageType: InsertPackageType): Promise<PackageType> {
+    const [newPackageType] = await db.insert(packageTypes).values(packageType).returning();
+    return newPackageType;
+  }
+
+  async updatePackageType(id: number, tenantId: number, packageTypeData: Partial<PackageType>): Promise<PackageType | undefined> {
+    const [packageType] = await db.update(packageTypes)
+      .set(packageTypeData)
+      .where(and(
+        eq(packageTypes.id, id),
+        eq(packageTypes.tenantId, tenantId)
+      ))
+      .returning();
+    return packageType;
+  }
+
+  async getPackageTypesByTenant(tenantId: number): Promise<PackageType[]> {
+    return await db.select().from(packageTypes)
+      .where(eq(packageTypes.tenantId, tenantId));
+  }
+
+  async deletePackageType(id: number, tenantId: number): Promise<boolean> {
+    const result = await db.delete(packageTypes)
+      .where(and(
+        eq(packageTypes.id, id),
+        eq(packageTypes.tenantId, tenantId)
+      ));
+    return result.rowCount > 0;
+  }
+}
+
+// Primeiro verificamos se temos um banco de dados configurado
+const isDatabaseConfigured = process.env.DATABASE_URL && process.env.DATABASE_URL.length > 0;
+
+// Selecionar a implementação correta com base na disponibilidade do banco de dados
+export const storage = isDatabaseConfigured 
+  ? new DatabaseStorage()
+  : new MemStorage();
+
+// Cria tenant e usuário administrador
+if (isDatabaseConfigured) {
+  (async () => {
+    try {
+      // Verificar se já existe um tenant admin
+      const adminTenant = await storage.getTenantByName("Admin");
+      
+      if (!adminTenant) {
+        // Criar tenant admin
+        const tenant = await storage.createTenant({
+          name: "Admin",
+          cnpj: "00000000000000",
+          address: "System Address",
+          active: true
+        });
+        
+        // Criar usuário admin
+        const hashedPassword = await hashPassword("admin123");
+        await storage.createUser({
+          username: "admin",
+          password: hashedPassword,
+          name: "System Administrator",
+          role: "admin",
+          tenantId: tenant.id,
+          active: true
+        });
+        
+        console.log("Admin tenant and user created successfully");
+      }
+    } catch (error) {
+      console.error("Error creating admin tenant and user:", error);
+    }
+  })();
+}
