@@ -141,14 +141,12 @@ export default function IssuedCertificateDetailPage() {
         description: "Aguarde enquanto preparamos o documento...",
       });
 
-      const pdfUrl = await generateCertificatePdf(pdfData);
+      // Gerar o PDF - agora automaticamente realiza o download
+      await generateCertificatePdf(pdfData);
       
-      // Abrir o PDF em uma nova aba ao invés de fazer download
-      window.open(pdfUrl, '_blank');
-
       toast({
         title: "Certificado gerado",
-        description: "O certificado foi aberto em uma nova aba.",
+        description: "O download do certificado foi iniciado automaticamente.",
       });
     } catch (error) {
       console.error('Erro ao gerar PDF:', error);
@@ -181,7 +179,7 @@ export default function IssuedCertificateDetailPage() {
           {certificate && (
             <Button onClick={handleDownload}>
               <Download className="h-4 w-4 mr-2" />
-              Baixar PDF
+              Gerar Certificado PDF
             </Button>
           )}
         </div>
