@@ -19,7 +19,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import Layout from "@/components/layout/layout";
+import AdminLayout from "@/components/layout/admin-layout";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
@@ -323,7 +323,7 @@ export default function PlansPage() {
   }
 
   return (
-    <Layout>
+    <AdminLayout>
       <div className="container mx-auto py-10">
         <div className="flex justify-between items-center mb-6">
           <div>
@@ -771,6 +771,6 @@ export default function PlansPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </Layout>
+    </AdminLayout>
   );
 }
