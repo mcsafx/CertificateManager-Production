@@ -171,6 +171,7 @@ export const entryCertificates = pgTable("entry_certificates", {
   internalLot: text("internal_lot").notNull(),
   status: text("status").notNull(),
   originalFileUrl: text("original_file_url"),
+  originalFileName: text("original_file_name"),
   tenantId: integer("tenant_id").notNull().references(() => tenants.id),
 });
 
