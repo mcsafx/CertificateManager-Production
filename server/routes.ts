@@ -10,8 +10,11 @@ import {
   insertEntryCertificateResultSchema, insertIssuedCertificateSchema,
   insertTenantSchema, insertPackageTypeSchema,
   insertProductCategorySchema, insertProductSubcategorySchema,
-  insertProductBaseSchema, insertProductFileSchema, insertProductBaseFileSchema
+  insertProductBaseSchema, insertProductFileSchema, insertProductBaseFileSchema,
+  insertFileSchema
 } from "@shared/schema";
+import { tempUpload, moveFileToFinalStorage, getFileSizeInMB, removeFile, getFileUrl } from "./services/file-upload";
+import { checkStorageLimits, updateStorageUsed } from "./middlewares/storage-limits";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Set up authentication routes
@@ -2220,6 +2223,140 @@ Em um ambiente de produção, este seria o conteúdo real do arquivo.`);
     } catch (error) {
       console.error("Error fetching tenant modules:", error);
       res.status(500).json({ message: "Error fetching tenant modules" });
+    }
+  });
+  
+  // Rotas para gerenciamento de arquivos gerais (nova tabela 'files')
+  
+  // Listar arquivos do tenant (com filtro opcional por categoria)
+  app.get("/api/files", isAuthenticated, async (req, res) => {
+    try {
+      const { tenantId } = req.user!;
+      const fileCategory = req.query.category as string | undefined;
+      
+      const files = await storage.getFilesByTenant(tenantId, fileCategory);
+      res.json(files);
+    } catch (error) {
+      console.error('Erro ao listar arquivos:', error);
+      res.status(500).json({ message: 'Erro ao listar arquivos' });
+    }
+  });
+  
+  // Listar arquivos por entidade (tipo e ID)
+  app.get("/api/files/entity/:type/:id", isAuthenticated, async (req, res) => {
+    try {
+      const { tenantId } = req.user!;
+      const entityType = req.params.type;
+      const entityId = Number(req.params.id);
+      
+      const files = await storage.getFilesByEntity(entityType, entityId, tenantId);
+      res.json(files);
+    } catch (error) {
+      console.error('Erro ao listar arquivos da entidade:', error);
+      res.status(500).json({ message: 'Erro ao listar arquivos da entidade' });
+    }
+  });
+  
+  // Upload de arquivo com verificação de limites
+  app.post("/api/files/upload", 
+    isAuthenticated, 
+    (req, res, next) => checkStorageLimits(req, res, next),
+    updateStorageUsed,
+    tempUpload.single('file'), 
+    async (req, res) => {
+      try {
+        if (!req.file) {
+          return res.status(400).json({ message: 'Nenhum arquivo enviado' });
+        }
+        
+        const { tenantId } = req.user!;
+        const {
+          fileCategory = 'document',
+          description = null,
+          entityType = null,
+          entityId = null
+        } = req.body;
+        
+        // Obter informações do arquivo
+        const tempPath = req.file.path;
+        const originalFileName = req.file.originalname;
+        const fileSize = req.file.size;
+        const fileType = req.file.mimetype;
+        const fileSizeMB = getFileSizeInMB(tempPath);
+        
+        // Gerar nome para armazenamento
+        const storedFileName = req.file.filename;
+        
+        // Mover arquivo para armazenamento permanente
+        const finalPath = await moveFileToFinalStorage(
+          tempPath, 
+          tenantId, 
+          fileCategory, 
+          storedFileName
+        );
+        
+        // Gerar URL pública
+        const publicUrl = getFileUrl(finalPath);
+        
+        // Salvar metadados no banco
+        const newFile = await storage.createFile({
+          tenantId,
+          fileName: originalFileName,
+          fileSize,
+          fileType,
+          fileCategory,
+          description,
+          entityType,
+          entityId: entityId ? Number(entityId) : null,
+          storedFileName,
+          filePath: finalPath,
+          fileSizeMB: fileSizeMB.toString(),
+          publicUrl
+        });
+        
+        res.status(201).json(newFile);
+      } catch (error) {
+        console.error('Erro ao fazer upload de arquivo:', error);
+        // Se houve erro, tentar limpar arquivo temporário
+        if (req.file && req.file.path) {
+          try {
+            removeFile(req.file.path);
+          } catch (e) {
+            console.error('Erro ao remover arquivo temporário:', e);
+          }
+        }
+        res.status(500).json({ message: 'Erro ao processar upload de arquivo' });
+      }
+    }
+  );
+  
+  // Remover arquivo
+  app.delete("/api/files/:id", isAuthenticated, async (req, res) => {
+    try {
+      const { tenantId } = req.user!;
+      const fileId = Number(req.params.id);
+      
+      // Obter detalhes do arquivo primeiro
+      const file = await storage.getFile(fileId, tenantId);
+      if (!file) {
+        return res.status(404).json({ message: 'Arquivo não encontrado' });
+      }
+      
+      // Remover o arquivo físico
+      if (file.filePath) {
+        removeFile(file.filePath);
+      }
+      
+      // Remover do banco de dados
+      const result = await storage.deleteFile(fileId, tenantId);
+      if (!result) {
+        return res.status(500).json({ message: 'Erro ao remover arquivo do banco de dados' });
+      }
+      
+      res.status(200).json({ message: 'Arquivo removido com sucesso' });
+    } catch (error) {
+      console.error('Erro ao remover arquivo:', error);
+      res.status(500).json({ message: 'Erro ao remover arquivo' });
     }
   });
 
