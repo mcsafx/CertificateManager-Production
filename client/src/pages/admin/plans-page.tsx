@@ -221,9 +221,12 @@ export default function PlansPage() {
   // Mutação para editar plano existente
   const editPlanMutation = useMutation({
     mutationFn: async (data: any) => {
+      // Log dos dados sendo enviados para depuração
+      console.log("Dados enviados para atualização:", data);
+      
       const response = await apiRequest('PUT', `/api/admin/plans/${data.id}`, {
         price: data.price,
-        maxStorage: data.maxStorage,
+        storageLimit: data.maxStorage, // Alinhando com o nome usado no backend
         maxFileSize: data.maxFileSize,
         description: data.description
       });
