@@ -2378,6 +2378,316 @@ Em um ambiente de produção, este seria o conteúdo real do arquivo.`);
     }
   });
 
+  // Rotas administrativas
+  // Dashboard administrativo
+  app.get("/api/admin/dashboard", isAdmin, async (req, res, next) => {
+    try {
+      // Obter contagem de tenants
+      const tenants = await storage.getAllTenants();
+      const activeTenantCount = tenants.filter(t => t.active).length;
+      
+      // Obter contagem de usuários
+      let userCount = 0;
+      for (const tenant of tenants) {
+        const tenantUsers = await storage.getUsersByTenant(tenant.id);
+        userCount += tenantUsers.length;
+      }
+      
+      // Obter contagem de arquivos e tamanho de armazenamento
+      const files = await storage.getAllFiles();
+      const totalStorage = files.reduce((acc, file) => acc + (parseFloat(file.fileSizeMB) || 0), 0);
+      
+      // Obter contagem de certificados nos últimos 30 dias
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+      
+      let certificateCount = 0;
+      for (const tenant of tenants) {
+        const issuedCertificates = await storage.getIssuedCertificatesByTenant(
+          tenant.id, 
+          { startDate: thirtyDaysAgo.toISOString() }
+        );
+        certificateCount += issuedCertificates.length;
+      }
+      
+      // Tenants recentes (5 mais recentes)
+      const recentTenants = tenants
+        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+        .slice(0, 5);
+      
+      // Usuários recentes (5 mais recentes)
+      let allUsers: any[] = [];
+      for (const tenant of tenants) {
+        const tenantUsers = await storage.getUsersByTenant(tenant.id);
+        allUsers.push(...tenantUsers.map(user => ({
+          ...user,
+          tenantName: tenant.name
+        })));
+      }
+      
+      const recentUsers = allUsers
+        .sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime())
+        .slice(0, 5)
+        .map(({ password, ...rest }) => rest); // Remove passwords
+      
+      // Verificar se há tenants com armazenamento acima do limite
+      const alerts = [];
+      const storageData = [];
+      
+      for (const tenant of tenants) {
+        const plan = await storage.getPlan(tenant.planId);
+        const tenantFiles = files.filter(f => f.tenantId === tenant.id);
+        const storageUsed = tenantFiles.reduce((acc, file) => acc + (parseFloat(file.fileSizeMB) || 0), 0);
+        
+        storageData.push({
+          id: tenant.id,
+          name: tenant.name,
+          storageUsed,
+          fileCount: tenantFiles.length,
+          maxStorage: plan?.maxStorage || 0,
+          planName: plan?.name || 'Desconhecido'
+        });
+      }
+      
+      const tenantsOverLimit = storageData.filter(
+        t => t.storageUsed > t.maxStorage && t.maxStorage > 0
+      );
+      
+      if (tenantsOverLimit.length > 0) {
+        alerts.push({
+          level: 'error',
+          title: 'Tenants Acima do Limite de Armazenamento',
+          message: `${tenantsOverLimit.length} tenant(s) excederam o limite de armazenamento. Verifique a página de Armazenamento.`
+        });
+      }
+      
+      res.json({
+        tenantCount: tenants.length,
+        activeTenantCount,
+        userCount,
+        fileCount: files.length,
+        totalStorage,
+        certificateCount,
+        recentTenants,
+        recentUsers,
+        alerts
+      });
+    } catch (error) {
+      next(error);
+    }
+  });
+  
+  // Listar todos os tenants para o admin
+  app.get("/api/admin/tenants", isAdmin, async (req, res, next) => {
+    try {
+      let tenants = await storage.getAllTenants();
+      const files = await storage.getAllFiles();
+      
+      // Adicionar informações de uso de armazenamento
+      const enhancedTenants = [];
+      
+      for (const tenant of tenants) {
+        const plan = await storage.getPlan(tenant.planId);
+        const tenantFiles = files.filter(f => f.tenantId === tenant.id);
+        const storageUsed = tenantFiles.reduce((acc, file) => acc + (parseFloat(file.fileSizeMB) || 0), 0);
+        
+        enhancedTenants.push({
+          ...tenant,
+          storageUsed,
+          fileCount: tenantFiles.length,
+          maxStorage: plan?.maxStorage || 0,
+          planName: plan?.name || 'Desconhecido'
+        });
+      }
+      
+      res.json(enhancedTenants);
+    } catch (error) {
+      next(error);
+    }
+  });
+  
+  // Criar tenant (admin)
+  app.post("/api/admin/tenants", isAdmin, async (req, res, next) => {
+    try {
+      const parsedBody = insertTenantSchema.parse(req.body);
+      const tenant = await storage.createTenant(parsedBody);
+      res.status(201).json(tenant);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: error.errors });
+      }
+      next(error);
+    }
+  });
+  
+  // Atualizar tenant (admin)
+  app.patch("/api/admin/tenants/:id", isAdmin, async (req, res, next) => {
+    try {
+      const tenant = await storage.updateTenant(Number(req.params.id), req.body);
+      if (!tenant) {
+        return res.status(404).json({ message: "Tenant not found" });
+      }
+      res.json(tenant);
+    } catch (error) {
+      next(error);
+    }
+  });
+  
+  // Excluir tenant (admin)
+  app.delete("/api/admin/tenants/:id", isAdmin, async (req, res, next) => {
+    try {
+      const success = await storage.deleteTenant(Number(req.params.id));
+      if (!success) {
+        return res.status(404).json({ message: "Tenant not found" });
+      }
+      res.status(204).end();
+    } catch (error) {
+      next(error);
+    }
+  });
+  
+  // Gerenciamento de planos
+  app.get("/api/admin/plans", isAdmin, async (req, res, next) => {
+    try {
+      const plans = await storage.getPlans();
+      res.json(plans);
+    } catch (error) {
+      next(error);
+    }
+  });
+  
+  // Criar plano
+  app.post("/api/admin/plans", isAdmin, async (req, res, next) => {
+    try {
+      const plan = await storage.createPlan(req.body);
+      res.status(201).json(plan);
+    } catch (error) {
+      next(error);
+    }
+  });
+  
+  // Atualizar plano
+  app.patch("/api/admin/plans/:id", isAdmin, async (req, res, next) => {
+    try {
+      const plan = await storage.updatePlan(Number(req.params.id), req.body);
+      if (!plan) {
+        return res.status(404).json({ message: "Plan not found" });
+      }
+      res.json(plan);
+    } catch (error) {
+      next(error);
+    }
+  });
+  
+  // Excluir plano
+  app.delete("/api/admin/plans/:id", isAdmin, async (req, res, next) => {
+    try {
+      const success = await storage.deletePlan(Number(req.params.id));
+      if (!success) {
+        return res.status(404).json({ message: "Plan not found" });
+      }
+      res.status(204).end();
+    } catch (error) {
+      next(error);
+    }
+  });
+  
+  // Módulos disponíveis
+  app.get("/api/admin/modules", isAdmin, async (req, res, next) => {
+    try {
+      const modules = await storage.getModules();
+      res.json(modules);
+    } catch (error) {
+      next(error);
+    }
+  });
+  
+  // Gerenciamento de armazenamento
+  app.get("/api/admin/storage", isAdmin, async (req, res, next) => {
+    try {
+      const tenants = await storage.getAllTenants();
+      const files = await storage.getAllFiles();
+      
+      const storageData = [];
+      
+      for (const tenant of tenants) {
+        const plan = await storage.getPlan(tenant.planId);
+        const tenantFiles = files.filter(f => f.tenantId === tenant.id);
+        const storageUsed = tenantFiles.reduce((acc, file) => acc + (parseFloat(file.fileSizeMB) || 0), 0);
+        
+        storageData.push({
+          id: tenant.id,
+          name: tenant.name,
+          storageUsed,
+          fileCount: tenantFiles.length,
+          maxStorage: plan?.maxStorage || 0,
+          planName: plan?.name || 'Desconhecido'
+        });
+      }
+      
+      res.json(storageData);
+    } catch (error) {
+      next(error);
+    }
+  });
+  
+  // Limpar arquivos não utilizados de um tenant
+  app.post("/api/admin/storage/:tenantId/cleanup", isAdmin, async (req, res, next) => {
+    try {
+      const tenantId = Number(req.params.tenantId);
+      
+      // Implementação básica - remover arquivos que não estão vinculados a nenhuma entidade
+      const files = await storage.getFilesByTenant(tenantId);
+      const unusedFiles = files.filter(f => !f.entityId);
+      
+      let filesRemoved = 0;
+      let spaceSaved = 0;
+      
+      for (const file of unusedFiles) {
+        // Remover arquivo físico
+        if (file.filePath) {
+          await removeFile(file.filePath);
+        }
+        
+        // Remover do banco de dados
+        const success = await storage.deleteFile(file.id, tenantId);
+        if (success) {
+          filesRemoved++;
+          spaceSaved += parseFloat(file.fileSizeMB) || 0;
+        }
+      }
+      
+      res.json({
+        success: true,
+        filesRemoved,
+        spaceSaved
+      });
+    } catch (error) {
+      next(error);
+    }
+  });
+  
+  // Usuários administrativos
+  app.get("/api/admin/users", isAdmin, async (req, res, next) => {
+    try {
+      const tenants = await storage.getAllTenants();
+      let allUsers = [];
+      
+      for (const tenant of tenants) {
+        const users = await storage.getUsersByTenant(tenant.id);
+        allUsers.push(...users.map(user => ({
+          ...user,
+          password: undefined, // Remover senha
+          tenantName: tenant.name
+        })));
+      }
+      
+      res.json(allUsers);
+    } catch (error) {
+      next(error);
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }
