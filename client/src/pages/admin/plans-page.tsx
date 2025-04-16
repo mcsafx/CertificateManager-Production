@@ -677,7 +677,7 @@ export default function PlansPage() {
 
       {/* Diálogo para editar módulos de um plano */}
       <Dialog open={openPlanModuleEditor} onOpenChange={setOpenPlanModuleEditor}>
-        <DialogContent className="sm:max-w-[600px]">
+        <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Configurar Módulos do Plano</DialogTitle>
             <DialogDescription>
