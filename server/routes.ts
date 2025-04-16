@@ -2566,7 +2566,7 @@ Em um ambiente de produção, este seria o conteúdo real do arquivo.`);
     }
   });
   
-  // Atualizar plano
+  // Atualizar plano (PATCH - parcial)
   app.patch("/api/admin/plans/:id", isAdmin, async (req, res, next) => {
     try {
       const plan = await storage.updatePlan(Number(req.params.id), req.body);
@@ -2575,6 +2575,35 @@ Em um ambiente de produção, este seria o conteúdo real do arquivo.`);
       }
       res.json(plan);
     } catch (error) {
+      next(error);
+    }
+  });
+  
+  // Atualizar plano (PUT - completo)
+  app.put("/api/admin/plans/:id", isAdmin, async (req, res, next) => {
+    try {
+      const id = Number(req.params.id);
+      
+      // Verificar se o plano existe
+      const existingPlan = await storage.getPlanById(id);
+      if (!existingPlan) {
+        return res.status(404).json({ message: "Plano não encontrado" });
+      }
+      
+      // Extrair dados do corpo da requisição
+      const { price, maxStorage, maxFileSize, description } = req.body;
+      
+      // Atualizar o plano
+      const updatedPlan = await storage.updatePlan(id, {
+        price: price !== undefined ? price : existingPlan.price,
+        storageLimit: maxStorage !== undefined ? maxStorage : existingPlan.storageLimit,
+        maxFileSize: maxFileSize !== undefined ? maxFileSize : existingPlan.maxFileSize,
+        description: description !== undefined ? description : existingPlan.description
+      });
+      
+      res.json(updatedPlan);
+    } catch (error) {
+      console.error('Erro ao atualizar plano:', error);
       next(error);
     }
   });
