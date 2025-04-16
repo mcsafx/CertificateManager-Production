@@ -7,9 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Beaker, CheckCircle, FileCheck, Package, Layers, Users } from "lucide-react";
-import { insertUserSchema } from "@shared/schema";
+import { Beaker, CheckCircle, FileCheck, Package, Layers, Users, Loader2 } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 
 const loginSchema = z.object({
@@ -17,29 +15,11 @@ const loginSchema = z.object({
   password: z.string().min(1, "Password is required"),
 });
 
-const registerSchema = insertUserSchema
-  .pick({
-    username: true,
-    password: true,
-    name: true,
-  })
-  .extend({
-    confirmPassword: z.string().min(1, "Please confirm your password"),
-    tenantName: z.string().min(1, "Company name is required"),
-    tenantCnpj: z.string().min(14, "CNPJ must have at least 14 digits"),
-    tenantAddress: z.string().min(1, "Company address is required"),
-  })
-  .refine(data => data.password === data.confirmPassword, {
-    message: "Passwords don't match",
-    path: ["confirmPassword"],
-  });
-
 type LoginFormValues = z.infer<typeof loginSchema>;
-type RegisterFormValues = z.infer<typeof registerSchema>;
 
 export default function AuthPage() {
   const [location, navigate] = useLocation();
-  const { user, loginMutation, registerMutation } = useAuth();
+  const { user, loginMutation } = useAuth();
 
   // Redirect to home if already logged in
   useEffect(() => {
@@ -57,34 +37,8 @@ export default function AuthPage() {
     },
   });
 
-  // Register form
-  const registerForm = useForm<RegisterFormValues>({
-    resolver: zodResolver(registerSchema),
-    defaultValues: {
-      username: "",
-      password: "",
-      confirmPassword: "",
-      name: "",
-      tenantName: "",
-      tenantCnpj: "",
-      tenantAddress: "",
-    },
-  });
-
   const onLoginSubmit = (data: LoginFormValues) => {
     loginMutation.mutate(data);
-  };
-
-  const onRegisterSubmit = (data: RegisterFormValues) => {
-    // Only pass required user fields
-    registerMutation.mutate({
-      username: data.username,
-      password: data.password,
-      name: data.name,
-      role: "admin", // Default role for new tenant
-      tenantId: 1, // This will be replaced with actual tenant ID by the server
-      active: true,
-    });
   };
 
   return (
@@ -102,163 +56,59 @@ export default function AuthPage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <Tabs defaultValue="login" className="w-full">
-              <TabsList className="grid grid-cols-2 mb-6 w-full">
-                <TabsTrigger value="login">Login</TabsTrigger>
-                <TabsTrigger value="register">Registrar</TabsTrigger>
-              </TabsList>
-              <TabsContent value="login">
-                <Form {...loginForm}>
-                  <form onSubmit={loginForm.handleSubmit(onLoginSubmit)} className="space-y-4">
-                    <FormField
-                      control={loginForm.control}
-                      name="username"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Usuário</FormLabel>
-                          <FormControl>
-                            <Input placeholder="Seu nome de usuário" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={loginForm.control}
-                      name="password"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Senha</FormLabel>
-                          <FormControl>
-                            <Input type="password" placeholder="Sua senha" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <Button 
-                      type="submit" 
-                      className="w-full mt-2"
-                      disabled={loginMutation.isPending}
-                    >
-                      {loginMutation.isPending ? "Entrando..." : "Entrar"}
-                    </Button>
-                  </form>
-                </Form>
-              </TabsContent>
-              <TabsContent value="register">
-                <Form {...registerForm}>
-                  <form onSubmit={registerForm.handleSubmit(onRegisterSubmit)} className="space-y-4">
-                    <div className="space-y-4">
-                      <h3 className="text-sm font-medium text-gray-500">Dados da Empresa</h3>
-                      <FormField
-                        control={registerForm.control}
-                        name="tenantName"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Nome da Empresa</FormLabel>
-                            <FormControl>
-                              <Input placeholder="Nome da sua empresa" {...field} />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                      <FormField
-                        control={registerForm.control}
-                        name="tenantCnpj"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>CNPJ</FormLabel>
-                            <FormControl>
-                              <Input placeholder="00.000.000/0000-00" {...field} />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                      <FormField
-                        control={registerForm.control}
-                        name="tenantAddress"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Endereço</FormLabel>
-                            <FormControl>
-                              <Input placeholder="Endereço completo" {...field} />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                    </div>
-                    
-                    <div className="space-y-4 mt-6">
-                      <h3 className="text-sm font-medium text-gray-500">Dados do Usuário Administrador</h3>
-                      <FormField
-                        control={registerForm.control}
-                        name="name"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Nome Completo</FormLabel>
-                            <FormControl>
-                              <Input placeholder="Seu nome completo" {...field} />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                      <FormField
-                        control={registerForm.control}
-                        name="username"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Nome de Usuário</FormLabel>
-                            <FormControl>
-                              <Input placeholder="Escolha um nome de usuário" {...field} />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                      <FormField
-                        control={registerForm.control}
-                        name="password"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Senha</FormLabel>
-                            <FormControl>
-                              <Input type="password" placeholder="Escolha uma senha" {...field} />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                      <FormField
-                        control={registerForm.control}
-                        name="confirmPassword"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Confirmar Senha</FormLabel>
-                            <FormControl>
-                              <Input type="password" placeholder="Confirme sua senha" {...field} />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                    </div>
-                    
-                    <Button 
-                      type="submit" 
-                      className="w-full mt-2"
-                      disabled={registerMutation.isPending}
-                    >
-                      {registerMutation.isPending ? "Registrando..." : "Registrar"}
-                    </Button>
-                  </form>
-                </Form>
-              </TabsContent>
-            </Tabs>
+            <Form {...loginForm}>
+              <form onSubmit={loginForm.handleSubmit(onLoginSubmit)} className="space-y-4">
+                <FormField
+                  control={loginForm.control}
+                  name="username"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Usuário</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Seu nome de usuário" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={loginForm.control}
+                  name="password"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Senha</FormLabel>
+                      <FormControl>
+                        <Input type="password" placeholder="Sua senha" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <Button 
+                  type="submit" 
+                  className="w-full mt-6"
+                  disabled={loginMutation.isPending}
+                >
+                  {loginMutation.isPending ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Entrando...
+                    </>
+                  ) : "Entrar"}
+                </Button>
+              </form>
+            </Form>
+            
+            <div className="mt-6 text-center text-sm text-muted-foreground">
+              <p>
+                Para acesso à plataforma, entre em contato com o administrador do sistema
+              </p>
+              <p className="mt-1">
+                <a href="#contact" className="text-primary hover:underline">
+                  Solicite uma demonstração
+                </a>
+              </p>
+            </div>
           </CardContent>
         </Card>
       </div>

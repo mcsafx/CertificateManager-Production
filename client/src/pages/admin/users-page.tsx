@@ -323,6 +323,160 @@ export default function AdminUsersPage() {
           </CardContent>
         </Card>
       </div>
+      
+      {/* Diálogo de edição de usuário */}
+      <Dialog open={openEditDialog} onOpenChange={(open) => {
+        setOpenEditDialog(open);
+        if (!open) setUserToEdit(null);
+      }}>
+        <DialogContent className="sm:max-w-[600px]">
+          <DialogHeader>
+            <DialogTitle>Editar Usuário</DialogTitle>
+            <DialogDescription>
+              {userToEdit ? (
+                <>Edite os dados do usuário <span className="font-medium">{userToEdit.username}</span></>
+              ) : (
+                'Edite os dados do usuário'
+              )}
+            </DialogDescription>
+          </DialogHeader>
+          
+          {userToEdit && (
+            <Form {...form}>
+              <form onSubmit={form.handleSubmit(onSubmitEditUser)} className="space-y-4">
+                <FormField
+                  control={form.control}
+                  name="username"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Nome de Usuário</FormLabel>
+                      <FormControl>
+                        <Input {...field} />
+                      </FormControl>
+                      <FormDescription>
+                        Nome de usuário para login no sistema
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                
+                <FormField
+                  control={form.control}
+                  name="name"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Nome Completo</FormLabel>
+                      <FormControl>
+                        <Input {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                
+                <FormField
+                  control={form.control}
+                  name="email"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Email</FormLabel>
+                      <FormControl>
+                        <Input type="email" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                
+                <FormField
+                  control={form.control}
+                  name="password"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Nova Senha</FormLabel>
+                      <FormControl>
+                        <Input 
+                          id="password"
+                          type="password" 
+                          placeholder="Deixe em branco para manter a senha atual" 
+                          {...field} 
+                        />
+                      </FormControl>
+                      <FormDescription>
+                        Deixe em branco para manter a senha atual
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                
+                <FormField
+                  control={form.control}
+                  name="role"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Função</FormLabel>
+                      <Select 
+                        defaultValue={field.value}
+                        onValueChange={field.onChange}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Selecione uma função" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="admin">Administrador do Sistema</SelectItem>
+                          <SelectItem value="tenant_admin">Administrador do Tenant</SelectItem>
+                          <SelectItem value="user">Usuário Regular</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormDescription>
+                        A função determina as permissões do usuário no sistema
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                
+                <FormField
+                  control={form.control}
+                  name="active"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                      <div className="space-y-0.5">
+                        <FormLabel className="text-base">Usuário Ativo</FormLabel>
+                        <FormDescription>
+                          Quando desativado, o usuário não poderá acessar o sistema
+                        </FormDescription>
+                      </div>
+                      <FormControl>
+                        <Switch
+                          checked={field.value}
+                          onCheckedChange={field.onChange}
+                        />
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
+                
+                <DialogFooter>
+                  <Button 
+                    type="submit" 
+                    disabled={updateUserMutation.isPending}
+                  >
+                    {updateUserMutation.isPending && (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    )}
+                    Salvar alterações
+                  </Button>
+                </DialogFooter>
+              </form>
+            </Form>
+          )}
+        </DialogContent>
+      </Dialog>
     </AdminLayout>
   );
 }
