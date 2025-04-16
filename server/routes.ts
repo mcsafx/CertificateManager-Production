@@ -2585,7 +2585,7 @@ Em um ambiente de produção, este seria o conteúdo real do arquivo.`);
       const id = Number(req.params.id);
       
       // Verificar se o plano existe
-      const existingPlan = await storage.getPlanById(id);
+      const existingPlan = await storage.getPlan(id);
       if (!existingPlan) {
         return res.status(404).json({ message: "Plano não encontrado" });
       }
