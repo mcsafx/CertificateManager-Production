@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import Layout from "@/components/layout/layout";
+import AdminLayout from "@/components/layout/admin-layout";
 import { useToast } from "@/hooks/use-toast";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { BarChart, FileWarning, HardDrive, Loader2, RefreshCw } from "lucide-react";
@@ -92,7 +92,7 @@ export default function StoragePage() {
   }).length || 0;
 
   return (
-    <Layout>
+    <AdminLayout>
       <div className="container mx-auto py-10">
         <div className="flex justify-between items-center mb-6">
           <div>
@@ -271,6 +271,6 @@ export default function StoragePage() {
           </CardContent>
         </Card>
       </div>
-    </Layout>
+    </AdminLayout>
   );
 }
