@@ -997,9 +997,11 @@ export class MemStorage implements IStorage {
       name: "Básico",
       description: "Plano Básico",
       active: true,
-      priceMonthly: "80.00",
-      priceYearly: "800.00",
-      createdAt: new Date()
+      price: "80.00",
+      storageLimit: 2048, // 2GB
+      maxUsers: 5,
+      createdAt: new Date(),
+      updatedAt: new Date()
     }];
   }
 
@@ -1011,9 +1013,11 @@ export class MemStorage implements IStorage {
         name: "Básico",
         description: "Plano Básico",
         active: true,
-        priceMonthly: "80.00",
-        priceYearly: "800.00",
-        createdAt: new Date()
+        price: "80.00",
+        storageLimit: 2048, // 2GB
+        maxUsers: 5,
+        createdAt: new Date(),
+        updatedAt: new Date()
       };
     }
     return undefined;
@@ -1027,9 +1031,11 @@ export class MemStorage implements IStorage {
         name: "Básico",
         description: "Plano Básico",
         active: true,
-        priceMonthly: "80.00",
-        priceYearly: "800.00",
-        createdAt: new Date()
+        price: "80.00",
+        storageLimit: 2048, // 2GB
+        maxUsers: 5,
+        createdAt: new Date(),
+        updatedAt: new Date()
       };
     }
     return undefined;
