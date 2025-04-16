@@ -64,9 +64,36 @@ export default function CertificatesPage() {
     window.open(`/api/certificates/view/${id}`, "_blank");
   };
   
-  const handleDownload = (id: number) => {
-    // Fazer download do arquivo original do certificado
-    window.open(`/api/certificates/download/${id}`, "_blank");
+  const handleDownload = async (id: number) => {
+    try {
+      // Buscar o certificado primeiro para obter a URL do arquivo original
+      const response = await fetch(`/api/entry-certificates/${id}`, {
+        credentials: "include",
+      });
+      
+      if (!response.ok) {
+        throw new Error("Falha ao buscar informações do certificado");
+      }
+      
+      const certificate = await response.json();
+      
+      // Se o certificado tem um arquivo original, abrir em uma nova aba
+      if (certificate.originalFileUrl) {
+        window.open(certificate.originalFileUrl, "_blank");
+      } else {
+        toast({
+          title: "Arquivo não encontrado",
+          description: "Este certificado não possui um arquivo anexado.",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      toast({
+        title: "Erro ao acessar o arquivo",
+        description: error instanceof Error ? error.message : "Erro desconhecido",
+        variant: "destructive",
+      });
+    }
   };
   
   const handleDialogClose = () => {
