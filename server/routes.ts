@@ -143,112 +143,295 @@ Em um ambiente de produção, este seria o conteúdo real do arquivo.`);
       res.setHeader('Content-Type', 'text/html');
       res.send(`
         <!DOCTYPE html>
-        <html>
+        <html lang="pt-BR">
         <head>
-          <title>Boletim de Entrada #${certificate.id}</title>
+          <title>Certificado #${certificate.id} - ${product ? product.technicalName : 'Produto'}</title>
           <meta charset="UTF-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
           <style>
-            body {
-              font-family: Arial, sans-serif;
+            @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+            
+            :root {
+              --primary: #0066cc;
+              --primary-light: #e6f0ff;
+              --success: #10b981;
+              --warning: #f59e0b;
+              --danger: #ef4444;
+              --gray-50: #f9fafb;
+              --gray-100: #f3f4f6;
+              --gray-200: #e5e7eb;
+              --gray-300: #d1d5db;
+              --gray-400: #9ca3af;
+              --gray-500: #6b7280;
+              --gray-700: #374151;
+              --gray-900: #111827;
+            }
+            
+            * {
+              box-sizing: border-box;
               margin: 0;
-              padding: 20px;
-              font-size: 12px;
-              line-height: 1.5;
+              padding: 0;
             }
-            .container {
-              max-width: 800px;
-              margin: 0 auto;
-              border: 1px solid #ddd;
-              padding: 20px;
+            
+            html, body {
+              font-family: 'Inter', sans-serif;
+              font-size: 14px;
+              line-height: 1.6;
+              color: var(--gray-900);
+              background-color: #f5f5f5;
             }
-            .header {
-              text-align: center;
-              margin-bottom: 30px;
-              border-bottom: 2px solid #333;
-              padding-bottom: 10px;
+            
+            /* Tamanho A4 para impressão */
+            .a4-page {
+              width: 210mm;
+              min-height: 297mm;
+              padding: 20mm;
+              margin: 20px auto;
+              background-color: white;
+              box-shadow: 0 4px 24px rgba(0, 0, 0, 0.1);
+              position: relative;
             }
-            .title {
-              font-size: 24px;
+            
+            .watermark {
+              position: absolute;
+              top: 50%;
+              left: 50%;
+              transform: translate(-50%, -50%) rotate(-45deg);
+              font-size: 8rem;
+              color: rgba(0, 0, 0, 0.03);
               font-weight: bold;
-              margin-bottom: 5px;
+              z-index: 0;
+              pointer-events: none;
+              white-space: nowrap;
             }
-            .subtitle {
-              font-size: 16px;
-              color: #666;
+            
+            .cert-header {
+              position: relative;
+              display: flex;
+              justify-content: space-between;
+              align-items: center;
+              padding-bottom: 16px;
+              border-bottom: 2px solid var(--primary);
+              margin-bottom: 32px;
+              z-index: 1;
             }
+            
+            .logo-area {
+              display: flex;
+              flex-direction: column;
+            }
+            
+            .logo-placeholder {
+              width: 180px;
+              height: 60px;
+              background: linear-gradient(135deg, var(--primary-light), var(--primary));
+              display: flex;
+              justify-content: center;
+              align-items: center;
+              color: white;
+              font-weight: bold;
+              border-radius: 4px;
+              margin-bottom: 8px;
+            }
+            
+            .cert-title {
+              color: var(--primary);
+              font-size: 1.8rem;
+              font-weight: 700;
+            }
+            
+            .cert-id {
+              padding: 8px 16px;
+              background-color: var(--primary);
+              color: white;
+              border-radius: 8px;
+              font-weight: 600;
+              font-size: 1.1rem;
+            }
+            
             .section {
-              margin-bottom: 30px;
+              margin-bottom: 28px;
+              position: relative;
+              z-index: 1;
             }
+            
             .section-title {
-              font-size: 18px;
-              font-weight: bold;
-              margin-bottom: 10px;
-              border-bottom: 1px solid #ddd;
-              padding-bottom: 5px;
+              font-size: 1.25rem;
+              color: var(--primary);
+              font-weight: 600;
+              margin-bottom: 16px;
+              padding-bottom: 6px;
+              border-bottom: 1px solid var(--gray-200);
+              display: flex;
+              align-items: center;
             }
+            
+            .section-title::before {
+              content: '';
+              display: inline-block;
+              width: 12px;
+              height: 12px;
+              background-color: var(--primary);
+              margin-right: 8px;
+              border-radius: 3px;
+            }
+            
             .info-grid {
               display: grid;
               grid-template-columns: repeat(2, 1fr);
-              gap: 15px;
+              gap: 18px 24px;
             }
+            
             .info-item {
-              margin-bottom: 10px;
+              position: relative;
             }
+            
             .info-label {
-              font-weight: bold;
-              margin-bottom: 3px;
+              font-size: 0.85rem;
+              color: var(--gray-500);
+              margin-bottom: 2px;
+              font-weight: 500;
             }
+            
             .info-value {
-              color: #333;
-            }
-            table {
-              width: 100%;
-              border-collapse: collapse;
-              margin-top: 10px;
-            }
-            th, td {
-              border: 1px solid #ddd;
-              padding: 8px;
-              text-align: left;
-            }
-            th {
-              background-color: #f2f2f2;
-              font-weight: bold;
-            }
-            .footer {
-              margin-top: 30px;
-              text-align: center;
-              font-size: 11px;
-              color: #666;
-              border-top: 1px solid #ddd;
-              padding-top: 10px;
-            }
-            .badge {
-              display: inline-block;
-              padding: 4px 8px;
+              font-weight: 500;
+              color: var(--gray-900);
+              background-color: var(--gray-50);
+              padding: 6px 10px;
               border-radius: 4px;
-              font-size: 11px;
-              font-weight: bold;
+              border: 1px solid var(--gray-200);
             }
+            
+            .badge {
+              display: inline-flex;
+              align-items: center;
+              padding: 4px 12px;
+              border-radius: 50px;
+              font-weight: 600;
+              font-size: 0.85rem;
+            }
+            
             .badge-approved {
-              background-color: #dcfce7;
-              color: #166534;
+              background-color: rgba(16, 185, 129, 0.1);
+              color: var(--success);
             }
+            
             .badge-rejected {
-              background-color: #fee2e2;
-              color: #b91c1c;
+              background-color: rgba(239, 68, 68, 0.1);
+              color: var(--danger);
             }
+            
             .badge-pending {
-              background-color: #fef3c7;
-              color: #92400e;
+              background-color: rgba(245, 158, 11, 0.1);
+              color: var(--warning);
             }
+            
+            .cert-table {
+              width: 100%;
+              border-collapse: separate;
+              border-spacing: 0;
+              border-radius: 8px;
+              overflow: hidden;
+              border: 1px solid var(--gray-200);
+            }
+            
+            .cert-table th {
+              background-color: var(--primary-light);
+              color: var(--primary);
+              font-weight: 600;
+              text-align: left;
+              padding: 12px 16px;
+              border-bottom: 1px solid var(--gray-200);
+            }
+            
+            .cert-table td {
+              padding: 10px 16px;
+              border-bottom: 1px solid var(--gray-200);
+            }
+            
+            .cert-table tr:last-child td {
+              border-bottom: none;
+            }
+            
+            .cert-table tr:nth-child(even) {
+              background-color: var(--gray-50);
+            }
+            
+            .footer {
+              margin-top: 40px;
+              text-align: center;
+              color: var(--gray-500);
+              font-size: 0.85rem;
+              padding-top: 16px;
+              border-top: 1px solid var(--gray-200);
+              position: absolute;
+              bottom: 20mm;
+              left: 20mm;
+              right: 20mm;
+            }
+            
+            .signatures {
+              margin-top: 60px;
+              display: flex;
+              justify-content: space-between;
+            }
+            
+            .signature {
+              width: 200px;
+              text-align: center;
+            }
+            
+            .signature-line {
+              margin: 50px auto 8px;
+              width: 100%;
+              border-top: 1px solid var(--gray-400);
+            }
+            
+            .signature-name {
+              font-weight: 600;
+            }
+            
+            .signature-title {
+              font-size: 0.85rem;
+              color: var(--gray-500);
+            }
+            
+            .print-button {
+              position: fixed;
+              top: 20px;
+              right: 20px;
+              background-color: var(--primary);
+              color: white;
+              border: none;
+              padding: 10px 16px;
+              border-radius: 4px;
+              font-weight: 500;
+              cursor: pointer;
+              display: flex;
+              align-items: center;
+              gap: 8px;
+              box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+              z-index: 100;
+            }
+            
+            .print-button:hover {
+              background-color: #0052a3;
+            }
+            
             @media print {
               body {
-                padding: 0;
+                background: none;
               }
-              .container {
-                border: none;
+              
+              .a4-page {
+                width: 210mm;
+                height: 297mm;
+                margin: 0;
+                padding: 10mm;
+                box-shadow: none;
+                page-break-after: always;
               }
+              
               .print-button {
                 display: none;
               }
@@ -256,77 +439,92 @@ Em um ambiente de produção, este seria o conteúdo real do arquivo.`);
           </style>
         </head>
         <body>
-          <div class="container">
-            <div class="header">
-              <div class="title">Boletim de Análise #${certificate.id}</div>
-              <div class="subtitle">Certificado de Qualidade</div>
-            </div>
+          <button class="print-button" onclick="window.print()">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="6 9 6 2 18 2 18 9"></polyline>
+              <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path>
+              <rect x="6" y="14" width="12" height="8"></rect>
+            </svg>
+            Imprimir
+          </button>
+          
+          <div class="a4-page">
+            <div class="watermark">CERTIFICADO</div>
             
-            <button class="print-button" onclick="window.print()">Imprimir</button>
+            <header class="cert-header">
+              <div class="logo-area">
+                <div class="logo-placeholder">CertQuality</div>
+                <div>Sistema de Gestão de Certificados</div>
+              </div>
+              <div>
+                <div class="cert-title">Boletim de Análise</div>
+                <div class="cert-id">#${certificate.id}</div>
+              </div>
+            </header>
             
-            <div class="section">
-              <div class="section-title">Informações do Fornecedor</div>
+            <section class="section">
+              <h2 class="section-title">Dados do Fornecedor</h2>
               <div class="info-grid">
                 <div class="info-item">
-                  <div class="info-label">Fornecedor:</div>
+                  <div class="info-label">Fornecedor</div>
                   <div class="info-value">${supplier ? supplier.name : 'N/A'}</div>
                 </div>
                 <div class="info-item">
-                  <div class="info-label">Fabricante:</div>
+                  <div class="info-label">Fabricante</div>
                   <div class="info-value">${manufacturer ? manufacturer.name : 'N/A'}</div>
                 </div>
                 <div class="info-item">
-                  <div class="info-label">Documento de Referência:</div>
+                  <div class="info-label">Documento de Referência</div>
                   <div class="info-value">${certificate.referenceDocument || 'N/A'}</div>
                 </div>
                 <div class="info-item">
-                  <div class="info-label">Data de Entrada:</div>
+                  <div class="info-label">Data de Entrada</div>
                   <div class="info-value">${certificate.entryDate ? formatDate(new Date(certificate.entryDate)) : 'N/A'}</div>
                 </div>
               </div>
-            </div>
+            </section>
             
-            <div class="section">
-              <div class="section-title">Informações do Produto</div>
+            <section class="section">
+              <h2 class="section-title">Dados do Produto</h2>
               <div class="info-grid">
                 <div class="info-item">
-                  <div class="info-label">Produto:</div>
+                  <div class="info-label">Produto</div>
                   <div class="info-value">${product ? product.technicalName : 'N/A'}</div>
                 </div>
                 <div class="info-item">
-                  <div class="info-label">Código do Produto:</div>
+                  <div class="info-label">Código do Produto</div>
                   <div class="info-value">${product ? product.sku : 'N/A'}</div>
                 </div>
                 <div class="info-item">
-                  <div class="info-label">Quantidade Recebida:</div>
+                  <div class="info-label">Quantidade Recebida</div>
                   <div class="info-value">${certificate.receivedQuantity} ${certificate.measureUnit}</div>
                 </div>
                 <div class="info-item">
-                  <div class="info-label">Tipo de Embalagem:</div>
+                  <div class="info-label">Tipo de Embalagem</div>
                   <div class="info-value">${certificate.packageType || 'N/A'}</div>
                 </div>
                 <div class="info-item">
-                  <div class="info-label">Lote do Fornecedor:</div>
+                  <div class="info-label">Lote do Fornecedor</div>
                   <div class="info-value">${certificate.supplierLot || 'N/A'}</div>
                 </div>
                 <div class="info-item">
-                  <div class="info-label">Lote Interno:</div>
+                  <div class="info-label">Lote Interno</div>
                   <div class="info-value">${certificate.internalLot || 'N/A'}</div>
                 </div>
                 <div class="info-item">
-                  <div class="info-label">Data de Fabricação:</div>
+                  <div class="info-label">Data de Fabricação</div>
                   <div class="info-value">${certificate.manufacturingDate ? formatDate(new Date(certificate.manufacturingDate)) : 'N/A'}</div>
                 </div>
                 <div class="info-item">
-                  <div class="info-label">Data de Validade:</div>
+                  <div class="info-label">Data de Validade</div>
                   <div class="info-value">${certificate.expirationDate ? formatDate(new Date(certificate.expirationDate)) : 'N/A'}</div>
                 </div>
                 <div class="info-item">
-                  <div class="info-label">Data de Inspeção:</div>
+                  <div class="info-label">Data de Inspeção</div>
                   <div class="info-value">${certificate.inspectionDate ? formatDate(new Date(certificate.inspectionDate)) : 'N/A'}</div>
                 </div>
                 <div class="info-item">
-                  <div class="info-label">Status:</div>
+                  <div class="info-label">Status</div>
                   <div class="info-value">
                     <span class="badge ${
                       certificate.status === "Aprovado" ? "badge-approved" : 
@@ -338,11 +536,11 @@ Em um ambiente de produção, este seria o conteúdo real do arquivo.`);
                   </div>
                 </div>
               </div>
-            </div>
+            </section>
             
-            <div class="section">
-              <div class="section-title">Características e Resultados</div>
-              <table>
+            <section class="section">
+              <h2 class="section-title">Características e Resultados</h2>
+              <table class="cert-table">
                 <thead>
                   <tr>
                     <th>Característica</th>
@@ -354,7 +552,7 @@ Em um ambiente de produção, este seria o conteúdo real do arquivo.`);
                   </tr>
                 </thead>
                 <tbody>
-                  ${results.map(result => `
+                  ${results && results.length > 0 ? results.map(result => `
                     <tr>
                       <td>${result.characteristicName}</td>
                       <td>${result.unit}</td>
@@ -363,13 +561,34 @@ Em um ambiente de produção, este seria o conteúdo real do arquivo.`);
                       <td>${result.obtainedValue}</td>
                       <td>${result.analysisMethod || '-'}</td>
                     </tr>
-                  `).join('')}
+                  `).join('') : `
+                    <tr>
+                      <td colspan="6" style="text-align: center; padding: 20px;">
+                        Nenhum resultado de análise encontrado para este certificado.
+                      </td>
+                    </tr>
+                  `}
                 </tbody>
               </table>
+            </section>
+            
+            <div class="signatures">
+              <div class="signature">
+                <div class="signature-line"></div>
+                <div class="signature-name">Controle de Qualidade</div>
+                <div class="signature-title">Responsável Técnico</div>
+              </div>
+              
+              <div class="signature">
+                <div class="signature-line"></div>
+                <div class="signature-name">Aprovação</div>
+                <div class="signature-title">Gerente de Qualidade</div>
+              </div>
             </div>
             
             <div class="footer">
-              <p>Certificado gerado em ${new Date().toLocaleString('pt-BR')} | CertQuality - Sistema de Gestão de Certificados</p>
+              <p>Este certificado de análise foi gerado pelo sistema CertQuality em ${new Date().toLocaleString('pt-BR')}</p>
+              <p>Documento válido apenas com assinatura digital ou física.</p>
             </div>
           </div>
         </body>
