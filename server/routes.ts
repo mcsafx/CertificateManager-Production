@@ -2716,6 +2716,49 @@ Em um ambiente de produção, este seria o conteúdo real do arquivo.`);
       next(error);
     }
   });
+  
+  // Atualizar usuário administrativo
+  app.put("/api/admin/users/:id", isAdmin, async (req, res, next) => {
+    try {
+      const userId = Number(req.params.id);
+      const { username, name, email, password, role, active } = req.body;
+      
+      // Verificar se o usuário existe
+      const existingUser = await storage.getUser(userId);
+      if (!existingUser) {
+        return res.status(404).json({ message: "Usuário não encontrado" });
+      }
+      
+      // Preparar dados para atualização
+      const updateData: any = {};
+      
+      if (username !== undefined) updateData.username = username;
+      if (name !== undefined) updateData.name = name;
+      if (email !== undefined) updateData.email = email;
+      if (role !== undefined) updateData.role = role;
+      if (active !== undefined) updateData.active = active;
+      
+      // Se a senha foi fornecida, hash ela
+      if (password) {
+        const { hashPassword } = await import('./auth');
+        updateData.password = await hashPassword(password);
+      }
+      
+      // Atualizar o usuário
+      const updatedUser = await storage.updateUser(userId, updateData);
+      
+      // Remover senha da resposta
+      if (updatedUser) {
+        const { password, ...userWithoutPassword } = updatedUser;
+        res.json(userWithoutPassword);
+      } else {
+        res.status(404).json({ message: "Erro ao atualizar usuário" });
+      }
+    } catch (error) {
+      console.error('Erro ao atualizar usuário:', error);
+      next(error);
+    }
+  });
 
   const httpServer = createServer(app);
   return httpServer;

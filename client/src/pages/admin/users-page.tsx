@@ -36,10 +36,52 @@ import {
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { useState } from "react";
+import { z } from "zod";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { 
+  Dialog, 
+  DialogContent, 
+  DialogDescription, 
+  DialogFooter, 
+  DialogHeader, 
+  DialogTitle 
+} from "@/components/ui/dialog";
+import { 
+  Form, 
+  FormControl, 
+  FormDescription, 
+  FormField, 
+  FormItem, 
+  FormLabel, 
+  FormMessage 
+} from "@/components/ui/form";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { Switch } from "@/components/ui/switch";
+import { 
+  Select, 
+  SelectContent, 
+  SelectItem, 
+  SelectTrigger, 
+  SelectValue 
+} from "@/components/ui/select";
+
+// Esquema para edição do usuário
+const userEditSchema = z.object({
+  username: z.string().min(3, "Nome de usuário deve ter pelo menos 3 caracteres"),
+  name: z.string().min(3, "Nome deve ter pelo menos 3 caracteres"),
+  email: z.string().email("Email inválido").optional().nullable(),
+  password: z.string().min(6, "Senha deve ter pelo menos 6 caracteres").optional(),
+  role: z.enum(["admin", "tenant_admin", "user"]),
+  active: z.boolean().default(true)
+});
 
 export default function AdminUsersPage() {
   const { toast } = useToast();
   const [searchTerm, setSearchTerm] = useState("");
+  const [openEditDialog, setOpenEditDialog] = useState(false);
+  const [userToEdit, setUserToEdit] = useState<any | null>(null);
+  const queryClient = useQueryClient();
 
   // Buscar todos os usuários
   const { data: users, isLoading } = useQuery({
@@ -63,6 +105,77 @@ export default function AdminUsersPage() {
           user.tenantName?.toLowerCase().includes(searchTerm.toLowerCase())
       )
     : [];
+
+  // Configuração do formulário de edição
+  const form = useForm<z.infer<typeof userEditSchema>>({
+    resolver: zodResolver(userEditSchema),
+    defaultValues: {
+      username: "",
+      name: "",
+      email: "",
+      password: "",
+      role: "user",
+      active: true
+    }
+  });
+  
+  // Mutação para atualizar usuários
+  const updateUserMutation = useMutation({
+    mutationFn: async (data: any) => {
+      const response = await apiRequest('PUT', `/api/admin/users/${data.id}`, {
+        username: data.username,
+        name: data.name,
+        email: data.email,
+        password: data.password || undefined, // Apenas enviar se tiver valor
+        role: data.role,
+        active: data.active
+      });
+      if (!response.ok) {
+        throw new Error('Erro ao atualizar usuário');
+      }
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/users'] });
+      setOpenEditDialog(false);
+      setUserToEdit(null);
+      toast({
+        title: "Usuário atualizado",
+        description: "O usuário foi atualizado com sucesso."
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Erro ao atualizar usuário",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  });
+  
+  // Função para abrir diálogo de edição
+  function openEditUserDialog(user: any) {
+    setUserToEdit(user);
+    form.reset({
+      username: user.username,
+      name: user.name,
+      email: user.email || "",
+      password: "", // Não preencher a senha
+      role: user.role,
+      active: user.active
+    });
+    setOpenEditDialog(true);
+  }
+  
+  // Função para lidar com o envio do formulário
+  function onSubmitEditUser(values: z.infer<typeof userEditSchema>) {
+    if (!userToEdit) return;
+    
+    updateUserMutation.mutate({
+      id: userToEdit.id,
+      ...values
+    });
+  }
 
   return (
     <AdminLayout>
@@ -165,22 +278,20 @@ export default function AdminUsersPage() {
                               <DropdownMenuLabel>Ações</DropdownMenuLabel>
                               <DropdownMenuSeparator />
                               <DropdownMenuItem
-                                onClick={() => {
-                                  toast({
-                                    title: "Funcionalidade não implementada",
-                                    description:
-                                      "Esta é uma demonstração. A função de visualizar detalhes do usuário será implementada em breve.",
-                                  });
-                                }}
+                                onClick={() => openEditUserDialog(user)}
                               >
-                                Ver detalhes
+                                Editar usuário
                               </DropdownMenuItem>
                               <DropdownMenuItem
                                 onClick={() => {
-                                  toast({
-                                    title: "Funcionalidade não implementada",
-                                    description:
-                                      "Esta é uma demonstração. A função de desativar usuário será implementada em breve.",
+                                  // Atualizar apenas o status ativo/inativo
+                                  updateUserMutation.mutate({
+                                    id: user.id,
+                                    active: !user.active,
+                                    username: user.username,
+                                    name: user.name,
+                                    email: user.email,
+                                    role: user.role
                                   });
                                 }}
                               >
@@ -188,11 +299,14 @@ export default function AdminUsersPage() {
                               </DropdownMenuItem>
                               <DropdownMenuItem
                                 onClick={() => {
-                                  toast({
-                                    title: "Funcionalidade não implementada",
-                                    description:
-                                      "Esta é uma demonstração. A função de redefinir senha será implementada em breve.",
-                                  });
+                                  // Abrir formulário com foco na senha
+                                  openEditUserDialog(user);
+                                  setTimeout(() => {
+                                    const passwordInput = document.getElementById('password');
+                                    if (passwordInput) {
+                                      passwordInput.focus();
+                                    }
+                                  }, 100);
                                 }}
                               >
                                 Redefinir senha
