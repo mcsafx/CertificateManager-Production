@@ -800,7 +800,6 @@ export default function PlansPage() {
                         <FormControl>
                           <Input 
                             type="number" 
-                            defaultValue={planToEdit.maxFileSize}
                             {...field} 
                           />
                         </FormControl>
@@ -822,7 +821,6 @@ export default function PlansPage() {
                         <Input 
                           type="number" 
                           step="0.01" 
-                          defaultValue={planToEdit.price}
                           {...field} 
                         />
                       </FormControl>
@@ -900,7 +898,10 @@ export default function PlansPage() {
       </Dialog>
 
       {/* Diálogo de confirmação para exclusão de plano */}
-      <AlertDialog open={openDeletePlanDialog} onOpenChange={setOpenDeletePlanDialog}>
+      <AlertDialog open={openDeletePlanDialog} onOpenChange={(open) => {
+        setOpenDeletePlanDialog(open);
+        if (!open) setPlanToDelete(null);
+      }}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Você tem certeza?</AlertDialogTitle>
