@@ -12,6 +12,7 @@ import { User, InsertUser, Tenant, InsertTenant,
          IssuedCertificate, InsertIssuedCertificate,
          PackageType, InsertPackageType,
          File, InsertFile,
+         Module, InsertModule,
          plans, modules, planModules, files,
          users, tenants, productCategories, productSubcategories, productBase, products,
          productFiles, productBaseFiles, productCharacteristics, suppliers, manufacturers,
@@ -162,11 +163,19 @@ export interface IStorage {
   getAllPlans(): Promise<typeof plans.$inferSelect[]>;
   getPlan(id: number): Promise<typeof plans.$inferSelect | undefined>;
   getPlanByCode(code: string): Promise<typeof plans.$inferSelect | undefined>;
+  createPlan(plan: any): Promise<any>;
+  updatePlan(id: number, plan: Partial<any>): Promise<any | undefined>;
+  deletePlan(id: number): Promise<boolean>;
   getAllModules(): Promise<typeof modules.$inferSelect[]>;
   getModule(id: number): Promise<typeof modules.$inferSelect | undefined>;
+  getModules(): Promise<any[]>;
+  createModule(module: InsertModule): Promise<typeof modules.$inferSelect>;
+  updateModule(id: number, module: Partial<InsertModule>): Promise<typeof modules.$inferSelect | undefined>;
+  deleteModule(id: number): Promise<boolean>;
   getModulesByPlan(planId: number): Promise<typeof modules.$inferSelect[]>;
   getModulesByPlanCode(code: string): Promise<typeof modules.$inferSelect[]>;
   getTenantEnabledModules(tenantId: number): Promise<typeof modules.$inferSelect[]>;
+  updatePlanModules(planId: number, moduleIds: number[]): Promise<boolean>;
   
   // Files Management
   getFile(id: number, tenantId: number): Promise<File | undefined>;
@@ -2315,6 +2324,67 @@ export class DatabaseStorage implements IStorage {
   
   async getModules(): Promise<any[]> {
     return await db.select().from(modules);
+  }
+  
+  async createModule(module: InsertModule): Promise<typeof modules.$inferSelect> {
+    const [newModule] = await db.insert(modules)
+      .values({
+        ...module
+      })
+      .returning();
+    return newModule;
+  }
+  
+  async updateModule(id: number, module: Partial<InsertModule>): Promise<typeof modules.$inferSelect | undefined> {
+    const [updatedModule] = await db.update(modules)
+      .set({
+        ...module
+      })
+      .where(eq(modules.id, id))
+      .returning();
+    
+    return updatedModule;
+  }
+  
+  async deleteModule(id: number): Promise<boolean> {
+    try {
+      // Primeiro deletamos as referências em plan_modules
+      await db.delete(planModules)
+        .where(eq(planModules.moduleId, id));
+      
+      // Depois deletamos o módulo
+      const result = await db.delete(modules)
+        .where(eq(modules.id, id));
+      
+      return result.rowCount > 0;
+    } catch (error) {
+      console.error("Error deleting module:", error);
+      throw error;
+    }
+  }
+  
+  async updatePlanModules(planId: number, moduleIds: number[]): Promise<boolean> {
+    try {
+      // Primeiro removemos todos os módulos associados ao plano
+      await db.delete(planModules)
+        .where(eq(planModules.planId, planId));
+      
+      // Depois adicionamos os novos módulos
+      if (moduleIds.length > 0) {
+        await db.insert(planModules)
+          .values(
+            moduleIds.map(moduleId => ({
+              planId,
+              moduleId
+            }))
+          );
+      }
+      
+      return true;
+    } catch (error) {
+      console.error("Error updating plan modules:", error);
+      throw error;
+    }
   }
   
   async getAllFiles(): Promise<File[]> {
