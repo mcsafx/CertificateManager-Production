@@ -183,6 +183,9 @@ export class MemStorage implements IStorage {
   private issuedCertificates: Map<number, IssuedCertificate>;
   private packageTypes: Map<number, PackageType>;
   
+  // Arquivos gerais
+  private files: Map<number, File>;
+  
   private userIdCounter: number;
   private tenantIdCounter: number;
   private categoryIdCounter: number;
@@ -199,6 +202,7 @@ export class MemStorage implements IStorage {
   private resultIdCounter: number;
   private issuedCertificateIdCounter: number;
   private packageTypeIdCounter: number;
+  private fileIdCounter: number;
   
   sessionStore: session.Store;
 
@@ -223,6 +227,9 @@ export class MemStorage implements IStorage {
     this.issuedCertificates = new Map();
     this.packageTypes = new Map();
     
+    // Inicialização da estrutura de arquivos gerais
+    this.files = new Map();
+    
     this.userIdCounter = 1;
     this.tenantIdCounter = 1;
     this.categoryIdCounter = 1;
@@ -239,6 +246,7 @@ export class MemStorage implements IStorage {
     this.resultIdCounter = 1;
     this.issuedCertificateIdCounter = 1;
     this.packageTypeIdCounter = 1;
+    this.fileIdCounter = 1;
     
     this.sessionStore = new MemoryStore({
       checkPeriod: 86400000, // prune expired entries every 24h
@@ -994,6 +1002,80 @@ export class MemStorage implements IStorage {
     const packageType = await this.getPackageType(id, tenantId);
     if (!packageType) return false;
     return this.packageTypes.delete(id);
+  }
+  
+  // Files Management methods
+  async getFile(id: number, tenantId: number): Promise<File | undefined> {
+    const file = this.files.get(id);
+    if (file && file.tenantId === tenantId) {
+      return file;
+    }
+    return undefined;
+  }
+
+  async createFile(file: InsertFile): Promise<File> {
+    const id = this.fileIdCounter++;
+    const newFile: File = { 
+      ...file, 
+      id,
+      description: file.description ?? null,
+      entityType: file.entityType ?? null,
+      entityId: file.entityId ?? null,
+      uploadedAt: new Date()
+    };
+    this.files.set(id, newFile);
+    
+    // Atualiza o contador de armazenamento usado pelo tenant
+    const tenant = await this.getTenant(file.tenantId);
+    if (tenant) {
+      const fileSizeMB = typeof file.fileSizeMB === 'string' 
+        ? parseFloat(file.fileSizeMB) 
+        : file.fileSizeMB;
+      
+      await this.updateTenant(tenant.id, {
+        storageUsed: tenant.storageUsed + fileSizeMB
+      });
+    }
+    
+    return newFile;
+  }
+
+  async getFilesByTenant(tenantId: number, fileCategory?: string): Promise<File[]> {
+    return Array.from(this.files.values()).filter(
+      (file) => {
+        if (fileCategory) {
+          return file.tenantId === tenantId && file.fileCategory === fileCategory;
+        }
+        return file.tenantId === tenantId;
+      }
+    );
+  }
+
+  async getFilesByEntity(entityType: string, entityId: number, tenantId: number): Promise<File[]> {
+    return Array.from(this.files.values()).filter(
+      (file) => file.entityType === entityType && 
+                file.entityId === entityId && 
+                file.tenantId === tenantId
+    );
+  }
+
+  async deleteFile(id: number, tenantId: number): Promise<boolean> {
+    const file = await this.getFile(id, tenantId);
+    if (!file) return false;
+    
+    // Atualiza o contador de armazenamento usado pelo tenant
+    const tenant = await this.getTenant(file.tenantId);
+    if (tenant) {
+      const fileSizeMB = typeof file.fileSizeMB === 'string' 
+        ? parseFloat(file.fileSizeMB) 
+        : file.fileSizeMB;
+      
+      await this.updateTenant(tenant.id, {
+        storageUsed: Math.max(0, tenant.storageUsed - fileSizeMB)
+      });
+    }
+    
+    return this.files.delete(id);
   }
 
   // Plans & Modules methods (implementação in-memory simplificada)
@@ -1806,6 +1888,89 @@ export class DatabaseStorage implements IStorage {
     return result.rowCount > 0;
   }
 
+  // Files Management methods
+  async getFile(id: number, tenantId: number): Promise<File | undefined> {
+    const [file] = await db.select().from(files)
+      .where(and(
+        eq(files.id, id),
+        eq(files.tenantId, tenantId)
+      ));
+    return file;
+  }
+
+  async createFile(file: InsertFile): Promise<File> {
+    // Inserir o arquivo no banco
+    const [newFile] = await db.insert(files).values({
+      ...file,
+      description: file.description ?? null,
+      entityType: file.entityType ?? null,
+      entityId: file.entityId ?? null,
+      uploadedAt: new Date()
+    }).returning();
+    
+    // Atualizar o contador de armazenamento usado pelo tenant
+    const tenant = await this.getTenant(file.tenantId);
+    if (tenant) {
+      const fileSizeMB = typeof file.fileSizeMB === 'string' 
+        ? parseFloat(file.fileSizeMB) 
+        : file.fileSizeMB;
+      
+      await this.updateTenant(tenant.id, {
+        storageUsed: tenant.storageUsed + fileSizeMB
+      });
+    }
+    
+    return newFile;
+  }
+
+  async getFilesByTenant(tenantId: number, fileCategory?: string): Promise<File[]> {
+    if (fileCategory) {
+      return await db.select().from(files)
+        .where(and(
+          eq(files.tenantId, tenantId),
+          eq(files.fileCategory, fileCategory)
+        ));
+    }
+    return await db.select().from(files)
+      .where(eq(files.tenantId, tenantId));
+  }
+
+  async getFilesByEntity(entityType: string, entityId: number, tenantId: number): Promise<File[]> {
+    return await db.select().from(files)
+      .where(and(
+        eq(files.entityType, entityType),
+        eq(files.entityId, entityId),
+        eq(files.tenantId, tenantId)
+      ));
+  }
+
+  async deleteFile(id: number, tenantId: number): Promise<boolean> {
+    // Recuperar o arquivo para obter o tamanho
+    const file = await this.getFile(id, tenantId);
+    if (!file) return false;
+    
+    // Atualizar o contador de armazenamento usado pelo tenant
+    const tenant = await this.getTenant(file.tenantId);
+    if (tenant) {
+      const fileSizeMB = typeof file.fileSizeMB === 'string' 
+        ? parseFloat(file.fileSizeMB) 
+        : file.fileSizeMB;
+      
+      await this.updateTenant(tenant.id, {
+        storageUsed: Math.max(0, tenant.storageUsed - fileSizeMB)
+      });
+    }
+    
+    // Remover o arquivo do banco
+    const result = await db.delete(files)
+      .where(and(
+        eq(files.id, id),
+        eq(files.tenantId, tenantId)
+      ));
+    
+    return result.rowCount > 0;
+  }
+  
   // Plans & Modules methods
   async getAllPlans(): Promise<typeof plans.$inferSelect[]> {
     return await db.select().from(plans).where(eq(plans.active, true));
