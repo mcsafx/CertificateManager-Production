@@ -402,11 +402,23 @@ export function CertificateForm({ certificateId, onSuccess }: CertificateFormPro
       return;
     }
     
-    // Verifica se todos os campos obrigatórios estão preenchidos (nome, unidade e valor obtido)
-    if (results.some(r => !r.characteristicName || !r.unit || !r.obtainedValue)) {
+    // Verifica se todos os campos obrigatórios estão preenchidos
+    const missingRequiredFields = results.filter(r => {
+      // Para todos os casos, o nome da característica e o valor obtido são obrigatórios
+      if (!r.characteristicName || !r.obtainedValue) return true;
+      
+      // Verifica se o valor é numérico ou texto
+      const isNumericValue = !isNaN(parseFloat(r.obtainedValue));
+      
+      // Se for numérico, a unidade é obrigatória
+      // Se for texto, a unidade é opcional
+      return isNumericValue && !r.unit;
+    });
+    
+    if (missingRequiredFields.length > 0) {
       toast({
         title: "Erro de validação",
-        description: "Preencha todos os campos obrigatórios nas características.",
+        description: "Para características com valores numéricos, preencha a unidade de medida. O nome da característica e o valor obtido sempre são obrigatórios.",
         variant: "destructive",
       });
       return;
@@ -723,13 +735,13 @@ export function CertificateForm({ certificateId, onSuccess }: CertificateFormPro
           <div className="space-y-6">
             <div className="overflow-x-auto">
               <div className="mb-2 text-sm text-gray-500 italic">
-                <p>Nota: Para valores numéricos, preencha pelo menos o valor mínimo ou máximo. Para valores textuais (ex: "LAT"), não é necessário preencher mínimo/máximo.</p>
+                <p>Nota: Para valores numéricos, preencha pelo menos o valor mínimo ou máximo e a unidade. Para valores textuais (ex: "LAT"), não é necessário preencher mínimo/máximo nem unidade.</p>
               </div>
               <Table>
                 <TableHeader>
                   <TableRow>
                     <TableHead>Característica *</TableHead>
-                    <TableHead>Unidade *</TableHead>
+                    <TableHead>Unidade</TableHead>
                     <TableHead>Mínimo</TableHead>
                     <TableHead>Máximo</TableHead>
                     <TableHead>Valor Obtido *</TableHead>
@@ -760,7 +772,6 @@ export function CertificateForm({ certificateId, onSuccess }: CertificateFormPro
                             value={result.unit}
                             onChange={(e) => handleResultChange(index, "unit", e.target.value)}
                             placeholder="Ex: %"
-                            required
                           />
                         </TableCell>
                         <TableCell>
