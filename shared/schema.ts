@@ -3,6 +3,43 @@ import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 import { relations } from "drizzle-orm";
 
+// Planos disponíveis
+export const plans = pgTable("plans", {
+  id: serial("id").primaryKey(),
+  code: text("code").notNull().unique(), // A, B, C (Basic, Intermediate, Complete)
+  name: text("name").notNull(), // Nome comercial do plano
+  description: text("description").notNull(),
+  price: numeric("price").notNull(),
+  storageLimit: integer("storage_limit").notNull(), // Em MB
+  maxUsers: integer("max_users").notNull(), // Número máximo de usuários
+  active: boolean("active").notNull().default(true),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+// Módulos do sistema
+export const modules = pgTable("modules", {
+  id: serial("id").primaryKey(),
+  code: text("code").notNull().unique(), // Código único do módulo
+  name: text("name").notNull(), // Nome do módulo
+  description: text("description").notNull(),
+  active: boolean("active").notNull().default(true),
+  isCore: boolean("is_core").notNull().default(false), // Se é um módulo essencial
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+// Relação entre planos e módulos
+export const planModules = pgTable("plan_modules", {
+  id: serial("id").primaryKey(),
+  planId: integer("plan_id").notNull().references(() => plans.id),
+  moduleId: integer("module_id").notNull().references(() => modules.id),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+}, (table) => {
+  return {
+    planModuleUnique: primaryKey({ columns: [table.planId, table.moduleId] }),
+  }
+});
+
 // Tenants (Empresas)
 export const tenants = pgTable("tenants", {
   id: serial("id").primaryKey(),
@@ -12,8 +49,7 @@ export const tenants = pgTable("tenants", {
   logoUrl: text("logo_url"),
   active: boolean("active").notNull().default(true),
   // Campos relacionados aos planos de assinatura
-  plan: text("plan", { enum: ["A", "B", "C"] }).notNull().default("A"),
-  storageLimit: integer("storage_limit").notNull().default(5), // Em GB (5GB para plano A por padrão)
+  planId: integer("plan_id").notNull().references(() => plans.id),
   storageUsed: integer("storage_used").notNull().default(0), // Em MB
   planStartDate: date("plan_start_date"),
   planEndDate: date("plan_end_date"),
@@ -209,14 +245,40 @@ export const insertUserSchema = createInsertSchema(users).pick({
   active: true,
 });
 
+// Schemas para os novos módulos
+export const insertPlanSchema = createInsertSchema(plans).pick({
+  code: true,
+  name: true,
+  description: true,
+  price: true,
+  storageLimit: true,
+  maxUsers: true,
+  active: true,
+}).extend({
+  // Aceita tanto string quanto número para campos numéricos
+  price: z.union([z.string(), z.number()]),
+});
+
+export const insertModuleSchema = createInsertSchema(modules).pick({
+  code: true,
+  name: true,
+  description: true,
+  active: true,
+  isCore: true,
+});
+
+export const insertPlanModuleSchema = createInsertSchema(planModules).pick({
+  planId: true,
+  moduleId: true,
+});
+
 export const insertTenantSchema = createInsertSchema(tenants).pick({
   name: true,
   cnpj: true,
   address: true,
   logoUrl: true,
   active: true,
-  plan: true,
-  storageLimit: true,
+  planId: true,
   storageUsed: true,
   planStartDate: true,
   planEndDate: true,
@@ -411,8 +473,33 @@ export const insertPackageTypeSchema = createInsertSchema(packageTypes).pick({
   active: true,
 });
 
+// Relações para os novos módulos
+export const plansRelations = relations(plans, ({ many }) => ({
+  tenants: many(tenants),
+  planModules: many(planModules)
+}));
+
+export const modulesRelations = relations(modules, ({ many }) => ({
+  planModules: many(planModules)
+}));
+
+export const planModulesRelations = relations(planModules, ({ one }) => ({
+  plan: one(plans, {
+    fields: [planModules.planId],
+    references: [plans.id],
+  }),
+  module: one(modules, {
+    fields: [planModules.moduleId],
+    references: [modules.id],
+  }),
+}));
+
 // Relações entre tabelas
-export const tenantsRelations = relations(tenants, ({ many }) => ({
+export const tenantsRelations = relations(tenants, ({ one, many }) => ({
+  plan: one(plans, {
+    fields: [tenants.planId],
+    references: [plans.id],
+  }),
   users: many(users),
   productCategories: many(productCategories),
   products: many(products),
@@ -583,6 +670,14 @@ export const packageTypesRelations = relations(packageTypes, ({ one }) => ({
     references: [tenants.id],
   }),
 }));
+
+// Type exports para os novos módulos
+export type Plan = typeof plans.$inferSelect;
+export type InsertPlan = z.infer<typeof insertPlanSchema>;
+export type Module = typeof modules.$inferSelect;
+export type InsertModule = z.infer<typeof insertModuleSchema>;
+export type PlanModule = typeof planModules.$inferSelect;
+export type InsertPlanModule = z.infer<typeof insertPlanModuleSchema>;
 
 // Type exports
 export type InsertUser = z.infer<typeof insertUserSchema>;
