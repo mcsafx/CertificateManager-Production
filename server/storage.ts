@@ -247,7 +247,6 @@ export class MemStorage implements IStorage {
     this.issuedCertificateIdCounter = 1;
     this.packageTypeIdCounter = 1;
     this.fileIdCounter = 1;
-    this.fileIdCounter = 1;
     
     this.sessionStore = new MemoryStore({
       checkPeriod: 86400000, // prune expired entries every 24h
