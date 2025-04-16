@@ -23,6 +23,24 @@ interface CertificateFormProps {
   onSuccess?: () => void;
 }
 
+// Função para verificar se um valor está dentro do intervalo
+function isValueWithinRange(min: string | null, max: string | null, value: string): boolean {
+  // Se algum dos valores não for numérico, retorna true (não aplica validação)
+  const minNum = min ? parseFloat(min) : null;
+  const maxNum = max ? parseFloat(max) : null;
+  const valueNum = parseFloat(value);
+
+  // Verifica se todos são números válidos
+  if ((min && isNaN(minNum!)) || (max && isNaN(maxNum!)) || isNaN(valueNum)) {
+    return true; // Caso não seja numérico, considera como válido
+  }
+
+  // Verifica se está dentro do intervalo
+  const withinMin = minNum === null || valueNum >= minNum;
+  const withinMax = maxNum === null || valueNum <= maxNum;
+  return withinMin && withinMax;
+}
+
 export function CertificateForm({ certificateId, onSuccess }: CertificateFormProps) {
   const { toast } = useToast();
   
@@ -707,8 +725,6 @@ export function CertificateForm({ certificateId, onSuccess }: CertificateFormPro
                         </TableCell>
                         <TableCell>
                           <Input
-                            type="number"
-                            step="0.0001"
                             value={result.minValue || ""}
                             onChange={(e) => handleResultChange(index, "minValue", e.target.value)}
                             placeholder="Ex: 98.0"
@@ -716,8 +732,6 @@ export function CertificateForm({ certificateId, onSuccess }: CertificateFormPro
                         </TableCell>
                         <TableCell>
                           <Input
-                            type="number"
-                            step="0.0001"
                             value={result.maxValue || ""}
                             onChange={(e) => handleResultChange(index, "maxValue", e.target.value)}
                             placeholder="Ex: 99.9"
@@ -725,12 +739,11 @@ export function CertificateForm({ certificateId, onSuccess }: CertificateFormPro
                         </TableCell>
                         <TableCell>
                           <Input
-                            type="number"
-                            step="0.0001"
-                            value={result.obtainedValue}
+                            value={result.obtainedValue || ""}
                             onChange={(e) => handleResultChange(index, "obtainedValue", e.target.value)}
                             placeholder="Valor obtido"
                             required
+                            className={getObtainedValueClass(result.minValue, result.maxValue, result.obtainedValue)}
                           />
                         </TableCell>
                         <TableCell>
