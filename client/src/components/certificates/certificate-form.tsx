@@ -402,10 +402,30 @@ export function CertificateForm({ certificateId, onSuccess }: CertificateFormPro
       return;
     }
     
+    // Verifica se todos os campos obrigatórios estão preenchidos (nome, unidade e valor obtido)
     if (results.some(r => !r.characteristicName || !r.unit || !r.obtainedValue)) {
       toast({
         title: "Erro de validação",
         description: "Preencha todos os campos obrigatórios nas características.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    // Verifica se há valores numéricos sem min/max definidos
+    const invalidResults = results.filter(r => {
+      // Se o valor obtido for um número
+      const isNumericValue = !isNaN(parseFloat(r.obtainedValue));
+      
+      // Se for numérico, precisa ter min ou max definido
+      // Se for texto, não precisa validar min/max
+      return isNumericValue && !r.minValue && !r.maxValue;
+    });
+    
+    if (invalidResults.length > 0) {
+      toast({
+        title: "Erro de validação",
+        description: "Para características com valores numéricos, preencha pelo menos um dos campos: valor mínimo ou valor máximo.",
         variant: "destructive",
       });
       return;
@@ -702,6 +722,9 @@ export function CertificateForm({ certificateId, onSuccess }: CertificateFormPro
         {formStep === 2 && (
           <div className="space-y-6">
             <div className="overflow-x-auto">
+              <div className="mb-2 text-sm text-gray-500 italic">
+                <p>Nota: Para valores numéricos, preencha pelo menos o valor mínimo ou máximo. Para valores textuais (ex: "LAT"), não é necessário preencher mínimo/máximo.</p>
+              </div>
               <Table>
                 <TableHeader>
                   <TableRow>
