@@ -171,7 +171,7 @@ function generateCertificateHTML(data: CertificateGenerationData): string {
         .page {
           width: 210mm;
           min-height: 297mm;
-          padding: 10mm;
+          padding: 5mm;
           position: relative;
           box-sizing: border-box;
         }
@@ -249,7 +249,7 @@ function generateCertificateHTML(data: CertificateGenerationData): string {
         }
         
         .section {
-          margin-bottom: 10px;
+          margin-bottom: 8px;
         }
         
         .section-title {
@@ -266,12 +266,12 @@ function generateCertificateHTML(data: CertificateGenerationData): string {
         .info-row {
           display: flex;
           flex-wrap: wrap;
-          margin: -5px;
+          margin: -3px;
         }
         
         .info-col {
           flex: 1 0 25%;
-          padding: 5px;
+          padding: 3px;
           box-sizing: border-box;
           min-width: 120px;
         }
@@ -403,9 +403,9 @@ function generateCertificateHTML(data: CertificateGenerationData): string {
         
         .footer {
           position: absolute;
-          bottom: 10mm;
-          left: 10mm;
-          right: 10mm;
+          bottom: 5mm;
+          left: 5mm;
+          right: 5mm;
           text-align: center;
           font-size: 9px;
           color: #666;
