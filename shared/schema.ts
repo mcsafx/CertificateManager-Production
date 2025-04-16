@@ -459,6 +459,24 @@ export const insertIssuedCertificateSchema = createInsertSchema(issuedCertificat
     soldQuantity: z.union([z.string(), z.number()]),
   });
 
+// Tabela genérica para arquivos do sistema
+export const files = pgTable("files", {
+  id: serial("id").primaryKey(),
+  fileName: text("file_name").notNull(), // Nome original do arquivo
+  storedFileName: text("stored_file_name").notNull(), // Nome do arquivo no disco
+  fileSize: integer("file_size").notNull(), // tamanho em bytes
+  fileSizeMB: numeric("file_size_mb").notNull(), // tamanho em MB para facilitar consultas
+  fileType: text("file_type").notNull(), // MIME type
+  fileCategory: text("file_category").notNull(), // Categoria do arquivo (e.g. "certificate", "product", "document")
+  entityType: text("entity_type"), // Tipo da entidade relacionada (e.g. "product", "entry_certificate")
+  entityId: integer("entity_id"), // ID da entidade relacionada
+  filePath: text("file_path").notNull(), // Caminho para o arquivo no sistema de arquivos
+  publicUrl: text("public_url").notNull(), // URL para acesso ao arquivo
+  uploadedAt: timestamp("uploaded_at").notNull().defaultNow(), // Data de upload
+  description: text("description"), // Descrição opcional
+  tenantId: integer("tenant_id").notNull().references(() => tenants.id),
+});
+
 // Package Types
 export const packageTypes = pgTable("package_types", {
   id: serial("id").primaryKey(),
@@ -664,6 +682,13 @@ export const issuedCertificatesRelations = relations(issuedCertificates, ({ one 
   }),
 }));
 
+export const filesRelations = relations(files, ({ one }) => ({
+  tenant: one(tenants, {
+    fields: [files.tenantId],
+    references: [tenants.id],
+  }),
+}));
+
 export const packageTypesRelations = relations(packageTypes, ({ one }) => ({
   tenant: one(tenants, {
     fields: [packageTypes.tenantId],
@@ -713,5 +738,25 @@ export type EntryCertificateResult = typeof entryCertificateResults.$inferSelect
 export type InsertEntryCertificateResult = z.infer<typeof insertEntryCertificateResultSchema>;
 export type IssuedCertificate = typeof issuedCertificates.$inferSelect;
 export type InsertIssuedCertificate = z.infer<typeof insertIssuedCertificateSchema>;
+// Schema de inserção para arquivos
+export const insertFileSchema = createInsertSchema(files).pick({
+  fileName: true,
+  storedFileName: true,
+  fileSize: true,
+  fileSizeMB: true,
+  fileType: true,
+  fileCategory: true,
+  entityType: true,
+  entityId: true,
+  filePath: true,
+  publicUrl: true,
+  description: true,
+  tenantId: true,
+}).extend({
+  fileSizeMB: z.union([z.string(), z.number()]),
+});
+
 export type PackageType = typeof packageTypes.$inferSelect;
 export type InsertPackageType = z.infer<typeof insertPackageTypeSchema>;
+export type File = typeof files.$inferSelect;
+export type InsertFile = z.infer<typeof insertFileSchema>;
