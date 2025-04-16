@@ -17,7 +17,13 @@ import IssuedCertificatesPage from "@/pages/issued-certificates-page";
 import IssuedCertificateDetailPage from "@/pages/issued-certificate-detail-page";
 import TraceabilityPage from "@/pages/traceability-page";
 import SettingsPage from "@/pages/settings-page";
+// Páginas de Administração
+import AdminDashboardPage from "@/pages/admin/index";
+import AdminTenantsPage from "@/pages/admin/tenants-page";
+import AdminPlansPage from "@/pages/admin/plans-page";
+import AdminStoragePage from "@/pages/admin/storage-page";
 import { ProtectedRoute } from "./lib/protected-route";
+import { AdminRoute } from "./lib/admin-route";
 import { AuthProvider } from "./hooks/use-auth";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { queryClient } from "./lib/queryClient";
@@ -44,6 +50,13 @@ function Router() {
       <ProtectedRoute path="/clients" component={ClientsPage} />
       <ProtectedRoute path="/traceability" component={TraceabilityPage} />
       <ProtectedRoute path="/settings" component={SettingsPage} />
+      
+      {/* Rotas do Painel Administrativo - Apenas para administradores */}
+      <AdminRoute path="/admin" component={AdminDashboardPage} />
+      <AdminRoute path="/admin/tenants" component={AdminTenantsPage} />
+      <AdminRoute path="/admin/plans" component={AdminPlansPage} />
+      <AdminRoute path="/admin/storage" component={AdminStoragePage} />
+      
       <Route component={NotFound} />
     </Switch>
   );

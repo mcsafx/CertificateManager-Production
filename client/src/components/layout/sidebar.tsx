@@ -11,7 +11,8 @@ import {
   LogOut,
   Home,
   FolderTree,
-  LayoutList
+  LayoutList,
+  Shield
 } from "lucide-react";
 import { Link, useLocation } from "wouter";
 
@@ -136,6 +137,21 @@ export function Sidebar() {
         <SidebarItem href="/settings" icon={Settings} active={location === "/settings"}>
           Configurações
         </SidebarItem>
+        
+        {user?.role === "admin" && (
+          <div className="mt-4">
+            <div className="px-3 py-1 text-xs font-semibold text-red-400 uppercase tracking-wider">
+              Administração
+            </div>
+            <SidebarItem 
+              href="/admin" 
+              icon={Shield} 
+              active={location.startsWith("/admin")}
+            >
+              Painel Administrativo
+            </SidebarItem>
+          </div>
+        )}
       </div>
       
       <div className="p-4 border-t border-gray-200">
