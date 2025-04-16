@@ -3,13 +3,10 @@ import { Link, useLocation } from "wouter";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import {
-  BarChart3,
   Building,
-  FileBox,
   HardDrive,
   HomeIcon,
   Layers,
-  Settings,
   Users
 } from "lucide-react";
 
@@ -97,32 +94,10 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
             isActive={location === "/admin/storage"}
           />
           <SidebarItem
-            href="/admin/files"
-            icon={<FileBox className="h-5 w-5" />}
-            title="Arquivos"
-            isActive={location === "/admin/files"}
-          />
-          <SidebarItem
             href="/admin/users"
             icon={<Users className="h-5 w-5" />}
             title="Usuários"
             isActive={location === "/admin/users"}
-          />
-          <SidebarItem
-            href="/admin/statistics"
-            icon={<BarChart3 className="h-5 w-5" />}
-            title="Estatísticas"
-            isActive={location === "/admin/statistics"}
-          />
-          
-          <div className="text-sm font-medium text-muted-foreground mt-4 mb-2 px-2">
-            Configurações
-          </div>
-          <SidebarItem
-            href="/admin/settings"
-            icon={<Settings className="h-5 w-5" />}
-            title="Configurações"
-            isActive={location === "/admin/settings"}
           />
         </div>
         
