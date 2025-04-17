@@ -1,11 +1,9 @@
 import { useState } from "react";
-import { useQuery, useMutation } from "@tanstack/react-query";
-import { queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import AdminLayout from "@/components/layout/admin-layout";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, Edit, Trash } from "lucide-react";
+import { Plus, Edit, Trash, Loader2 } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -38,9 +36,10 @@ import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { DataTable } from "@/components/ui/data-table";
 import { ColumnDef } from "@tanstack/react-table";
-import { InsertModuleFeature, ModuleFeature, Module } from "@shared/schema";
+import { ModuleFeature, Module } from "@shared/schema";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
+import { useModuleFeatures } from "@/hooks/use-module-features";
 
 const moduleFeatureFormSchema = z.object({
   moduleId: z.coerce.number().min(1, "Selecione um módulo"),
@@ -59,6 +58,20 @@ export default function ModuleFeaturesPage() {
   const [selectedFeature, setSelectedFeature] = useState<ModuleFeature | null>(null);
   const [activeTab, setActiveTab] = useState("modules");
   
+  // Utilizando o hook personalizado para módulos e funcionalidades
+  const {
+    modules,
+    features,
+    isLoadingModules,
+    isLoadingFeatures,
+    createFeature,
+    updateFeature,
+    deleteFeature,
+    isCreating,
+    isUpdating,
+    isDeleting
+  } = useModuleFeatures();
+  
   // Formulário para criar/editar funcionalidades
   const form = useForm<ModuleFeatureFormValues>({
     resolver: zodResolver(moduleFeatureFormSchema),
@@ -70,138 +83,14 @@ export default function ModuleFeaturesPage() {
     },
   });
   
-  // Carrega a lista de módulos
-  const { data: modules = [], isLoading: isLoadingModules } = useQuery<Module[]>({
-    queryKey: ["/api/modules"],
-    queryFn: async () => {
-      const response = await fetch("/api/modules");
-      if (!response.ok) {
-        throw new Error("Erro ao carregar módulos");
-      }
-      return response.json();
-    },
-  });
-  
-  // Carrega a lista de funcionalidades
-  const { data: features = [], isLoading: isLoadingFeatures } = useQuery<ModuleFeature[]>({
-    queryKey: ["/api/module-features"],
-    queryFn: async () => {
-      const response = await fetch("/api/module-features");
-      if (!response.ok) {
-        throw new Error("Erro ao carregar funcionalidades");
-      }
-      return response.json();
-    },
-  });
-  
-  // Mutation para criar uma nova funcionalidade
-  const createFeatureMutation = useMutation({
-    mutationFn: async (data: InsertModuleFeature) => {
-      const response = await fetch("/api/module-features", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(data),
-      });
-      
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || "Erro ao criar funcionalidade");
-      }
-      
-      return response.json();
-    },
-    onSuccess: () => {
-      toast({
-        title: "Sucesso!",
-        description: "Funcionalidade criada com sucesso.",
-      });
-      queryClient.invalidateQueries({ queryKey: ["/api/module-features"] });
-      setIsCreateDialogOpen(false);
-      form.reset();
-    },
-    onError: (error: Error) => {
-      toast({
-        title: "Erro",
-        description: error.message,
-        variant: "destructive",
-      });
-    },
-  });
-  
-  // Mutation para atualizar uma funcionalidade
-  const updateFeatureMutation = useMutation({
-    mutationFn: async (data: ModuleFeature) => {
-      const response = await fetch(`/api/module-features/${data.id}`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(data),
-      });
-      
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || "Erro ao atualizar funcionalidade");
-      }
-      
-      return response.json();
-    },
-    onSuccess: () => {
-      toast({
-        title: "Sucesso!",
-        description: "Funcionalidade atualizada com sucesso.",
-      });
-      queryClient.invalidateQueries({ queryKey: ["/api/module-features"] });
-      setIsEditDialogOpen(false);
-      setSelectedFeature(null);
-      form.reset();
-    },
-    onError: (error: Error) => {
-      toast({
-        title: "Erro",
-        description: error.message,
-        variant: "destructive",
-      });
-    },
-  });
-  
-  // Mutation para excluir uma funcionalidade
-  const deleteFeatureMutation = useMutation({
-    mutationFn: async (id: number) => {
-      const response = await fetch(`/api/module-features/${id}`, {
-        method: "DELETE",
-      });
-      
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || "Erro ao excluir funcionalidade");
-      }
-      
-      return response.json();
-    },
-    onSuccess: () => {
-      toast({
-        title: "Sucesso!",
-        description: "Funcionalidade excluída com sucesso.",
-      });
-      queryClient.invalidateQueries({ queryKey: ["/api/module-features"] });
-      setIsDeleteDialogOpen(false);
-      setSelectedFeature(null);
-    },
-    onError: (error: Error) => {
-      toast({
-        title: "Erro",
-        description: error.message,
-        variant: "destructive",
-      });
-    },
-  });
-  
   // Manipuladores para o formulário de criação
   const onCreateSubmit = (data: ModuleFeatureFormValues) => {
-    createFeatureMutation.mutate(data);
+    createFeature(data, {
+      onSuccess: () => {
+        setIsCreateDialogOpen(false);
+        form.reset();
+      }
+    });
   };
   
   // Manipuladores para o formulário de edição
@@ -219,9 +108,15 @@ export default function ModuleFeaturesPage() {
   const onEditSubmit = (data: ModuleFeatureFormValues) => {
     if (!selectedFeature) return;
     
-    updateFeatureMutation.mutate({
+    updateFeature({
       ...selectedFeature,
       ...data,
+    }, {
+      onSuccess: () => {
+        setIsEditDialogOpen(false);
+        setSelectedFeature(null);
+        form.reset();
+      }
     });
   };
   
@@ -233,7 +128,12 @@ export default function ModuleFeaturesPage() {
   
   const confirmDelete = () => {
     if (!selectedFeature) return;
-    deleteFeatureMutation.mutate(selectedFeature.id);
+    deleteFeature(selectedFeature.id, {
+      onSuccess: () => {
+        setIsDeleteDialogOpen(false);
+        setSelectedFeature(null);
+      }
+    });
   };
   
   // Definição das colunas da tabela de funcionalidades
@@ -502,9 +402,14 @@ export default function ModuleFeaturesPage() {
                         </Button>
                         <Button 
                           type="submit"
-                          disabled={createFeatureMutation.isPending}
+                          disabled={isCreating}
                         >
-                          {createFeatureMutation.isPending ? "Criando..." : "Criar"}
+                          {isCreating ? (
+                            <>
+                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                              Criando...
+                            </>
+                          ) : "Criar"}
                         </Button>
                       </DialogFooter>
                     </form>
@@ -515,23 +420,35 @@ export default function ModuleFeaturesPage() {
           </div>
           
           <TabsContent value="modules" className="space-y-4">
-            <DataTable
-              columns={moduleColumns}
-              data={modules}
-              searchColumn="name"
-              searchPlaceholder="Buscar módulos..."
-              isLoading={isLoadingModules}
-            />
+            {isLoadingModules ? (
+              <div className="flex items-center justify-center p-8">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                <span className="ml-2">Carregando módulos...</span>
+              </div>
+            ) : (
+              <DataTable
+                columns={moduleColumns}
+                data={modules}
+                searchColumn="name"
+                searchPlaceholder="Buscar módulos..."
+              />
+            )}
           </TabsContent>
           
           <TabsContent value="features" className="space-y-4">
-            <DataTable
-              columns={featureColumns}
-              data={features}
-              searchColumn="featureName"
-              searchPlaceholder="Buscar funcionalidades..."
-              isLoading={isLoadingFeatures}
-            />
+            {isLoadingFeatures ? (
+              <div className="flex items-center justify-center p-8">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                <span className="ml-2">Carregando funcionalidades...</span>
+              </div>
+            ) : (
+              <DataTable
+                columns={featureColumns}
+                data={features}
+                searchColumn="featureName"
+                searchPlaceholder="Buscar funcionalidades..."
+              />
+            )}
           </TabsContent>
         </Tabs>
       </div>
@@ -632,9 +549,14 @@ export default function ModuleFeaturesPage() {
                 </Button>
                 <Button 
                   type="submit"
-                  disabled={updateFeatureMutation.isPending}
+                  disabled={isUpdating}
                 >
-                  {updateFeatureMutation.isPending ? "Salvando..." : "Salvar"}
+                  {isUpdating ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Salvando...
+                    </>
+                  ) : "Salvar"}
                 </Button>
               </DialogFooter>
             </form>
@@ -665,9 +587,14 @@ export default function ModuleFeaturesPage() {
             <Button 
               variant="destructive"
               onClick={confirmDelete}
-              disabled={deleteFeatureMutation.isPending}
+              disabled={isDeleting}
             >
-              {deleteFeatureMutation.isPending ? "Excluindo..." : "Excluir"}
+              {isDeleting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Excluindo...
+                </>
+              ) : "Excluir"}
             </Button>
           </DialogFooter>
         </DialogContent>
