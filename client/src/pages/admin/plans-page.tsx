@@ -85,7 +85,7 @@ export default function PlansPage() {
   const planSchema = z.object({
     name: z.string().min(3, "Nome deve ter pelo menos 3 caracteres"),
     code: z.string().min(2, "Código deve ter pelo menos 2 caracteres"),
-    description: z.string().optional(),
+    description: z.string().min(1, "Descrição é obrigatória"),
     maxStorage: z.coerce.number().min(1, "Armazenamento deve ser no mínimo 1MB"),
     maxFileSize: z.coerce.number().min(1, "Tamanho máximo de arquivo deve ser no mínimo 1MB"),
     price: z.coerce.number().min(0, "Preço não pode ser negativo"),
@@ -325,6 +325,16 @@ export default function PlansPage() {
   // Função para lidar com o envio do formulário de edição de plano
   function onSubmitEditPlan(values: z.infer<typeof planSchema>) {
     if (!planToEdit) return;
+    
+    // Garantir que descrição não seja vazia
+    if (!values.description || values.description.trim() === "") {
+      toast({
+        title: "Erro ao atualizar plano",
+        description: "A descrição é obrigatória",
+        variant: "destructive",
+      });
+      return;
+    }
     
     editPlanMutation.mutate({
       id: planToEdit.id,

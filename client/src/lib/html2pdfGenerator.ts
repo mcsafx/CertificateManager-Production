@@ -495,14 +495,14 @@ function generateCertificateHTML(data: CertificateGenerationData): string {
           </div>
         ` : ''}
 
-        <h1 style="text-align: center; margin-bottom: 20px; font-size: 24px; font-weight: bold;">CERTIFICADO DE QUALIDADE</h1>
+        <h1 class="main-title">CERTIFICADO DE QUALIDADE</h1>
 
-        <div class="header" style="display: flex; justify-content: space-between; align-items: flex-start;">
+        <div class="header">
           <div class="logo-container">
             ${data.tenant.logoUrl ? `<img src="${data.tenant.logoUrl}" class="logo" alt="${data.tenant.name} Logo">` : '<div style="width: 120px; height: 50px; background-color: #f0f0f0; display: flex; justify-content: center; align-items: center; color: #555; font-size: 10px; text-align: center;">LOGOMARCA</div>'}
           </div>
 
-          <div class="company-info" style="text-align: right;">
+          <div class="company-info">
             <div class="company-name">${data.tenant.name}</div>
             ${data.tenant.cnpj ? `<div>CNPJ: ${data.tenant.cnpj}</div>` : ''}
             ${data.tenant.address ? `<div>${data.tenant.address}</div>` : ''}
