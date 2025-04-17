@@ -2802,6 +2802,29 @@ Em um ambiente de produção, este seria o conteúdo real do arquivo.`);
     }
   });
   
+  // Obter módulos de um plano
+  app.get("/api/admin/plans/:id/modules", isAdmin, async (req, res, next) => {
+    try {
+      const planId = Number(req.params.id);
+      
+      // Verificar se o plano existe
+      const plan = await storage.getPlan(planId);
+      if (!plan) {
+        return res.status(404).json({ message: "Plano não encontrado" });
+      }
+      
+      // Obter módulos do plano
+      const modules = await storage.getPlanModules(planId);
+      
+      // Retornar como JSON em vez de HTML
+      res.setHeader('Content-Type', 'application/json');
+      res.json(modules);
+    } catch (error) {
+      console.error('Erro ao obter módulos do plano:', error);
+      next(error);
+    }
+  });
+
   // Atualizar módulos de um plano
   app.put("/api/admin/plans/:id/modules", isAdmin, async (req, res, next) => {
     try {

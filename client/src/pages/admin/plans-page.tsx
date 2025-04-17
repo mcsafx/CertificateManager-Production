@@ -74,15 +74,18 @@ export default function PlansPage() {
 
   // Buscar relação de plano-módulos quando um plano é selecionado
   const { data: planModules, isLoading: planModulesLoading, refetch: refetchPlanModules } = useQuery({
-    queryKey: ['/api/admin/plan-modules', selectedPlan?.id],
+    queryKey: ['/api/admin/plans', selectedPlan?.id, 'modules'],
     queryFn: async () => {
       if (!selectedPlan) return [];
       
+      console.log(`Carregando módulos para o plano ${selectedPlan.id}`);
       const response = await apiRequest('GET', `/api/admin/plans/${selectedPlan.id}/modules`);
       if (!response.ok) {
         throw new Error('Erro ao carregar módulos do plano');
       }
-      return response.json();
+      const data = await response.json();
+      console.log("Módulos carregados:", data);
+      return data;
     },
     enabled: !!selectedPlan
   });
@@ -213,8 +216,14 @@ export default function PlansPage() {
       return response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/admin/plan-modules'] });
+      // Invalidar a consulta específica do plano-módulos usando a mesma estrutura de chave
+      if (selectedPlan) {
+        queryClient.invalidateQueries({ queryKey: ['/api/admin/plans', selectedPlan.id, 'modules'] });
+      }
+      
+      // Ainda assim, forçar um refresh para garantir
       refetchPlanModules();
+      
       setOpenPlanModuleEditor(false);
       toast({
         title: "Módulos atualizados",
