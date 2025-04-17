@@ -3,7 +3,7 @@ import { useToast } from "@/hooks/use-toast";
 import AdminLayout from "@/components/layout/admin-layout";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, Edit, Trash, Loader2, Info } from "lucide-react";
+import { Plus, Edit, Trash, Loader2, Info, ChevronRight } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -41,7 +41,8 @@ import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { useModuleFeatures } from "@/hooks/use-module-features";
 import { CheckboxFeatureSelect } from "@/components/ui/checkbox-feature-select";
-import { findFeatureById } from "@/lib/feature-catalog";
+import { MultiCheckboxFeatureSelect } from "@/components/ui/multi-checkbox-feature-select";
+import { findFeatureById, findFeatureByPath } from "@/lib/feature-catalog";
 import { 
   Tooltip, 
   TooltipContent, 
@@ -53,6 +54,7 @@ const moduleFeatureFormSchema = z.object({
   moduleId: z.coerce.number().min(1, "Selecione um módulo"),
   featureId: z.string().min(1, "Selecione uma funcionalidade"),
   description: z.string().min(1, "Forneça uma descrição"),
+  featureIds: z.array(z.string()).optional(),
 });
 
 type ModuleFeatureFormValues = z.infer<typeof moduleFeatureFormSchema>;
@@ -64,6 +66,7 @@ export default function ModuleFeaturesPage() {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [selectedFeature, setSelectedFeature] = useState<ModuleFeature | null>(null);
   const [activeTab, setActiveTab] = useState("modules");
+  const [isMultiSelectMode, setIsMultiSelectMode] = useState(true); // Por padrão, usamos o modo múltiplo
   
   // Utilizando o hook personalizado para módulos e funcionalidades
   const {
@@ -86,11 +89,64 @@ export default function ModuleFeaturesPage() {
       moduleId: 0,
       featureId: "",
       description: "",
+      featureIds: [] // Para seleção múltipla
     },
   });
   
   // Manipuladores para o formulário de criação
-  const onCreateSubmit = (data: ModuleFeatureFormValues) => {
+  const onCreateSubmit = async (data: ModuleFeatureFormValues) => {
+    // No modo de seleção múltipla
+    if (isMultiSelectMode && data.featureIds && data.featureIds.length > 0) {
+      let success = 0;
+      let failed = 0;
+      
+      // Processo de adição em lote
+      const promises = data.featureIds.map(featureId => {
+        const feature = findFeatureById(featureId);
+        if (!feature) return null;
+        
+        const apiData = {
+          moduleId: data.moduleId,
+          featurePath: feature.path,
+          featureName: feature.name,
+          description: data.description || feature.description,
+        };
+        
+        return createFeature(apiData, { throwOnError: false })
+          .then(() => { success++; })
+          .catch(() => { failed++; });
+      });
+      
+      // Aguarde todas as operações serem concluídas
+      await Promise.all(promises.filter(Boolean));
+      
+      // Reporte os resultados
+      if (success > 0) {
+        toast({
+          title: "Sucesso",
+          description: `${success} funcionalidade(s) adicionada(s) ao módulo${failed > 0 ? `, ${failed} falha(s)` : ''}`,
+          variant: "default",
+        });
+      } else if (failed > 0) {
+        toast({
+          title: "Erro",
+          description: `Falha ao adicionar funcionalidades`,
+          variant: "destructive",
+        });
+      }
+      
+      setIsCreateDialogOpen(false);
+      form.reset({
+        moduleId: 0,
+        featureId: "",
+        description: "",
+        featureIds: [],
+      });
+      
+      return;
+    }
+    
+    // Modo clássico de seleção única
     const selectedFeature = findFeatureById(data.featureId);
     if (!selectedFeature) {
       toast({
@@ -116,6 +172,7 @@ export default function ModuleFeaturesPage() {
           moduleId: 0,
           featureId: "",
           description: "",
+          featureIds: [],
         });
       }
     });
