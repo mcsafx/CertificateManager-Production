@@ -2559,9 +2559,36 @@ Em um ambiente de produção, este seria o conteúdo real do arquivo.`);
   // Criar plano
   app.post("/api/admin/plans", isAdmin, async (req, res, next) => {
     try {
-      const plan = await storage.createPlan(req.body);
+      // Validar que todos os campos obrigatórios estão presentes
+      const { name, code, description, maxStorage, maxFileSize, price } = req.body;
+      
+      if (!name || !code || !description) {
+        return res.status(400).json({ 
+          message: "Campos obrigatórios faltando", 
+          details: "Nome, código e descrição são obrigatórios" 
+        });
+      }
+      
+      // Preparar os dados para criar o plano
+      const planData = {
+        name,
+        code,
+        description,
+        maxStorage: maxStorage || 1,
+        maxFileSize: maxFileSize || 1,
+        price: price || 0,
+        maxUsers: req.body.maxUsers || 1
+      };
+      
+      const plan = await storage.createPlan(planData);
       res.status(201).json(plan);
     } catch (error) {
+      console.error('Erro ao criar plano:', error);
+      
+      if (error instanceof Error) {
+        return res.status(400).json({ message: error.message });
+      }
+      
       next(error);
     }
   });

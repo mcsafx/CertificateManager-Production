@@ -2321,12 +2321,17 @@ export class DatabaseStorage implements IStorage {
   }
   
   async createPlan(plan: any): Promise<any> {
+    // Garantir que a descrição não seja nula
+    if (!plan.description) {
+      throw new Error('A descrição do plano é obrigatória');
+    }
+    
     const [newPlan] = await db.insert(plans).values({
       name: plan.name,
       code: plan.code || 'CUSTOM',
-      description: plan.description || null,
+      description: plan.description,
       price: plan.price || '0',
-      storageLimit: plan.storageLimit || 0,
+      storageLimit: plan.maxStorage || plan.storageLimit || 0,
       maxUsers: plan.maxUsers || 1,
       active: plan.active ?? true,
       createdAt: new Date(),
@@ -2340,9 +2345,16 @@ export class DatabaseStorage implements IStorage {
   }
   
   async updatePlan(id: number, plan: Partial<any>): Promise<any | undefined> {
+    // Se a descrição estiver definida, garantir que não seja vazia
+    if (plan.description !== undefined && (!plan.description || plan.description.trim() === '')) {
+      throw new Error('A descrição do plano é obrigatória');
+    }
+    
     const [updatedPlan] = await db.update(plans)
       .set({
         ...plan,
+        // Mapear storageLimit se maxStorage foi fornecido
+        storageLimit: plan.maxStorage !== undefined ? plan.maxStorage : plan.storageLimit,
         updatedAt: new Date()
       })
       .where(eq(plans.id, id))
