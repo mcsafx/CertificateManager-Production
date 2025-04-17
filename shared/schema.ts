@@ -28,6 +28,16 @@ export const modules = pgTable("modules", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
+// Funcionalidades associadas a módulos
+export const moduleFeatures = pgTable("module_features", {
+  id: serial("id").primaryKey(),
+  moduleId: integer("module_id").notNull().references(() => modules.id),
+  featurePath: text("feature_path").notNull(), // Padrão de rota, ex: "/api/issued-certificates/*"
+  featureName: text("feature_name").notNull(), // Nome legível da funcionalidade
+  description: text("description").notNull(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
 // Relação entre planos e módulos
 export const planModules = pgTable("plan_modules", {
   id: serial("id").primaryKey(),
@@ -265,6 +275,13 @@ export const insertModuleSchema = createInsertSchema(modules).pick({
   description: true,
   active: true,
   isCore: true,
+});
+
+export const insertModuleFeatureSchema = createInsertSchema(moduleFeatures).pick({
+  moduleId: true,
+  featurePath: true,
+  featureName: true,
+  description: true,
 });
 
 export const insertPlanModuleSchema = createInsertSchema(planModules).pick({
