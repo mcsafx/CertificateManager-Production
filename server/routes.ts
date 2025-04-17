@@ -2697,6 +2697,111 @@ Em um ambiente de produção, este seria o conteúdo real do arquivo.`);
     }
   });
   
+  // Rotas para gerenciamento de funcionalidades de módulos
+  
+  // Obter todas as funcionalidades
+  app.get("/api/admin/module-features", isAdmin, async (req, res, next) => {
+    try {
+      const features = await storage.getModuleFeatures();
+      res.json(features);
+    } catch (error) {
+      console.error('Erro ao buscar funcionalidades:', error);
+      next(error);
+    }
+  });
+  
+  // Obter funcionalidades por módulo
+  app.get("/api/admin/modules/:id/features", isAdmin, async (req, res, next) => {
+    try {
+      const moduleId = Number(req.params.id);
+      const features = await storage.getModuleFeaturesByModule(moduleId);
+      res.json(features);
+    } catch (error) {
+      console.error('Erro ao buscar funcionalidades do módulo:', error);
+      next(error);
+    }
+  });
+  
+  // Obter uma funcionalidade específica
+  app.get("/api/admin/module-features/:id", isAdmin, async (req, res, next) => {
+    try {
+      const featureId = Number(req.params.id);
+      const feature = await storage.getModuleFeature(featureId);
+      
+      if (!feature) {
+        return res.status(404).json({ message: "Feature not found" });
+      }
+      
+      res.json(feature);
+    } catch (error) {
+      console.error('Erro ao buscar funcionalidade:', error);
+      next(error);
+    }
+  });
+  
+  // Criar uma nova funcionalidade
+  app.post("/api/admin/module-features", isAdmin, async (req, res, next) => {
+    try {
+      const newFeature = await storage.createModuleFeature(req.body);
+      res.status(201).json(newFeature);
+    } catch (error) {
+      console.error('Erro ao criar funcionalidade:', error);
+      next(error);
+    }
+  });
+  
+  // Atualizar uma funcionalidade
+  app.put("/api/admin/module-features/:id", isAdmin, async (req, res, next) => {
+    try {
+      const featureId = Number(req.params.id);
+      const updatedFeature = await storage.updateModuleFeature(featureId, req.body);
+      
+      if (!updatedFeature) {
+        return res.status(404).json({ message: "Feature not found" });
+      }
+      
+      res.json(updatedFeature);
+    } catch (error) {
+      console.error('Erro ao atualizar funcionalidade:', error);
+      next(error);
+    }
+  });
+  
+  // Excluir uma funcionalidade
+  app.delete("/api/admin/module-features/:id", isAdmin, async (req, res, next) => {
+    try {
+      const featureId = Number(req.params.id);
+      const success = await storage.deleteModuleFeature(featureId);
+      
+      if (!success) {
+        return res.status(404).json({ message: "Feature not found or cannot be deleted" });
+      }
+      
+      res.status(204).end();
+    } catch (error) {
+      console.error('Erro ao excluir funcionalidade:', error);
+      next(error);
+    }
+  });
+  
+  // Verificar se uma funcionalidade está acessível para um tenant
+  app.get("/api/features/check-access", isAuthenticated, async (req, res, next) => {
+    try {
+      const { featurePath } = req.query;
+      const tenantId = req.user!.tenantId;
+      
+      if (!featurePath || typeof featurePath !== 'string') {
+        return res.status(400).json({ message: "Feature path is required" });
+      }
+      
+      const isAccessible = await storage.isFeatureAccessible(featurePath, tenantId);
+      res.json({ isAccessible });
+    } catch (error) {
+      console.error('Erro ao verificar acesso à funcionalidade:', error);
+      next(error);
+    }
+  });
+  
   // Atualizar módulos de um plano
   app.put("/api/admin/plans/:id/modules", isAdmin, async (req, res, next) => {
     try {
