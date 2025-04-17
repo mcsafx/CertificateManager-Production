@@ -13,7 +13,8 @@ import { User, InsertUser, Tenant, InsertTenant,
          PackageType, InsertPackageType,
          File, InsertFile,
          Module, InsertModule,
-         plans, modules, planModules, files,
+         InsertModuleFeature,
+         plans, modules, moduleFeatures, planModules, files,
          users, tenants, productCategories, productSubcategories, productBase, products,
          productFiles, productBaseFiles, productCharacteristics, suppliers, manufacturers,
          clients, entryCertificates, entryCertificateResults, issuedCertificates, packageTypes } from "@shared/schema";
@@ -176,6 +177,15 @@ export interface IStorage {
   getModulesByPlanCode(code: string): Promise<typeof modules.$inferSelect[]>;
   getTenantEnabledModules(tenantId: number): Promise<typeof modules.$inferSelect[]>;
   updatePlanModules(planId: number, moduleIds: number[]): Promise<boolean>;
+  
+  // Module Features
+  getModuleFeature(id: number): Promise<typeof moduleFeatures.$inferSelect | undefined>;
+  getModuleFeatures(): Promise<typeof moduleFeatures.$inferSelect[]>;
+  getModuleFeaturesByModule(moduleId: number): Promise<typeof moduleFeatures.$inferSelect[]>;
+  createModuleFeature(feature: InsertModuleFeature): Promise<typeof moduleFeatures.$inferSelect>;
+  updateModuleFeature(id: number, feature: Partial<InsertModuleFeature>): Promise<typeof moduleFeatures.$inferSelect | undefined>;
+  deleteModuleFeature(id: number): Promise<boolean>;
+  isFeatureAccessible(featurePath: string, tenantId: number): Promise<boolean>;
   
   // Files Management
   getFile(id: number, tenantId: number): Promise<File | undefined>;

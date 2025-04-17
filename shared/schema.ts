@@ -777,3 +777,5 @@ export type PackageType = typeof packageTypes.$inferSelect;
 export type InsertPackageType = z.infer<typeof insertPackageTypeSchema>;
 export type File = typeof files.$inferSelect;
 export type InsertFile = z.infer<typeof insertFileSchema>;
+export type ModuleFeature = typeof moduleFeatures.$inferSelect;
+export type InsertModuleFeature = z.infer<typeof insertModuleFeatureSchema>;
