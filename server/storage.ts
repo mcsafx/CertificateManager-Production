@@ -18,6 +18,7 @@ import { User, InsertUser, Tenant, InsertTenant,
          users, tenants, productCategories, productSubcategories, productBase, products,
          productFiles, productBaseFiles, productCharacteristics, suppliers, manufacturers,
          clients, entryCertificates, entryCertificateResults, issuedCertificates, packageTypes } from "@shared/schema";
+import { z } from "zod";
 import session from "express-session";
 import createMemoryStore from "memorystore";
 import { hashPassword } from "./auth";
@@ -182,8 +183,8 @@ export interface IStorage {
   getModuleFeature(id: number): Promise<typeof moduleFeatures.$inferSelect | undefined>;
   getModuleFeatures(): Promise<typeof moduleFeatures.$inferSelect[]>;
   getModuleFeaturesByModule(moduleId: number): Promise<typeof moduleFeatures.$inferSelect[]>;
-  createModuleFeature(feature: InsertModuleFeature): Promise<typeof moduleFeatures.$inferSelect>;
-  updateModuleFeature(id: number, feature: Partial<InsertModuleFeature>): Promise<typeof moduleFeatures.$inferSelect | undefined>;
+  createModuleFeature(feature: z.infer<typeof insertModuleFeatureSchema>): Promise<typeof moduleFeatures.$inferSelect>;
+  updateModuleFeature(id: number, feature: Partial<z.infer<typeof insertModuleFeatureSchema>>): Promise<typeof moduleFeatures.$inferSelect | undefined>;
   deleteModuleFeature(id: number): Promise<boolean>;
   isFeatureAccessible(featurePath: string, tenantId: number): Promise<boolean>;
   
@@ -2494,7 +2495,7 @@ export class DatabaseStorage implements IStorage {
     }
   }
   
-  async createModuleFeature(feature: InsertModuleFeature): Promise<typeof moduleFeatures.$inferSelect> {
+  async createModuleFeature(feature: z.infer<typeof insertModuleFeatureSchema>): Promise<typeof moduleFeatures.$inferSelect> {
     try {
       const [newFeature] = await db.insert(moduleFeatures)
         .values({
@@ -2509,7 +2510,7 @@ export class DatabaseStorage implements IStorage {
     }
   }
   
-  async updateModuleFeature(id: number, feature: Partial<InsertModuleFeature>): Promise<typeof moduleFeatures.$inferSelect | undefined> {
+  async updateModuleFeature(id: number, feature: Partial<z.infer<typeof insertModuleFeatureSchema>>): Promise<typeof moduleFeatures.$inferSelect | undefined> {
     try {
       const [updatedFeature] = await db.update(moduleFeatures)
         .set({
@@ -2662,30 +2663,50 @@ if (isDatabaseConfigured) {
         if (!basicPlan) {
           throw new Error("Plano básico não encontrado. Verifique se a migração de planos foi executada corretamente.");
         }
+
+        // Verificar se já existe um tenant com o CNPJ 00000000000000
+        const existingTenant = await db.select()
+          .from(tenants)
+          .where(eq(tenants.cnpj, "00000000000000"));
+
+        let tenant;
+        if (existingTenant && existingTenant.length > 0) {
+          // Usar o tenant existente
+          tenant = existingTenant[0];
+          console.log("Using existing tenant with CNPJ 00000000000000");
+        } else {
+          // Criar tenant admin
+          tenant = await storage.createTenant({
+            name: "Admin",
+            cnpj: "00000000000000",
+            address: "System Address",
+            active: true,
+            planId: basicPlan.id,
+            planStartDate: new Date().toISOString(), // Convertendo para string
+            storageUsed: 0
+          });
+          console.log("Admin tenant created successfully");
+        }
         
-        // Criar tenant admin
-        const tenant = await storage.createTenant({
-          name: "Admin",
-          cnpj: "00000000000000",
-          address: "System Address",
-          active: true,
-          planId: basicPlan.id,
-          planStartDate: new Date(),
-          storageUsed: 0
-        });
-        
-        // Criar usuário admin
-        const hashedPassword = await hashPassword("admin123");
-        await storage.createUser({
-          username: "admin",
-          password: hashedPassword,
-          name: "System Administrator",
-          role: "admin",
-          tenantId: tenant.id,
-          active: true
-        });
-        
-        console.log("Admin tenant and user created successfully");
+        // Verificar se já existe um usuário admin para este tenant
+        const existingAdmin = await storage.getUserByUsername("admin");
+        if (!existingAdmin) {
+          // Criar usuário admin
+          const hashedPassword = await hashPassword("admin123");
+          await storage.createUser({
+            username: "admin",
+            password: hashedPassword,
+            name: "System Administrator",
+            role: "admin",
+            tenantId: tenant.id,
+            active: true
+          });
+          console.log("Admin user created successfully");
+        } else {
+          console.log("Admin user already exists");
+        }
+      } else {
+        console.log("Admin tenant already exists");
       }
     } catch (error) {
       console.error("Error creating admin tenant and user:", error);
