@@ -47,21 +47,64 @@ export default function HomePage() {
   const isLoading = isLoadingEntryCertificates || isLoadingIssuedCertificates || 
                     isLoadingProducts || isLoadingSupppliers || isLoadingClients;
 
-  const entryCertificates = entryCertificatesData || [];
-  const issuedCertificates = issuedCertificatesData || [];
-  const products = productsData || [];
-  const suppliers = suppliersData || [];
-  const clients = clientsData || [];
+  const entryCertificates = entryCertificatesData || [] as any[];
+  const issuedCertificates = issuedCertificatesData || [] as any[];
+  const products = productsData || [] as any[];
+  const suppliers = suppliersData || [] as any[];
+  const clients = clientsData || [] as any[];
   
-  // Sample chart data - in a real app, this would be calculated from actual data
-  const mockChartData = [
-    { name: 'Jan', entrada: 4, emitidos: 2 },
-    { name: 'Feb', entrada: 3, emitidos: 1 },
-    { name: 'Mar', entrada: 5, emitidos: 3 },
-    { name: 'Apr', entrada: 7, emitidos: 5 },
-    { name: 'May', entrada: 2, emitidos: 2 },
-    { name: 'Jun', entrada: 6, emitidos: 4 },
-  ];
+  // Calcular dados reais para o gráfico de atividade de boletins
+  const generateChartData = () => {
+    // Se os dados ainda não foram carregados, retornar um array vazio
+    if (isLoading) return [];
+    
+    // Obter o ano atual
+    const currentYear = new Date().getFullYear();
+    
+    // Criar um objeto para armazenar contagens por mês
+    const monthlyCounts: { [key: string]: { entrada: number; emitidos: number } } = {};
+    
+    // Inicializar os meses do ano atual
+    const months = [
+      'Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 
+      'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'
+    ];
+    
+    months.forEach(month => {
+      monthlyCounts[month] = { entrada: 0, emitidos: 0 };
+    });
+    
+    // Contar boletins de entrada
+    entryCertificates.forEach((cert: any) => {
+      if (cert.createdAt) {
+        const date = new Date(cert.createdAt);
+        if (date.getFullYear() === currentYear) {
+          const month = months[date.getMonth()];
+          monthlyCounts[month].entrada += 1;
+        }
+      }
+    });
+    
+    // Contar boletins emitidos
+    issuedCertificates.forEach((cert: any) => {
+      if (cert.createdAt) {
+        const date = new Date(cert.createdAt);
+        if (date.getFullYear() === currentYear) {
+          const month = months[date.getMonth()];
+          monthlyCounts[month].emitidos += 1;
+        }
+      }
+    });
+    
+    // Converter o objeto em um array para o gráfico
+    return months.map(month => ({
+      name: month,
+      entrada: monthlyCounts[month].entrada,
+      emitidos: monthlyCounts[month].emitidos
+    }));
+  };
+  
+  const chartData = generateChartData();
 
   return (
     <Layout>
@@ -146,7 +189,7 @@ export default function HomePage() {
                 </CardHeader>
                 <CardContent>
                   <ResponsiveContainer width="100%" height={300}>
-                    <BarChart data={mockChartData}>
+                    <BarChart data={chartData}>
                       <CartesianGrid strokeDasharray="3 3" />
                       <XAxis dataKey="name" />
                       <YAxis />
