@@ -4,6 +4,7 @@ import AdminLayout from "@/components/layout/admin-layout";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Plus, Edit, Trash, Loader2, Info, ChevronRight } from "lucide-react";
+import { Label } from "@/components/ui/label";
 import {
   Dialog,
   DialogContent,
@@ -112,9 +113,18 @@ export default function ModuleFeaturesPage() {
           description: data.description || feature.description,
         };
         
-        return createFeature(apiData, { throwOnError: false })
-          .then(() => { success++; })
-          .catch(() => { failed++; });
+        return new Promise<void>((resolve) => {
+          createFeature(apiData, {
+            onSuccess: () => { 
+              success++; 
+              resolve();
+            },
+            onError: () => { 
+              failed++; 
+              resolve();
+            },
+          });
+        });
       });
       
       // Aguarde todas as operações serem concluídas
@@ -446,40 +456,96 @@ export default function ModuleFeaturesPage() {
                         )}
                       />
                       
-                      <FormField
-                        control={form.control}
-                        name="featureId"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>
-                              <div className="flex items-center gap-2">
-                                <span>Funcionalidade</span>
-                                <TooltipProvider>
-                                  <Tooltip>
-                                    <TooltipTrigger asChild>
-                                      <Info className="h-4 w-4 text-muted-foreground" />
-                                    </TooltipTrigger>
-                                    <TooltipContent>
-                                      <p>Selecione a funcionalidade que deseja adicionar ao módulo.</p>
-                                      <p>O caminho será definido automaticamente.</p>
-                                    </TooltipContent>
-                                  </Tooltip>
-                                </TooltipProvider>
-                              </div>
-                            </FormLabel>
-                            <FormControl>
-                              <CheckboxFeatureSelect 
-                                value={field.value}
-                                onValueChange={field.onChange}
-                              />
-                            </FormControl>
-                            <FormDescription>
-                              Selecione a funcionalidade que deseja adicionar ao módulo.
-                            </FormDescription>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
+                      {/* Seletor de modo único ou múltiplo */}
+                      <div className="flex items-center justify-between mb-4">
+                        <div className="flex items-center gap-2">
+                          <Switch
+                            checked={isMultiSelectMode}
+                            onCheckedChange={setIsMultiSelectMode}
+                            id="multi-select-mode"
+                          />
+                          <Label htmlFor="multi-select-mode" className="cursor-pointer">
+                            Seleção múltipla de funcionalidades
+                          </Label>
+                        </div>
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Info className="h-4 w-4 text-muted-foreground" />
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>Ative para selecionar várias funcionalidades de uma vez.</p>
+                              <p>Desative para adicionar uma única funcionalidade.</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      </div>
+                      
+                      {isMultiSelectMode ? (
+                        // Modo de seleção múltipla
+                        <FormField
+                          control={form.control}
+                          name="featureIds"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>
+                                <div className="flex items-center gap-2">
+                                  <span>Funcionalidades</span>
+                                  <Badge variant="outline">{field.value?.length || 0} selecionada(s)</Badge>
+                                </div>
+                              </FormLabel>
+                              <FormControl>
+                                <MultiCheckboxFeatureSelect
+                                  values={field.value || []}
+                                  onValuesChange={field.onChange}
+                                  moduleId={form.watch("moduleId") || undefined}
+                                />
+                              </FormControl>
+                              <FormDescription>
+                                Selecione as funcionalidades que deseja adicionar ao módulo.
+                                Você pode selecionar várias de uma vez.
+                              </FormDescription>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      ) : (
+                        // Modo de seleção única
+                        <FormField
+                          control={form.control}
+                          name="featureId"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>
+                                <div className="flex items-center gap-2">
+                                  <span>Funcionalidade</span>
+                                  <TooltipProvider>
+                                    <Tooltip>
+                                      <TooltipTrigger asChild>
+                                        <Info className="h-4 w-4 text-muted-foreground" />
+                                      </TooltipTrigger>
+                                      <TooltipContent>
+                                        <p>Selecione a funcionalidade que deseja adicionar ao módulo.</p>
+                                        <p>O caminho será definido automaticamente.</p>
+                                      </TooltipContent>
+                                    </Tooltip>
+                                  </TooltipProvider>
+                                </div>
+                              </FormLabel>
+                              <FormControl>
+                                <CheckboxFeatureSelect 
+                                  value={field.value}
+                                  onValueChange={field.onChange}
+                                />
+                              </FormControl>
+                              <FormDescription>
+                                Selecione a funcionalidade que deseja adicionar ao módulo.
+                              </FormDescription>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      )}
                       
                       <FormField
                         control={form.control}
