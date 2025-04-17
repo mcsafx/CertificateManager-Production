@@ -10,7 +10,7 @@ import { CheckCircle2, Loader2, PlusCircle, Trash2, Pencil } from "lucide-react"
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { apiRequest } from "@/lib/queryClient";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Table,
   TableBody,
@@ -125,17 +125,19 @@ export default function PlansPage() {
   const [moduleSelections, setModuleSelections] = useState<Record<number, boolean>>({});
 
   // Inicializar seleções de módulos quando planModules são carregados
-  useState(() => {
+  useEffect(() => {
     if (planModules && modules) {
+      console.log("Atualizando seleções com módulos do plano:", planModules);
       const selections: Record<number, boolean> = {};
       
       modules.forEach((module: any) => {
         selections[module.id] = planModules.some((pm: any) => pm.moduleId === module.id);
       });
       
+      console.log("Seleções atualizadas:", selections);
       setModuleSelections(selections);
     }
-  });
+  }, [planModules, modules]);
 
   // Mutação para criar novo plano
   const createPlanMutation = useMutation({
@@ -377,18 +379,12 @@ export default function PlansPage() {
 
   // Função para abrir o editor de módulos do plano
   function openModuleEditor(plan: any) {
+    console.log("Abrindo editor de módulos para o plano:", plan);
     setSelectedPlan(plan);
-    
-    // Reinicializar as seleções
-    if (modules) {
-      const initialSelections: Record<number, boolean> = {};
-      modules.forEach((module: any) => {
-        initialSelections[module.id] = false;
-      });
-      setModuleSelections(initialSelections);
-    }
-    
     setOpenPlanModuleEditor(true);
+    
+    // Não inicializamos as seleções aqui, deixamos o useEffect cuidar disso
+    // quando os dados do plano forem carregados
   }
 
   return (
