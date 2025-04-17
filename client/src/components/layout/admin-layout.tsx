@@ -7,7 +7,9 @@ import {
   HardDrive,
   HomeIcon,
   Layers,
-  Users
+  Users,
+  Settings,
+  Puzzle
 } from "lucide-react";
 
 interface AdminLayoutProps {
@@ -76,6 +78,12 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
             icon={<Layers className="h-5 w-5" />}
             title="Planos e Módulos"
             isActive={location === "/admin/plans"}
+          />
+          <SidebarItem
+            href="/admin/module-features"
+            icon={<Puzzle className="h-5 w-5" />}
+            title="Funcionalidades"
+            isActive={location === "/admin/module-features"}
           />
           <SidebarItem
             href="/admin/tenants"

@@ -204,7 +204,7 @@ export default function AdminDashboardPage() {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
                   <Link href="/admin/tenants">
                     <Button variant="outline" className="w-full h-24 flex flex-col">
                       <Building className="h-6 w-6 mb-2" />
@@ -217,15 +217,21 @@ export default function AdminDashboardPage() {
                       <span>Gerenciar Planos</span>
                     </Button>
                   </Link>
+                  <Link href="/admin/module-features">
+                    <Button variant="outline" className="w-full h-24 flex flex-col">
+                      <FileBox className="h-6 w-6 mb-2" />
+                      <span>Funcionalidades</span>
+                    </Button>
+                  </Link>
                   <Link href="/admin/storage">
                     <Button variant="outline" className="w-full h-24 flex flex-col">
-                      <Building className="h-6 w-6 mb-2" />
+                      <FileBox className="h-6 w-6 mb-2" />
                       <span>Monitorar Armazenamento</span>
                     </Button>
                   </Link>
                   <Link href="/admin/users">
                     <Button variant="outline" className="w-full h-24 flex flex-col">
-                      <Building className="h-6 w-6 mb-2" />
+                      <Users className="h-6 w-6 mb-2" />
                       <span>Gerenciar Usuários</span>
                     </Button>
                   </Link>
