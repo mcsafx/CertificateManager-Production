@@ -174,6 +174,18 @@ function generateCertificateHTML(data: CertificateGenerationData): string {
           padding: 5mm;
           position: relative;
           box-sizing: border-box;
+          display: flex;
+          flex-direction: column;
+        }
+        
+        .page > .section:nth-child(-n+3) {
+          flex: 0 0 auto;
+          max-height: 40%;
+        }
+        
+        .page > .section:last-child {
+          flex: 1 1 auto;
+          min-height: 50%;
         }
         
         .watermark {
@@ -249,14 +261,14 @@ function generateCertificateHTML(data: CertificateGenerationData): string {
         }
         
         .section {
-          margin-bottom: 8px;
+          margin-bottom: 4px;
         }
         
         .section-title {
-          font-size: 12px;
+          font-size: 11px;
           font-weight: 700;
-          margin: 0 0 8px 0;
-          padding: 4px 8px;
+          margin: 0 0 4px 0;
+          padding: 3px 6px;
           background-color: #eee;
           border-left: 4px solid #333;
           text-transform: uppercase;
@@ -266,12 +278,12 @@ function generateCertificateHTML(data: CertificateGenerationData): string {
         .info-row {
           display: flex;
           flex-wrap: wrap;
-          margin: -3px;
+          margin: -2px;
         }
         
         .info-col {
           flex: 1 0 25%;
-          padding: 3px;
+          padding: 2px;
           box-sizing: border-box;
           min-width: 120px;
         }
@@ -285,35 +297,35 @@ function generateCertificateHTML(data: CertificateGenerationData): string {
         }
         
         .info-item {
-          margin-bottom: 6px;
+          margin-bottom: 3px;
         }
         
         .info-label {
           font-weight: 600;
-          font-size: 10px;
+          font-size: 9px;
           color: #555;
-          margin-bottom: 1px;
+          margin-bottom: 0px;
           letter-spacing: 0.3px;
           text-transform: uppercase;
         }
         
         .info-value {
-          font-size: 12px;
+          font-size: 10px;
           color: #000;
           border-bottom: 1px dotted #ccc;
-          padding-bottom: 1px;
+          padding-bottom: 0px;
         }
         
         .product-info {
-          margin-bottom: 10px;
+          margin-bottom: 5px;
         }
         
         .product-name {
-          font-size: 14px;
+          font-size: 12px;
           font-weight: 600;
           color: #000;
           letter-spacing: 0.5px;
-          margin-bottom: 4px;
+          margin-bottom: 2px;
         }
         
         table {
