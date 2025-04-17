@@ -218,12 +218,12 @@ export default function HomePage() {
             </div>
             
             <div className="grid grid-cols-1 mb-6">
-              <Card className="w-full">
+              <Card>
                 <CardHeader>
                   <CardTitle>Ações Rápidas</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                     <Link href="/certificates">
                       <a className="bg-primary text-white p-4 rounded-lg text-center hover:bg-primary-dark">
                         <FileCheck className="h-6 w-6 mx-auto mb-2" />
