@@ -76,10 +76,26 @@ const userEditSchema = z.object({
   active: z.boolean().default(true)
 });
 
+// Esquema para criação de novo usuário
+const newUserSchema = z.object({
+  username: z.string().min(3, "Nome de usuário deve ter pelo menos 3 caracteres"),
+  name: z.string().min(3, "Nome deve ter pelo menos 3 caracteres"),
+  email: z.string().email("Email inválido").optional().nullable(),
+  password: z.string().min(6, "Senha deve ter pelo menos 6 caracteres"),
+  confirmPassword: z.string().min(6, "Confirme a senha"),
+  role: z.enum(["admin", "tenant_admin", "user"]),
+  tenantId: z.string().min(1, "Selecione um tenant"),
+  active: z.boolean().default(true)
+}).refine((data) => data.password === data.confirmPassword, {
+  message: "As senhas não conferem",
+  path: ["confirmPassword"],
+});
+
 export default function AdminUsersPage() {
   const { toast } = useToast();
   const [searchTerm, setSearchTerm] = useState("");
   const [openEditDialog, setOpenEditDialog] = useState(false);
+  const [openNewUserDialog, setOpenNewUserDialog] = useState(false);
   const [userToEdit, setUserToEdit] = useState<any | null>(null);
   const queryClient = useQueryClient();
 
@@ -93,6 +109,68 @@ export default function AdminUsersPage() {
       }
       return response.json();
     },
+  });
+  
+  // Buscar todos os tenants para o formulário de novo usuário
+  const { data: tenants, isLoading: isLoadingTenants } = useQuery({
+    queryKey: ["/api/admin/tenants"],
+    queryFn: async () => {
+      const response = await apiRequest("GET", "/api/admin/tenants");
+      if (!response.ok) {
+        throw new Error("Erro ao carregar tenants");
+      }
+      return response.json();
+    },
+  });
+  
+  // Formulário de novo usuário
+  const newUserForm = useForm<z.infer<typeof newUserSchema>>({
+    resolver: zodResolver(newUserSchema),
+    defaultValues: {
+      username: "",
+      name: "",
+      email: "",
+      password: "",
+      confirmPassword: "",
+      role: "user",
+      tenantId: "",
+      active: true
+    }
+  });
+  
+  // Mutação para criar novos usuários
+  const createUserMutation = useMutation({
+    mutationFn: async (data: z.infer<typeof newUserSchema>) => {
+      const { confirmPassword, ...userData } = data;
+      
+      const response = await apiRequest("POST", "/api/admin/users", {
+        ...userData,
+        tenantId: Number(userData.tenantId)
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Erro ao criar usuário");
+      }
+      
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/users"] });
+      setOpenNewUserDialog(false);
+      newUserForm.reset();
+      toast({
+        title: "Usuário criado",
+        description: "O usuário foi criado com sucesso."
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Erro ao criar usuário",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
   });
 
   // Filtrar usuários por termo de pesquisa
@@ -176,6 +254,10 @@ export default function AdminUsersPage() {
       ...values
     });
   }
+  
+  function onSubmitNewUser(values: z.infer<typeof newUserSchema>) {
+    createUserMutation.mutate(values);
+  }
 
   return (
     <AdminLayout>
@@ -187,6 +269,9 @@ export default function AdminUsersPage() {
               Gerencie todos os usuários do sistema.
             </p>
           </div>
+          <Button onClick={() => setOpenNewUserDialog(true)}>
+            Adicionar Usuário
+          </Button>
         </div>
 
         <Card>
@@ -382,7 +467,7 @@ export default function AdminUsersPage() {
                     <FormItem>
                       <FormLabel>Email</FormLabel>
                       <FormControl>
-                        <Input type="email" {...field} />
+                        <Input type="email" {...field} value={field.value || ''} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -475,6 +560,199 @@ export default function AdminUsersPage() {
               </form>
             </Form>
           )}
+        </DialogContent>
+      </Dialog>
+      
+      {/* Diálogo de novo usuário */}
+      <Dialog open={openNewUserDialog} onOpenChange={(open) => {
+        setOpenNewUserDialog(open);
+        if (!open) newUserForm.reset();
+      }}>
+        <DialogContent className="sm:max-w-[600px]">
+          <DialogHeader>
+            <DialogTitle>Adicionar Novo Usuário</DialogTitle>
+            <DialogDescription>
+              Preencha os dados para criar um novo usuário
+            </DialogDescription>
+          </DialogHeader>
+          
+          <Form {...newUserForm}>
+            <form onSubmit={newUserForm.handleSubmit(onSubmitNewUser)} className="space-y-4">
+              <FormField
+                control={newUserForm.control}
+                name="username"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Nome de Usuário</FormLabel>
+                    <FormControl>
+                      <Input {...field} />
+                    </FormControl>
+                    <FormDescription>
+                      Nome de usuário para login no sistema
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <FormField
+                control={newUserForm.control}
+                name="name"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Nome Completo</FormLabel>
+                    <FormControl>
+                      <Input {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <FormField
+                control={newUserForm.control}
+                name="email"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Email</FormLabel>
+                    <FormControl>
+                      <Input type="email" {...field} value={field.value || ''} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <div className="grid grid-cols-2 gap-4">
+                <FormField
+                  control={newUserForm.control}
+                  name="password"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Senha</FormLabel>
+                      <FormControl>
+                        <Input type="password" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                
+                <FormField
+                  control={newUserForm.control}
+                  name="confirmPassword"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Confirme a Senha</FormLabel>
+                      <FormControl>
+                        <Input type="password" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+              
+              <FormField
+                control={newUserForm.control}
+                name="tenantId"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Tenant</FormLabel>
+                    <Select 
+                      value={field.value}
+                      onValueChange={field.onChange}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Selecione um tenant" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {isLoadingTenants ? (
+                          <div className="flex items-center justify-center p-2">
+                            <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                          </div>
+                        ) : (
+                          tenants?.map((tenant: any) => (
+                            <SelectItem key={tenant.id} value={tenant.id.toString()}>
+                              {tenant.name}
+                            </SelectItem>
+                          ))
+                        )}
+                      </SelectContent>
+                    </Select>
+                    <FormDescription>
+                      O tenant ao qual o usuário pertence
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <FormField
+                control={newUserForm.control}
+                name="role"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Função</FormLabel>
+                    <Select 
+                      value={field.value}
+                      onValueChange={field.onChange}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Selecione uma função" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="admin">Administrador do Sistema</SelectItem>
+                        <SelectItem value="tenant_admin">Administrador do Tenant</SelectItem>
+                        <SelectItem value="user">Usuário Regular</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormDescription>
+                      A função determina as permissões do usuário no sistema
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <FormField
+                control={newUserForm.control}
+                name="active"
+                render={({ field }) => (
+                  <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                    <div className="space-y-0.5">
+                      <FormLabel className="text-base">Usuário Ativo</FormLabel>
+                      <FormDescription>
+                        Quando desativado, o usuário não poderá acessar o sistema
+                      </FormDescription>
+                    </div>
+                    <FormControl>
+                      <Switch
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                      />
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
+              
+              <DialogFooter>
+                <Button 
+                  type="submit" 
+                  disabled={createUserMutation.isPending}
+                >
+                  {createUserMutation.isPending && (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  )}
+                  Criar Usuário
+                </Button>
+              </DialogFooter>
+            </form>
+          </Form>
         </DialogContent>
       </Dialog>
     </AdminLayout>
