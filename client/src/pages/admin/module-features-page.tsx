@@ -3,7 +3,7 @@ import { useToast } from "@/hooks/use-toast";
 import AdminLayout from "@/components/layout/admin-layout";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, Edit, Trash, Loader2 } from "lucide-react";
+import { Plus, Edit, Trash, Loader2, Info } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -40,11 +40,18 @@ import { ModuleFeature, Module } from "@shared/schema";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { useModuleFeatures } from "@/hooks/use-module-features";
+import { CheckboxFeatureSelect } from "@/components/ui/checkbox-feature-select";
+import { findFeatureById } from "@/lib/feature-catalog";
+import { 
+  Tooltip, 
+  TooltipContent, 
+  TooltipProvider, 
+  TooltipTrigger 
+} from "@/components/ui/tooltip";
 
 const moduleFeatureFormSchema = z.object({
   moduleId: z.coerce.number().min(1, "Selecione um módulo"),
-  featurePath: z.string().min(1, "Informe o caminho da funcionalidade"),
-  featureName: z.string().min(1, "Informe o nome da funcionalidade"),
+  featureId: z.string().min(1, "Selecione uma funcionalidade"),
   description: z.string().min(1, "Forneça uma descrição"),
 });
 
@@ -77,18 +84,39 @@ export default function ModuleFeaturesPage() {
     resolver: zodResolver(moduleFeatureFormSchema),
     defaultValues: {
       moduleId: 0,
-      featurePath: "",
-      featureName: "",
+      featureId: "",
       description: "",
     },
   });
   
   // Manipuladores para o formulário de criação
   const onCreateSubmit = (data: ModuleFeatureFormValues) => {
-    createFeature(data, {
+    const selectedFeature = findFeatureById(data.featureId);
+    if (!selectedFeature) {
+      toast({
+        title: "Erro",
+        description: "Funcionalidade não encontrada",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    // Construindo os dados para a API com base na funcionalidade selecionada
+    const apiData = {
+      moduleId: data.moduleId,
+      featurePath: selectedFeature.path,
+      featureName: selectedFeature.name,
+      description: data.description || selectedFeature.description,
+    };
+    
+    createFeature(apiData, {
       onSuccess: () => {
         setIsCreateDialogOpen(false);
-        form.reset();
+        form.reset({
+          moduleId: 0,
+          featureId: "",
+          description: "",
+        });
       }
     });
   };
@@ -96,26 +124,44 @@ export default function ModuleFeaturesPage() {
   // Manipuladores para o formulário de edição
   const handleEdit = (feature: ModuleFeature) => {
     setSelectedFeature(feature);
+    
+    // Tentamos encontrar a funcionalidade correspondente no catálogo
+    const catalogFeature = findFeatureByPath(feature.featurePath);
+    
     form.reset({
       moduleId: feature.moduleId,
-      featurePath: feature.featurePath,
-      featureName: feature.featureName,
+      // Se encontramos no catálogo, usamos o ID, senão deixamos vazio
+      featureId: catalogFeature?.id || "",
       description: feature.description,
     });
+    
     setIsEditDialogOpen(true);
   };
   
   const onEditSubmit = (data: ModuleFeatureFormValues) => {
     if (!selectedFeature) return;
     
-    updateFeature({
-      ...selectedFeature,
-      ...data,
-    }, {
+    const catalogFeature = findFeatureById(data.featureId);
+    
+    // Construindo os dados para API
+    const apiData = {
+      id: selectedFeature.id,
+      moduleId: data.moduleId,
+      description: data.description,
+      // Se selecionou uma funcionalidade do catálogo, usamos seus dados
+      featureName: catalogFeature ? catalogFeature.name : selectedFeature.featureName,
+      featurePath: catalogFeature ? catalogFeature.path : selectedFeature.featurePath,
+    };
+    
+    updateFeature(apiData, {
       onSuccess: () => {
         setIsEditDialogOpen(false);
         setSelectedFeature(null);
-        form.reset();
+        form.reset({
+          moduleId: 0,
+          featureId: "",
+          description: "",
+        });
       }
     });
   };
@@ -343,32 +389,33 @@ export default function ModuleFeaturesPage() {
                       
                       <FormField
                         control={form.control}
-                        name="featureName"
+                        name="featureId"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Nome da Funcionalidade</FormLabel>
+                            <FormLabel>
+                              <div className="flex items-center gap-2">
+                                <span>Funcionalidade</span>
+                                <TooltipProvider>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <Info className="h-4 w-4 text-muted-foreground" />
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                      <p>Selecione a funcionalidade que deseja adicionar ao módulo.</p>
+                                      <p>O caminho será definido automaticamente.</p>
+                                    </TooltipContent>
+                                  </Tooltip>
+                                </TooltipProvider>
+                              </div>
+                            </FormLabel>
                             <FormControl>
-                              <Input placeholder="Ex: Emissão de Certificados" {...field} />
+                              <CheckboxFeatureSelect 
+                                value={field.value}
+                                onValueChange={field.onChange}
+                              />
                             </FormControl>
                             <FormDescription>
-                              Nome descritivo da funcionalidade.
-                            </FormDescription>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                      
-                      <FormField
-                        control={form.control}
-                        name="featurePath"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Caminho da Funcionalidade</FormLabel>
-                            <FormControl>
-                              <Input placeholder="Ex: certificates/issue" {...field} />
-                            </FormControl>
-                            <FormDescription>
-                              Caminho usado para verificar permissões de acesso.
+                              Selecione a funcionalidade que deseja adicionar ao módulo.
                             </FormDescription>
                             <FormMessage />
                           </FormItem>
@@ -496,29 +543,33 @@ export default function ModuleFeaturesPage() {
               
               <FormField
                 control={form.control}
-                name="featureName"
+                name="featureId"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Nome da Funcionalidade</FormLabel>
+                    <FormLabel>
+                      <div className="flex items-center gap-2">
+                        <span>Funcionalidade</span>
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Info className="h-4 w-4 text-muted-foreground" />
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>Selecione a funcionalidade que deseja adicionar ao módulo.</p>
+                              <p>O caminho será definido automaticamente.</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      </div>
+                    </FormLabel>
                     <FormControl>
-                      <Input {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              
-              <FormField
-                control={form.control}
-                name="featurePath"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Caminho da Funcionalidade</FormLabel>
-                    <FormControl>
-                      <Input {...field} />
+                      <CheckboxFeatureSelect 
+                        value={field.value}
+                        onValueChange={field.onChange}
+                      />
                     </FormControl>
                     <FormDescription>
-                      Caminho usado para verificar permissões de acesso.
+                      Selecione a funcionalidade que deseja adicionar ao módulo.
                     </FormDescription>
                     <FormMessage />
                   </FormItem>
