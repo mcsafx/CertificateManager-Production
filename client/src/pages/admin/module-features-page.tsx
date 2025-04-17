@@ -144,13 +144,15 @@ export default function ModuleFeaturesPage() {
     const catalogFeature = findFeatureById(data.featureId);
     
     // Construindo os dados para API
-    const apiData = {
+    const apiData: any = {
       id: selectedFeature.id,
       moduleId: data.moduleId,
       description: data.description,
       // Se selecionou uma funcionalidade do catálogo, usamos seus dados
       featureName: catalogFeature ? catalogFeature.name : selectedFeature.featureName,
       featurePath: catalogFeature ? catalogFeature.path : selectedFeature.featurePath,
+      // Adicionando o valor de createdAt do item original para satisfazer o tipo
+      createdAt: selectedFeature.createdAt,
     };
     
     updateFeature(apiData, {
