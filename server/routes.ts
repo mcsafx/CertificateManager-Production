@@ -2847,6 +2847,49 @@ Em um ambiente de produção, este seria o conteúdo real do arquivo.`);
       next(error);
     }
   });
+  
+  // Criar novo usuário (admin)
+  app.post("/api/admin/users", isAdmin, async (req, res, next) => {
+    try {
+      const { username, name, password, role, tenantId, active } = req.body;
+      
+      // Verificar se o tenant existe
+      const tenant = await storage.getTenant(Number(tenantId));
+      if (!tenant) {
+        return res.status(404).json({ message: "Tenant não encontrado" });
+      }
+      
+      // Verificar se o nome de usuário já existe
+      const existingUser = await storage.getUserByUsername(username);
+      if (existingUser) {
+        return res.status(400).json({ message: "Nome de usuário já existe" });
+      }
+      
+      // Hash da senha antes de criar o usuário
+      const { hashPassword } = await import('./auth');
+      const hashedPassword = await hashPassword(password);
+      
+      // Criar o usuário
+      const newUser = await storage.createUser({
+        username,
+        name,
+        password: hashedPassword,
+        role: role || 'user',
+        tenantId: Number(tenantId),
+        active: active !== undefined ? active : true
+      });
+      
+      // Remover senha da resposta
+      const { password: pwd, ...userWithoutPassword } = newUser;
+      res.status(201).json(userWithoutPassword);
+    } catch (error) {
+      console.error('Erro ao criar usuário:', error);
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: error.errors });
+      }
+      next(error);
+    }
+  });
 
   const httpServer = createServer(app);
   return httpServer;
