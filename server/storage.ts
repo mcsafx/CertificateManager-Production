@@ -2460,6 +2460,117 @@ export class DatabaseStorage implements IStorage {
     }
   }
   
+  // Module Features methods
+  async getModuleFeature(id: number): Promise<typeof moduleFeatures.$inferSelect | undefined> {
+    try {
+      const [feature] = await db.select()
+        .from(moduleFeatures)
+        .where(eq(moduleFeatures.id, id));
+      
+      return feature;
+    } catch (error) {
+      console.error("Error getting module feature:", error);
+      throw error;
+    }
+  }
+  
+  async getModuleFeatures(): Promise<typeof moduleFeatures.$inferSelect[]> {
+    try {
+      return await db.select().from(moduleFeatures);
+    } catch (error) {
+      console.error("Error getting module features:", error);
+      throw error;
+    }
+  }
+  
+  async getModuleFeaturesByModule(moduleId: number): Promise<typeof moduleFeatures.$inferSelect[]> {
+    try {
+      return await db.select()
+        .from(moduleFeatures)
+        .where(eq(moduleFeatures.moduleId, moduleId));
+    } catch (error) {
+      console.error("Error getting module features by module:", error);
+      throw error;
+    }
+  }
+  
+  async createModuleFeature(feature: InsertModuleFeature): Promise<typeof moduleFeatures.$inferSelect> {
+    try {
+      const [newFeature] = await db.insert(moduleFeatures)
+        .values({
+          ...feature
+        })
+        .returning();
+      
+      return newFeature;
+    } catch (error) {
+      console.error("Error creating module feature:", error);
+      throw error;
+    }
+  }
+  
+  async updateModuleFeature(id: number, feature: Partial<InsertModuleFeature>): Promise<typeof moduleFeatures.$inferSelect | undefined> {
+    try {
+      const [updatedFeature] = await db.update(moduleFeatures)
+        .set({
+          ...feature
+        })
+        .where(eq(moduleFeatures.id, id))
+        .returning();
+      
+      return updatedFeature;
+    } catch (error) {
+      console.error("Error updating module feature:", error);
+      throw error;
+    }
+  }
+  
+  async deleteModuleFeature(id: number): Promise<boolean> {
+    try {
+      const result = await db.delete(moduleFeatures)
+        .where(eq(moduleFeatures.id, id));
+      
+      return result.rowCount > 0;
+    } catch (error) {
+      console.error("Error deleting module feature:", error);
+      throw error;
+    }
+  }
+  
+  async isFeatureAccessible(featurePath: string, tenantId: number): Promise<boolean> {
+    try {
+      // Obter o tenant
+      const tenant = await this.getTenant(tenantId);
+      if (!tenant) {
+        return false;
+      }
+      
+      // Obter todos os módulos do plano do tenant
+      const modules = await this.getModulesByPlan(tenant.planId);
+      if (!modules || modules.length === 0) {
+        return false;
+      }
+      
+      // Obter os IDs dos módulos
+      const moduleIds = modules.map(module => module.id);
+      
+      // Verificar se existe alguma funcionalidade com o caminho especificado em algum dos módulos disponíveis
+      const [feature] = await db.select()
+        .from(moduleFeatures)
+        .where(
+          and(
+            sql`${moduleFeatures.moduleId} IN (${moduleIds.join(',')})`,
+            sql`${featurePath} LIKE ${moduleFeatures.featurePath}`
+          )
+        );
+      
+      return !!feature;
+    } catch (error) {
+      console.error("Error checking feature accessibility:", error);
+      return false;
+    }
+  }
+  
   async getAllFiles(): Promise<File[]> {
     return await db.select().from(files);
   }
