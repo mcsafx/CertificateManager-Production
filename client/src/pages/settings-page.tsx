@@ -501,15 +501,31 @@ export default function SettingsPage() {
                               <Building className="h-16 w-16 text-gray-400" />
                             )}
                           </div>
-                          <Button 
-                            variant="outline" 
-                            size="sm" 
-                            className="absolute bottom-0 right-0 rounded-full"
-                            type="button"
-                            onClick={() => document.getElementById('logo-upload')?.click()}
-                          >
-                            <Upload className="h-4 w-4" />
-                          </Button>
+                          <div className="absolute bottom-0 right-0 flex gap-1">
+                            <Button 
+                              variant="outline" 
+                              size="sm" 
+                              className="rounded-full"
+                              type="button"
+                              onClick={() => {
+                                if (confirm('Deseja remover a logomarca?')) {
+                                  uploadLogoMutation.mutate('');
+                                  setLogoPreview(null);
+                                }
+                              }}
+                            >
+                              <Trash2 className="h-4 w-4 text-red-500" />
+                            </Button>
+                            <Button 
+                              variant="outline" 
+                              size="sm" 
+                              className="rounded-full"
+                              type="button"
+                              onClick={() => document.getElementById('logo-upload')?.click()}
+                            >
+                              <Upload className="h-4 w-4" />
+                            </Button>
+                          </div>
                           <input
                             id="logo-upload"
                             type="file"
