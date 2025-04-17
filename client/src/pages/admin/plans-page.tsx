@@ -50,7 +50,13 @@ export default function PlansPage() {
       if (!response.ok) {
         throw new Error('Erro ao carregar planos');
       }
-      return response.json();
+      const plansData = await response.json();
+      
+      // Garantir que cada plano tenha o campo maxStorage a partir de storageLimit
+      return plansData.map((plan: any) => ({
+        ...plan,
+        maxStorage: plan.maxStorage || plan.storageLimit || 0
+      }));
     }
   });
 
@@ -232,7 +238,7 @@ export default function PlansPage() {
       
       const response = await apiRequest('PUT', `/api/admin/plans/${data.id}`, {
         price: data.price,
-        storageLimit: data.maxStorage, // Alinhando com o nome usado no backend
+        maxStorage: data.maxStorage, // Backend aceita maxStorage e mapeia para storageLimit
         maxFileSize: data.maxFileSize,
         description: data.description
       });
