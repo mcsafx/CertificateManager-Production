@@ -1278,6 +1278,66 @@ export class MemStorage implements IStorage {
     return true; // Simulação sempre bem-sucedida
   }
   
+  // Implementação de ModuleFeatures para MemStorage
+  async getModuleFeature(id: number): Promise<typeof moduleFeatures.$inferSelect | undefined> {
+    return {
+      id: id,
+      moduleId: 1,
+      featurePath: '/api/test',
+      featureName: 'Test Feature',
+      description: 'Memory implementation',
+      createdAt: new Date()
+    };
+  }
+  
+  async getModuleFeatures(): Promise<typeof moduleFeatures.$inferSelect[]> {
+    return [
+      {
+        id: 1,
+        moduleId: 1,
+        featurePath: '/api/user',
+        featureName: 'Profile',
+        description: 'User profile API',
+        createdAt: new Date()
+      }
+    ];
+  }
+  
+  async getModuleFeaturesByModule(moduleId: number): Promise<typeof moduleFeatures.$inferSelect[]> {
+    return this.getModuleFeatures();
+  }
+  
+  async createModuleFeature(feature: z.infer<typeof insertModuleFeatureSchema>): Promise<typeof moduleFeatures.$inferSelect> {
+    return {
+      id: 2,
+      moduleId: feature.moduleId,
+      featurePath: feature.featurePath,
+      featureName: feature.featureName,
+      description: feature.description,
+      createdAt: new Date()
+    };
+  }
+  
+  async updateModuleFeature(id: number, feature: Partial<z.infer<typeof insertModuleFeatureSchema>>): Promise<typeof moduleFeatures.$inferSelect | undefined> {
+    return {
+      id,
+      moduleId: feature.moduleId || 1,
+      featurePath: feature.featurePath || '/api/test',
+      featureName: feature.featureName || 'Test Feature',
+      description: feature.description || 'Memory implementation updated',
+      createdAt: new Date()
+    };
+  }
+  
+  async deleteModuleFeature(id: number): Promise<boolean> {
+    return true;
+  }
+  
+  async isFeatureAccessible(featurePath: string, tenantId: number): Promise<boolean> {
+    // Na implementação em memória, todas as funcionalidades estão disponíveis
+    return true;
+  }
+  
   // Implementação dos métodos administrativos
   async deleteTenant(id: number): Promise<boolean> {
     // Antes de remover o tenant, devemos remover todos os seus usuários
