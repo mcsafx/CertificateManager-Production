@@ -1,66 +1,67 @@
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useToast } from "@/hooks/use-toast";
-import { apiRequest, queryClient } from "@/lib/queryClient";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { useMutation, useQuery } from "@tanstack/react-query";
-import { Pencil, Plus, Trash2 } from "lucide-react";
 import { useState } from "react";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { queryClient } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
+import AdminLayout from "@/components/layout/admin-layout";
+import { Button } from "@/components/ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Plus, Edit, Trash } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import {
+  Form,
+  FormControl,
+  FormDescription,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { DataTable } from "@/components/ui/data-table";
 import { ColumnDef } from "@tanstack/react-table";
+import { InsertModuleFeature, ModuleFeature, Module } from "@shared/schema";
+import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 
-type Module = {
-  id: number;
-  name: string;
-  code: string;
-  description: string;
-  isCore: boolean;
-  active: boolean;
-  createdAt: string;
-};
-
-type ModuleFeature = {
-  id: number;
-  moduleId: number;
-  featurePath: string;
-  featureName: string;
-  description: string;
-  createdAt: string;
-};
-
-const featureSchema = z.object({
+const moduleFeatureFormSchema = z.object({
   moduleId: z.coerce.number().min(1, "Selecione um módulo"),
-  featurePath: z.string().min(1, "Caminho da funcionalidade é obrigatório"),
-  featureName: z.string().min(1, "Nome da funcionalidade é obrigatório"),
-  description: z.string().optional(),
+  featurePath: z.string().min(1, "Informe o caminho da funcionalidade"),
+  featureName: z.string().min(1, "Informe o nome da funcionalidade"),
+  description: z.string().min(1, "Forneça uma descrição"),
 });
+
+type ModuleFeatureFormValues = z.infer<typeof moduleFeatureFormSchema>;
 
 export default function ModuleFeaturesPage() {
   const { toast } = useToast();
-  const [isOpen, setIsOpen] = useState(false);
-  const [editingFeature, setEditingFeature] = useState<ModuleFeature | null>(null);
+  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [selectedFeature, setSelectedFeature] = useState<ModuleFeature | null>(null);
+  const [activeTab, setActiveTab] = useState("modules");
   
-  // Buscar módulos
-  const { data: modules = [] } = useQuery<Module[]>({
-    queryKey: ["/api/admin/modules"],
-  });
-  
-  // Buscar funcionalidades
-  const { data: features = [], isLoading: featuresLoading } = useQuery<ModuleFeature[]>({
-    queryKey: ["/api/admin/module-features"],
-  });
-  
-  // Form para adicionar/editar funcionalidade
-  const form = useForm<z.infer<typeof featureSchema>>({
-    resolver: zodResolver(featureSchema),
+  // Formulário para criar/editar funcionalidades
+  const form = useForm<ModuleFeatureFormValues>({
+    resolver: zodResolver(moduleFeatureFormSchema),
     defaultValues: {
       moduleId: 0,
       featurePath: "",
@@ -69,254 +70,484 @@ export default function ModuleFeaturesPage() {
     },
   });
   
-  // Mutation para adicionar funcionalidade
-  const addFeatureMutation = useMutation({
-    mutationFn: async (data: z.infer<typeof featureSchema>) => {
-      const res = await apiRequest("POST", "/api/admin/module-features", data);
-      return await res.json();
+  // Carrega a lista de módulos
+  const { data: modules = [], isLoading: isLoadingModules } = useQuery<Module[]>({
+    queryKey: ["/api/modules"],
+    queryFn: async () => {
+      const response = await fetch("/api/modules");
+      if (!response.ok) {
+        throw new Error("Erro ao carregar módulos");
+      }
+      return response.json();
+    },
+  });
+  
+  // Carrega a lista de funcionalidades
+  const { data: features = [], isLoading: isLoadingFeatures } = useQuery<ModuleFeature[]>({
+    queryKey: ["/api/module-features"],
+    queryFn: async () => {
+      const response = await fetch("/api/module-features");
+      if (!response.ok) {
+        throw new Error("Erro ao carregar funcionalidades");
+      }
+      return response.json();
+    },
+  });
+  
+  // Mutation para criar uma nova funcionalidade
+  const createFeatureMutation = useMutation({
+    mutationFn: async (data: InsertModuleFeature) => {
+      const response = await fetch("/api/module-features", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(data),
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Erro ao criar funcionalidade");
+      }
+      
+      return response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/admin/module-features"] });
-      form.reset();
-      setIsOpen(false);
       toast({
-        title: "Funcionalidade adicionada",
-        description: "A funcionalidade foi adicionada com sucesso.",
+        title: "Sucesso!",
+        description: "Funcionalidade criada com sucesso.",
       });
+      queryClient.invalidateQueries({ queryKey: ["/api/module-features"] });
+      setIsCreateDialogOpen(false);
+      form.reset();
     },
-    onError: (error) => {
+    onError: (error: Error) => {
       toast({
-        title: "Erro ao adicionar funcionalidade",
+        title: "Erro",
         description: error.message,
         variant: "destructive",
       });
     },
   });
   
-  // Mutation para editar funcionalidade
+  // Mutation para atualizar uma funcionalidade
   const updateFeatureMutation = useMutation({
-    mutationFn: async (data: z.infer<typeof featureSchema> & { id: number }) => {
-      const { id, ...featureData } = data;
-      const res = await apiRequest("PUT", `/api/admin/module-features/${id}`, featureData);
-      return await res.json();
+    mutationFn: async (data: ModuleFeature) => {
+      const response = await fetch(`/api/module-features/${data.id}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(data),
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Erro ao atualizar funcionalidade");
+      }
+      
+      return response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/admin/module-features"] });
-      form.reset();
-      setEditingFeature(null);
-      setIsOpen(false);
       toast({
-        title: "Funcionalidade atualizada",
-        description: "A funcionalidade foi atualizada com sucesso.",
+        title: "Sucesso!",
+        description: "Funcionalidade atualizada com sucesso.",
       });
+      queryClient.invalidateQueries({ queryKey: ["/api/module-features"] });
+      setIsEditDialogOpen(false);
+      setSelectedFeature(null);
+      form.reset();
     },
-    onError: (error) => {
+    onError: (error: Error) => {
       toast({
-        title: "Erro ao atualizar funcionalidade",
+        title: "Erro",
         description: error.message,
         variant: "destructive",
       });
     },
   });
   
-  // Mutation para excluir funcionalidade
+  // Mutation para excluir uma funcionalidade
   const deleteFeatureMutation = useMutation({
     mutationFn: async (id: number) => {
-      await apiRequest("DELETE", `/api/admin/module-features/${id}`);
-      return id;
+      const response = await fetch(`/api/module-features/${id}`, {
+        method: "DELETE",
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Erro ao excluir funcionalidade");
+      }
+      
+      return response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/admin/module-features"] });
       toast({
-        title: "Funcionalidade excluída",
-        description: "A funcionalidade foi excluída com sucesso.",
+        title: "Sucesso!",
+        description: "Funcionalidade excluída com sucesso.",
       });
+      queryClient.invalidateQueries({ queryKey: ["/api/module-features"] });
+      setIsDeleteDialogOpen(false);
+      setSelectedFeature(null);
     },
-    onError: (error) => {
+    onError: (error: Error) => {
       toast({
-        title: "Erro ao excluir funcionalidade",
+        title: "Erro",
         description: error.message,
         variant: "destructive",
       });
     },
   });
   
-  // Handler para abrir o modal de edição
-  const handleEditFeature = (feature: ModuleFeature) => {
-    setEditingFeature(feature);
+  // Manipuladores para o formulário de criação
+  const onCreateSubmit = (data: ModuleFeatureFormValues) => {
+    createFeatureMutation.mutate(data);
+  };
+  
+  // Manipuladores para o formulário de edição
+  const handleEdit = (feature: ModuleFeature) => {
+    setSelectedFeature(feature);
     form.reset({
       moduleId: feature.moduleId,
       featurePath: feature.featurePath,
       featureName: feature.featureName,
       description: feature.description,
     });
-    setIsOpen(true);
+    setIsEditDialogOpen(true);
   };
   
-  // Handler para abrir o modal de adição
-  const handleAddFeature = () => {
-    setEditingFeature(null);
-    form.reset({
-      moduleId: 0,
-      featurePath: "",
-      featureName: "",
-      description: "",
+  const onEditSubmit = (data: ModuleFeatureFormValues) => {
+    if (!selectedFeature) return;
+    
+    updateFeatureMutation.mutate({
+      ...selectedFeature,
+      ...data,
     });
-    setIsOpen(true);
   };
   
-  // Handler para submeter o formulário
-  const onSubmit = (data: z.infer<typeof featureSchema>) => {
-    if (editingFeature) {
-      updateFeatureMutation.mutate({ ...data, id: editingFeature.id });
-    } else {
-      addFeatureMutation.mutate(data);
-    }
+  // Manipuladores para exclusão
+  const handleDelete = (feature: ModuleFeature) => {
+    setSelectedFeature(feature);
+    setIsDeleteDialogOpen(true);
   };
   
-  // Handler para excluir funcionalidade
-  const handleDeleteFeature = (id: number) => {
-    if (confirm("Tem certeza que deseja excluir esta funcionalidade?")) {
-      deleteFeatureMutation.mutate(id);
-    }
+  const confirmDelete = () => {
+    if (!selectedFeature) return;
+    deleteFeatureMutation.mutate(selectedFeature.id);
   };
   
-  // Definição das colunas da tabela
-  const columns: ColumnDef<ModuleFeature>[] = [
+  // Definição das colunas da tabela de funcionalidades
+  const featureColumns: ColumnDef<ModuleFeature>[] = [
+    {
+      accessorKey: "id",
+      header: "ID",
+      cell: ({ row }) => <div className="text-center">{row.getValue("id")}</div>,
+    },
     {
       accessorKey: "featureName",
-      header: "Nome",
+      header: "Nome da Funcionalidade",
     },
     {
       accessorKey: "featurePath",
       header: "Caminho",
       cell: ({ row }) => (
-        <Badge variant="outline" className="font-mono text-xs">
-          {row.original.featurePath}
-        </Badge>
+        <code className="rounded bg-muted px-1 py-0.5 text-sm">
+          {row.getValue("featurePath")}
+        </code>
       ),
     },
     {
       accessorKey: "moduleId",
       header: "Módulo",
       cell: ({ row }) => {
-        const module = modules.find(m => m.id === row.original.moduleId);
+        const moduleId = row.getValue("moduleId") as number;
+        const module = modules.find((m) => m.id === moduleId);
         return module ? (
-          <Badge className={module.isCore ? "bg-blue-500" : "bg-green-500"}>
+          <Badge variant="outline" className="capitalize">
             {module.name}
           </Badge>
-        ) : "—";
+        ) : (
+          <span className="text-muted-foreground">-</span>
+        );
       },
     },
     {
       accessorKey: "description",
       header: "Descrição",
-      cell: ({ row }) => row.original.description || "—",
+      cell: ({ row }) => {
+        const description = row.getValue("description") as string;
+        return description.length > 50 
+          ? `${description.substring(0, 50)}...` 
+          : description;
+      },
     },
     {
       id: "actions",
+      cell: ({ row }) => {
+        const feature = row.original;
+        return (
+          <div className="flex items-center justify-end gap-2">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => handleEdit(feature)}
+            >
+              <Edit className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => handleDelete(feature)}
+            >
+              <Trash className="h-4 w-4" />
+            </Button>
+          </div>
+        );
+      },
+    },
+  ];
+  
+  // Definição das colunas da tabela de módulos
+  const moduleColumns: ColumnDef<Module>[] = [
+    {
+      accessorKey: "id",
+      header: "ID",
+      cell: ({ row }) => <div className="text-center">{row.getValue("id")}</div>,
+    },
+    {
+      accessorKey: "name",
+      header: "Nome do Módulo",
+    },
+    {
+      accessorKey: "code",
+      header: "Código",
       cell: ({ row }) => (
-        <div className="flex gap-2">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => handleEditFeature(row.original)}
-          >
-            <Pencil className="h-4 w-4" />
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => handleDeleteFeature(row.original.id)}
-          >
-            <Trash2 className="h-4 w-4 text-red-500" />
-          </Button>
+        <code className="rounded bg-muted px-1 py-0.5 text-sm">
+          {row.getValue("code")}
+        </code>
+      ),
+    },
+    {
+      accessorKey: "description",
+      header: "Descrição",
+      cell: ({ row }) => {
+        const description = row.getValue("description") as string;
+        return description.length > 50 
+          ? `${description.substring(0, 50)}...` 
+          : description;
+      },
+    },
+    {
+      accessorKey: "isCore",
+      header: "Core",
+      cell: ({ row }) => (
+        <div className="flex justify-center">
+          <Switch
+            checked={row.getValue("isCore") as boolean}
+            disabled
+            className="cursor-not-allowed"
+          />
         </div>
       ),
+    },
+    {
+      accessorKey: "active",
+      header: "Ativo",
+      cell: ({ row }) => (
+        <div className="flex justify-center">
+          <Switch 
+            checked={row.getValue("active") as boolean}
+            disabled
+            className="cursor-not-allowed"
+          />
+        </div>
+      ),
+    },
+    {
+      id: "features",
+      header: "Funcionalidades",
+      cell: ({ row }) => {
+        const moduleId = row.original.id;
+        const featureCount = features.filter(f => f.moduleId === moduleId).length;
+        return (
+          <Badge variant="secondary">
+            {featureCount}
+          </Badge>
+        );
+      },
     },
   ];
   
   return (
-    <div className="container mx-auto py-6">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold">Gerenciamento de Funcionalidades</h1>
-        <Button onClick={handleAddFeature}>
-          <Plus className="mr-2 h-4 w-4" /> Adicionar Funcionalidade
-        </Button>
+    <AdminLayout>
+      <div className="flex flex-col gap-8 p-8">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">Módulos e Funcionalidades</h1>
+          <p className="text-muted-foreground">
+            Gerencie os módulos do sistema e suas funcionalidades associadas.
+          </p>
+        </div>
+        
+        <Tabs defaultValue="modules" value={activeTab} onValueChange={setActiveTab}>
+          <div className="flex items-center justify-between mb-4">
+            <TabsList>
+              <TabsTrigger value="modules">Módulos</TabsTrigger>
+              <TabsTrigger value="features">Funcionalidades</TabsTrigger>
+            </TabsList>
+            
+            {activeTab === "features" && (
+              <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+                <DialogTrigger asChild>
+                  <Button>
+                    <Plus className="mr-2 h-4 w-4" />
+                    Nova Funcionalidade
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Criar Nova Funcionalidade</DialogTitle>
+                    <DialogDescription>
+                      Adicione uma nova funcionalidade a um módulo existente.
+                    </DialogDescription>
+                  </DialogHeader>
+                  
+                  <Form {...form}>
+                    <form onSubmit={form.handleSubmit(onCreateSubmit)} className="space-y-4">
+                      <FormField
+                        control={form.control}
+                        name="moduleId"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Módulo</FormLabel>
+                            <Select 
+                              onValueChange={(value) => field.onChange(parseInt(value))}
+                              defaultValue={field.value.toString()}
+                            >
+                              <FormControl>
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Selecione um módulo" />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                {modules.map((module) => (
+                                  <SelectItem key={module.id} value={module.id.toString()}>
+                                    {module.name}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      
+                      <FormField
+                        control={form.control}
+                        name="featureName"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Nome da Funcionalidade</FormLabel>
+                            <FormControl>
+                              <Input placeholder="Ex: Emissão de Certificados" {...field} />
+                            </FormControl>
+                            <FormDescription>
+                              Nome descritivo da funcionalidade.
+                            </FormDescription>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      
+                      <FormField
+                        control={form.control}
+                        name="featurePath"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Caminho da Funcionalidade</FormLabel>
+                            <FormControl>
+                              <Input placeholder="Ex: certificates/issue" {...field} />
+                            </FormControl>
+                            <FormDescription>
+                              Caminho usado para verificar permissões de acesso.
+                            </FormDescription>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      
+                      <FormField
+                        control={form.control}
+                        name="description"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Descrição</FormLabel>
+                            <FormControl>
+                              <Textarea 
+                                placeholder="Descreva a funcionalidade..." 
+                                {...field} 
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      
+                      <DialogFooter>
+                        <Button 
+                          type="button" 
+                          variant="outline" 
+                          onClick={() => setIsCreateDialogOpen(false)}
+                        >
+                          Cancelar
+                        </Button>
+                        <Button 
+                          type="submit"
+                          disabled={createFeatureMutation.isPending}
+                        >
+                          {createFeatureMutation.isPending ? "Criando..." : "Criar"}
+                        </Button>
+                      </DialogFooter>
+                    </form>
+                  </Form>
+                </DialogContent>
+              </Dialog>
+            )}
+          </div>
+          
+          <TabsContent value="modules" className="space-y-4">
+            <DataTable
+              columns={moduleColumns}
+              data={modules}
+              searchColumn="name"
+              searchPlaceholder="Buscar módulos..."
+              isLoading={isLoadingModules}
+            />
+          </TabsContent>
+          
+          <TabsContent value="features" className="space-y-4">
+            <DataTable
+              columns={featureColumns}
+              data={features}
+              searchColumn="featureName"
+              searchPlaceholder="Buscar funcionalidades..."
+              isLoading={isLoadingFeatures}
+            />
+          </TabsContent>
+        </Tabs>
       </div>
       
-      <Tabs defaultValue="list">
-        <TabsList className="mb-4">
-          <TabsTrigger value="list">Lista de Funcionalidades</TabsTrigger>
-          <TabsTrigger value="info">Informações</TabsTrigger>
-        </TabsList>
-        
-        <TabsContent value="list">
-          <Card>
-            <CardHeader>
-              <CardTitle>Funcionalidades Disponíveis</CardTitle>
-              <CardDescription>
-                Gerenciamento de funcionalidades por módulo. Cada funcionalidade representa um recurso ou ação no sistema.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <DataTable 
-                columns={columns} 
-                data={features} 
-                loading={featuresLoading}
-              />
-            </CardContent>
-          </Card>
-        </TabsContent>
-        
-        <TabsContent value="info">
-          <Card>
-            <CardHeader>
-              <CardTitle>Sobre Funcionalidades e Módulos</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div>
-                <h3 className="font-medium text-lg mb-2">O que são funcionalidades?</h3>
-                <p>Funcionalidades são recursos específicos do sistema que podem ser habilitados ou desabilitados por módulo. 
-                   Cada funcionalidade é identificada por um caminho, como por exemplo "/api/certificates" ou "/admin/users".</p>
-              </div>
-              
-              <div>
-                <h3 className="font-medium text-lg mb-2">Como funcionam os módulos?</h3>
-                <p>Módulos são conjuntos de funcionalidades relacionadas. Cada tenant tem acesso aos módulos definidos em seu plano.
-                   O sistema verifica dinamicamente se o usuário tem acesso a determinada funcionalidade com base nos módulos disponíveis para seu tenant.</p>
-              </div>
-              
-              <div>
-                <h3 className="font-medium text-lg mb-2">Recomendações</h3>
-                <ul className="list-disc pl-5 space-y-1">
-                  <li>Caminhos de funcionalidades devem começar com "/" e ser descritivos</li>
-                  <li>É possível usar caracteres curinga em caminhos de funcionalidades (ex: "/api/users/*")</li>
-                  <li>O módulo "Core" contém funcionalidades essenciais que devem estar disponíveis em todos os planos</li>
-                  <li>Evite mover funcionalidades entre módulos após o sistema estar em produção</li>
-                </ul>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
-      
-      {/* Modal para adicionar/editar funcionalidade */}
-      <Dialog open={isOpen} onOpenChange={setIsOpen}>
+      {/* Diálogo de Edição */}
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>
-              {editingFeature ? "Editar Funcionalidade" : "Adicionar Funcionalidade"}
-            </DialogTitle>
+            <DialogTitle>Editar Funcionalidade</DialogTitle>
             <DialogDescription>
-              {editingFeature 
-                ? "Edite os detalhes da funcionalidade selecionada" 
-                : "Preencha os detalhes da nova funcionalidade"}
+              Modifique os detalhes da funcionalidade selecionada.
             </DialogDescription>
           </DialogHeader>
           
           <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+            <form onSubmit={form.handleSubmit(onEditSubmit)} className="space-y-4">
               <FormField
                 control={form.control}
                 name="moduleId"
@@ -324,7 +555,8 @@ export default function ModuleFeaturesPage() {
                   <FormItem>
                     <FormLabel>Módulo</FormLabel>
                     <Select 
-                      onValueChange={(value) => field.onChange(parseInt(value))} 
+                      onValueChange={(value) => field.onChange(parseInt(value))}
+                      defaultValue={field.value.toString()}
                       value={field.value.toString()}
                     >
                       <FormControl>
@@ -335,7 +567,7 @@ export default function ModuleFeaturesPage() {
                       <SelectContent>
                         {modules.map((module) => (
                           <SelectItem key={module.id} value={module.id.toString()}>
-                            {module.name} {module.isCore && "(Core)"}
+                            {module.name}
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -352,7 +584,7 @@ export default function ModuleFeaturesPage() {
                   <FormItem>
                     <FormLabel>Nome da Funcionalidade</FormLabel>
                     <FormControl>
-                      <Input {...field} placeholder="Ex: Gerenciamento de Usuários" />
+                      <Input {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -366,8 +598,11 @@ export default function ModuleFeaturesPage() {
                   <FormItem>
                     <FormLabel>Caminho da Funcionalidade</FormLabel>
                     <FormControl>
-                      <Input {...field} placeholder="Ex: /api/users" />
+                      <Input {...field} />
                     </FormControl>
+                    <FormDescription>
+                      Caminho usado para verificar permissões de acesso.
+                    </FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -378,9 +613,9 @@ export default function ModuleFeaturesPage() {
                 name="description"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Descrição (opcional)</FormLabel>
+                    <FormLabel>Descrição</FormLabel>
                     <FormControl>
-                      <Input {...field} placeholder="Descrição da funcionalidade" />
+                      <Textarea {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -388,17 +623,55 @@ export default function ModuleFeaturesPage() {
               />
               
               <DialogFooter>
-                <Button variant="outline" type="button" onClick={() => setIsOpen(false)}>
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  onClick={() => setIsEditDialogOpen(false)}
+                >
                   Cancelar
                 </Button>
-                <Button type="submit" disabled={addFeatureMutation.isPending || updateFeatureMutation.isPending}>
-                  {(addFeatureMutation.isPending || updateFeatureMutation.isPending) ? "Salvando..." : "Salvar"}
+                <Button 
+                  type="submit"
+                  disabled={updateFeatureMutation.isPending}
+                >
+                  {updateFeatureMutation.isPending ? "Salvando..." : "Salvar"}
                 </Button>
               </DialogFooter>
             </form>
           </Form>
         </DialogContent>
       </Dialog>
-    </div>
+      
+      {/* Diálogo de Exclusão */}
+      <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Confirmar Exclusão</DialogTitle>
+            <DialogDescription>
+              Tem certeza que deseja excluir a funcionalidade{" "}
+              <strong>{selectedFeature?.featureName}</strong>?
+              Esta ação não pode ser desfeita.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <DialogFooter>
+            <Button 
+              type="button" 
+              variant="outline" 
+              onClick={() => setIsDeleteDialogOpen(false)}
+            >
+              Cancelar
+            </Button>
+            <Button 
+              variant="destructive"
+              onClick={confirmDelete}
+              disabled={deleteFeatureMutation.isPending}
+            >
+              {deleteFeatureMutation.isPending ? "Excluindo..." : "Excluir"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </AdminLayout>
   );
 }
