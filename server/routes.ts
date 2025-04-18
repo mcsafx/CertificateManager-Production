@@ -2814,11 +2814,18 @@ Em um ambiente de produção, este seria o conteúdo real do arquivo.`);
       }
       
       // Obter módulos do plano
-      const modules = await storage.getPlanModules(planId);
+      const modules = await storage.getModulesByPlan(planId);
+      
+      // Processar os dados para retornar na estrutura correta para o frontend
+      // Vamos retornar o formato { planId, moduleId } que o frontend espera
+      const planModuleData = modules.map(module => ({
+        planId: planId,
+        moduleId: module.id
+      }));
       
       // Retornar como JSON em vez de HTML
       res.setHeader('Content-Type', 'application/json');
-      res.json(modules);
+      res.json(planModuleData);
     } catch (error) {
       console.error('Erro ao obter módulos do plano:', error);
       next(error);
