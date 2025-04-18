@@ -404,7 +404,18 @@ export default function TenantsPage() {
                           {tenant.createdAt ? formatDate(new Date(tenant.createdAt)) : "-"}
                         </TableCell>
                         <TableCell className="text-right">
-                          <div className="flex justify-end">
+                          <div className="flex justify-end gap-1">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => {
+                                setTenantToEdit(tenant);
+                                planEditForm.setValue('planId', tenant.planId);
+                                setOpenEditPlanDialog(true);
+                              }}
+                            >
+                              <Pencil className="h-4 w-4 text-blue-500" />
+                            </Button>
                             <Button
                               variant="ghost"
                               size="icon"
@@ -447,6 +458,85 @@ export default function TenantsPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      
+      {/* Diálogo para edição de plano do tenant */}
+      <Dialog open={openEditPlanDialog} onOpenChange={setOpenEditPlanDialog}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>Alterar Plano do Tenant</DialogTitle>
+            <DialogDescription>
+              {tenantToEdit && (
+                <>
+                  Selecione um novo plano para <strong>{tenantToEdit.name}</strong>.
+                  <br />
+                  Esta ação pode alterar as funcionalidades disponíveis para o tenant.
+                </>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+          
+          <Form {...planEditForm}>
+            <form onSubmit={planEditForm.handleSubmit((values) => {
+              if (tenantToEdit) {
+                updateTenantPlanMutation.mutate({
+                  id: tenantToEdit.id,
+                  planId: values.planId
+                });
+              }
+            })} className="space-y-4">
+              <FormField
+                control={planEditForm.control}
+                name="planId"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Plano</FormLabel>
+                    <Select onValueChange={field.onChange} defaultValue={field.value?.toString()}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Selecione um plano" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {plansLoading ? (
+                          <div className="flex justify-center p-2">
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          </div>
+                        ) : (
+                          plans?.map((plan: any) => (
+                            <SelectItem key={plan.id} value={plan.id.toString()}>
+                              {plan.name}
+                            </SelectItem>
+                          ))
+                        )}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <DialogFooter className="pt-4">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => {
+                    setOpenEditPlanDialog(false);
+                    setTenantToEdit(null);
+                  }}
+                >
+                  Cancelar
+                </Button>
+                <Button type="submit" disabled={updateTenantPlanMutation.isPending}>
+                  {updateTenantPlanMutation.isPending && (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  )}
+                  Salvar Alteração
+                </Button>
+              </DialogFooter>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
     </AdminLayout>
   );
 }
