@@ -8,7 +8,7 @@ import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Loader2, PlusCircle, Trash2 } from "lucide-react";
+import { Loader2, PlusCircle, Trash2, Pencil } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { apiRequest } from "@/lib/queryClient";
@@ -34,6 +34,8 @@ export default function TenantsPage() {
   const [openNewTenant, setOpenNewTenant] = useState(false);
   const [tenantToDelete, setTenantToDelete] = useState<number | null>(null);
   const [openDeleteDialog, setOpenDeleteDialog] = useState(false);
+  const [openEditPlanDialog, setOpenEditPlanDialog] = useState(false);
+  const [tenantToEdit, setTenantToEdit] = useState<any>(null);
 
   // Buscar lista de planos disponíveis
   const { data: plans, isLoading: plansLoading } = useQuery({
@@ -67,8 +69,13 @@ export default function TenantsPage() {
     planId: z.coerce.number().min(1, "Selecione um plano"),
     active: z.boolean().default(true),
   });
+  
+  // Schema para edição de plano
+  const planEditSchema = z.object({
+    planId: z.coerce.number().min(1, "Selecione um plano"),
+  });
 
-  // Configuração do formulário
+  // Configuração do formulário de criação
   const form = useForm<z.infer<typeof tenantSchema>>({
     resolver: zodResolver(tenantSchema),
     defaultValues: {
@@ -76,6 +83,14 @@ export default function TenantsPage() {
       cnpj: "",
       address: "",
       active: true,
+    }
+  });
+  
+  // Configuração do formulário de edição de plano
+  const planEditForm = useForm<z.infer<typeof planEditSchema>>({
+    resolver: zodResolver(planEditSchema),
+    defaultValues: {
+      planId: 0,
     }
   });
 
@@ -151,6 +166,34 @@ export default function TenantsPage() {
     onError: (error) => {
       toast({
         title: "Erro ao excluir tenant",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  });
+  
+  // Mutação para atualizar plano do tenant
+  const updateTenantPlanMutation = useMutation({
+    mutationFn: async ({ id, planId }: { id: number, planId: number }) => {
+      const response = await apiRequest('PATCH', `/api/admin/tenants/${id}`, { planId });
+      if (!response.ok) {
+        throw new Error('Erro ao atualizar plano');
+      }
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/tenants'] });
+      setOpenEditPlanDialog(false);
+      setTenantToEdit(null);
+      planEditForm.reset();
+      toast({
+        title: "Plano atualizado",
+        description: "O plano do tenant foi atualizado com sucesso",
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: "Erro ao atualizar plano",
         description: error.message,
         variant: "destructive",
       });
