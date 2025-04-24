@@ -92,7 +92,7 @@ interface FilterOptions {
 
 export default function TraceabilityPage() {
   const { toast } = useToast();
-  const [internalLot, setInternalLot] = useState("");
+  const [supplierLot, setSupplierLot] = useState(""); // Alterado para lote do fornecedor
   const [isLoading, setIsLoading] = useState(false);
   const [traceabilityResult, setTraceabilityResult] = useState<TraceabilityResult | null>(null);
   const [hasSearched, setHasSearched] = useState(false);
@@ -156,14 +156,14 @@ export default function TraceabilityPage() {
   // Função para limpar todos os filtros
   const clearFilters = () => {
     setFilters({});
-    setInternalLot("");
+    setSupplierLot("");
   };
 
   // Função para construir a URL de busca com os filtros
   const buildSearchUrl = () => {
-    // Se estamos usando apenas o filtro simples de lote interno
-    if (!showAdvancedFilters && internalLot.trim()) {
-      return `/api/traceability/${internalLot.trim()}`;
+    // Se estamos usando apenas o filtro simples de lote do fornecedor
+    if (!showAdvancedFilters && supplierLot.trim()) {
+      return `/api/traceability/supplier/${supplierLot.trim()}`;
     }
     
     // Construir os parâmetros de consulta para filtros avançados
@@ -184,7 +184,7 @@ export default function TraceabilityPage() {
     e.preventDefault();
     
     // Validar se pelo menos um filtro foi preenchido
-    const hasSimpleFilter = !showAdvancedFilters && internalLot.trim();
+    const hasSimpleFilter = !showAdvancedFilters && supplierLot.trim();
     const hasAdvancedFilter = showAdvancedFilters && Object.values(filters).some(val => 
       val !== undefined && val !== '' && val !== null
     );
@@ -282,15 +282,15 @@ export default function TraceabilityPage() {
           <CardContent>
             <form onSubmit={handleSearch}>
               {!showAdvancedFilters ? (
-                // Filtro simples por lote interno
+                // Filtro simples por lote do fornecedor
                 <div className="flex space-x-2">
                   <div className="relative flex-1">
                     <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
                     <Input 
-                      placeholder="Digite o número do lote interno..." 
+                      placeholder="Digite o número do lote do fornecedor..." 
                       className="pl-10"
-                      value={internalLot}
-                      onChange={(e) => setInternalLot(e.target.value)}
+                      value={supplierLot}
+                      onChange={(e) => setSupplierLot(e.target.value)}
                     />
                   </div>
                   <Button type="submit" disabled={isLoading}>
@@ -721,7 +721,7 @@ export default function TraceabilityPage() {
                 </div>
                 <h3 className="text-lg font-medium mb-2">Lote não encontrado</h3>
                 <p className="text-gray-500">
-                  Não foi possível encontrar informações para o lote "{internalLot}".
+                  Não foi possível encontrar informações para o lote "{supplierLot}".
                 </p>
                 <p className="text-sm text-gray-400 mt-2">
                   Verifique se o número do lote está correto e tente novamente.
@@ -737,7 +737,7 @@ export default function TraceabilityPage() {
               </div>
               <h3 className="text-xl font-medium mb-2">Consulta de Rastreabilidade</h3>
               <p className="text-gray-500 max-w-lg mx-auto">
-                Digite o número do lote interno no campo de busca acima para visualizar todos os detalhes
+                Digite o número do lote do fornecedor no campo de busca acima para visualizar todos os detalhes
                 e movimentações relacionadas a este lote.
               </p>
             </CardContent>
