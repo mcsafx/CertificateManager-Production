@@ -2064,11 +2064,21 @@ Em um ambiente de produção, este seria o conteúdo real do arquivo.`);
       const user = req.user!;
       const { supplierLot } = req.params;
       
+      console.log(`Buscando por lote do fornecedor: ${supplierLot}`);
+      
       // Find entry certificate by supplier lot
       const allCertificates = await storage.getEntryCertificatesByTenant(user.tenantId);
+      console.log(`Certificados encontrados: ${allCertificates.length}`);
+      
+      // Log dos certificados para debug
+      allCertificates.forEach(cert => {
+        console.log(`Certificado ID: ${cert.id}, Lote Interno: ${cert.internalLot}, Lote Fornecedor: ${cert.supplierLot}`);
+      });
+      
       const entryCertificate = allCertificates.find(c => c.supplierLot === supplierLot);
       
       if (!entryCertificate) {
+        console.log(`Lote do fornecedor não encontrado: ${supplierLot}`);
         return res.status(404).json({ message: "Supplier lot not found" });
       }
       
