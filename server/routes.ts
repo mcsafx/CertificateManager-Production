@@ -2264,10 +2264,23 @@ Em um ambiente de produção, este seria o conteúdo real do arquivo.`);
   app.get("/api/traceability/search", isAuthenticated, async (req, res, next) => {
     try {
       const user = req.user!;
-      const { 
-        internalLot, supplierLot, productId, 
-        supplierId, manufacturerId, startDate, endDate 
-      } = req.query;
+      // Obter e decodificar parâmetros da busca
+      const params = req.query;
+      
+      console.log("Busca avançada com filtros:", params);
+      
+      // Decodificar os parâmetros de texto que podem conter caracteres especiais
+      let decodedInternalLot = params.internalLot && typeof params.internalLot === 'string' 
+        ? decodeURIComponent(params.internalLot) : undefined;
+      
+      let decodedSupplierLot = params.supplierLot && typeof params.supplierLot === 'string'
+        ? decodeURIComponent(params.supplierLot) : undefined;
+      
+      const productId = params.productId;
+      const supplierId = params.supplierId;
+      const manufacturerId = params.manufacturerId;
+      const startDate = params.startDate;
+      const endDate = params.endDate;
       
       // Obter todos os certificados do tenant
       const allCertificates = await storage.getEntryCertificatesByTenant(user.tenantId);
@@ -2276,12 +2289,12 @@ Em um ambiente de produção, este seria o conteúdo real do arquivo.`);
       const filteredCertificates = allCertificates.filter(cert => {
         let matchesFilters = true;
         
-        if (internalLot && typeof internalLot === 'string') {
-          matchesFilters = matchesFilters && cert.internalLot.toLowerCase().includes(internalLot.toLowerCase());
+        if (decodedInternalLot) {
+          matchesFilters = matchesFilters && cert.internalLot.toLowerCase().includes(decodedInternalLot.toLowerCase());
         }
         
-        if (supplierLot && typeof supplierLot === 'string') {
-          matchesFilters = matchesFilters && cert.supplierLot.toLowerCase().includes(supplierLot.toLowerCase());
+        if (decodedSupplierLot) {
+          matchesFilters = matchesFilters && cert.supplierLot.toLowerCase().includes(decodedSupplierLot.toLowerCase());
         }
         
         if (productId && typeof productId === 'string') {
