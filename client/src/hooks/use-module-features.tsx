@@ -42,7 +42,7 @@ export function useModuleFeatures() {
   // Mutation para criar uma nova funcionalidade
   const createFeatureMutation = useMutation({
     mutationFn: async (data: InsertModuleFeature) => {
-      const response = await fetch("/api/module-features", {
+      const response = await fetch("/api/admin/module-features", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -78,7 +78,7 @@ export function useModuleFeatures() {
   // Mutation para atualizar uma funcionalidade
   const updateFeatureMutation = useMutation({
     mutationFn: async (data: ModuleFeature) => {
-      const response = await fetch(`/api/module-features/${data.id}`, {
+      const response = await fetch(`/api/admin/module-features/${data.id}`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
