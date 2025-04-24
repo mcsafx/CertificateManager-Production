@@ -161,18 +161,54 @@ export default function TraceabilityPage() {
 
   // Função para construir a URL de busca com os filtros
   const buildSearchUrl = () => {
-    // Se estamos usando apenas o filtro simples de lote do fornecedor
+    // Se estamos usando o filtro simples
     if (!showAdvancedFilters && supplierLot.trim()) {
-      // Codificar o lote do fornecedor para lidar com caracteres especiais como "/"
-      const encodedSupplierLot = encodeURIComponent(supplierLot.trim());
-      return `/api/traceability/supplier/${encodedSupplierLot}`;
+      // No filtro simples, vamos usar uma abordagem mais direta para evitar problemas de codificação
+      // Faz uma busca direta na URL usando o valor do lote interno (mais específico)
+      
+      const searchValue = supplierLot.trim();
+      
+      // Vamos tentar ver se há uma barra no valor - se houver, é provavelmente um lote interno
+      if (searchValue.includes('/')) {
+        // Vamos substituir a barra pelo código %2F que é usado na URL
+        // Mas não vamos usar encodeURIComponent para evitar a dupla codificação
+        const encodedValue = searchValue.replace(/\//g, '%2F');
+        
+        // URL para busca específica por lote interno
+        return `/api/traceability/search?internalLot=${encodedValue}`;
+      } 
+      
+      // Se não tem barra, pode ser um lote de fornecedor ou parte de um lote interno
+      // Vamos buscar nos dois campos
+      
+      // Usando os parâmetros de busca para evitar problemas com rotas
+      return `/api/traceability/search?internalLot=${searchValue}&supplierLot=${searchValue}`;
     }
     
     // Construir os parâmetros de consulta para filtros avançados
     const queryParams = new URLSearchParams();
     
-    if (filters.internalLot) queryParams.append('internalLot', encodeURIComponent(filters.internalLot));
-    if (filters.supplierLot) queryParams.append('supplierLot', encodeURIComponent(filters.supplierLot));
+    // Para o lote interno, fazer uma codificação especial se tiver barra
+    if (filters.internalLot) {
+      if (filters.internalLot.includes('/')) {
+        // Substituir diretamente sem usar encodeURIComponent
+        const encodedValue = filters.internalLot.replace(/\//g, '%2F');
+        queryParams.append('internalLot', encodedValue);
+      } else {
+        queryParams.append('internalLot', filters.internalLot);
+      }
+    }
+    
+    // Mesmo para lote de fornecedor
+    if (filters.supplierLot) {
+      if (filters.supplierLot.includes('/')) {
+        const encodedValue = filters.supplierLot.replace(/\//g, '%2F');
+        queryParams.append('supplierLot', encodedValue);
+      } else {
+        queryParams.append('supplierLot', filters.supplierLot);
+      }
+    }
+    
     if (filters.productId) queryParams.append('productId', filters.productId.toString());
     if (filters.supplierId) queryParams.append('supplierId', filters.supplierId.toString());
     if (filters.manufacturerId) queryParams.append('manufacturerId', filters.manufacturerId.toString());
@@ -296,30 +332,35 @@ export default function TraceabilityPage() {
           <CardContent>
             <form onSubmit={handleSearch}>
               {!showAdvancedFilters ? (
-                // Filtro simples por lote do fornecedor
-                <div className="flex space-x-2">
-                  <div className="relative flex-1">
-                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-                    <Input 
-                      placeholder="Digite o número do lote do fornecedor..." 
-                      className="pl-10"
-                      value={supplierLot}
-                      onChange={(e) => setSupplierLot(e.target.value)}
-                    />
+                // Filtro simples - busca tanto em lote interno quanto lote do fornecedor
+                <div className="flex flex-col space-y-2">
+                  <div className="flex space-x-2">
+                    <div className="relative flex-1">
+                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                      <Input 
+                        placeholder="Digite o número do lote (interno ou do fornecedor)..." 
+                        className="pl-10"
+                        value={supplierLot}
+                        onChange={(e) => setSupplierLot(e.target.value)}
+                      />
+                    </div>
+                    <Button type="submit" disabled={isLoading}>
+                      {isLoading ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Consultando...
+                        </>
+                      ) : (
+                        <>
+                          <ClipboardList className="mr-2 h-4 w-4" />
+                          Consultar
+                        </>
+                      )}
+                    </Button>
                   </div>
-                  <Button type="submit" disabled={isLoading}>
-                    {isLoading ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Consultando...
-                      </>
-                    ) : (
-                      <>
-                        <ClipboardList className="mr-2 h-4 w-4" />
-                        Consultar
-                      </>
-                    )}
-                  </Button>
+                  <div className="text-sm text-muted-foreground">
+                    Busca por ambos lote interno e lote do fornecedor. Ex: "25A1111" (lote do fornecedor) ou "MRC0229200/1111B25" (lote interno).
+                  </div>
                 </div>
               ) : (
                 // Filtros avançados
