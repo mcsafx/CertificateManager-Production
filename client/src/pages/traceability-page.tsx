@@ -203,8 +203,19 @@ export default function TraceabilityPage() {
     
     try {
       const searchUrl = buildSearchUrl();
+      console.log("URL de busca:", searchUrl);
+      
       const response = await apiRequest("GET", searchUrl, undefined);
+      
+      // Verificar se a resposta é JSON válido antes de tentar parse
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        console.error("Resposta não é JSON:", await response.text());
+        throw new Error("Resposta inválida do servidor. Por favor, tente novamente.");
+      }
+      
       const data = await response.json();
+      console.log("Dados recebidos:", data);
       
       if (Array.isArray(data) && data.length === 0) {
         toast({
@@ -229,6 +240,7 @@ export default function TraceabilityPage() {
         setTraceabilityResult(data);
       }
     } catch (error: any) {
+      console.error("Erro na busca:", error);
       toast({
         title: "Erro na consulta",
         description: error.message || "Não foi possível encontrar lotes com os filtros informados.",

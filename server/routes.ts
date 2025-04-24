@@ -1994,71 +1994,130 @@ Em um ambiente de produção, este seria o conteúdo real do arquivo.`);
   });
 
   // Traceability routes
-  // 1. Busca por lote interno (manter para compatibilidade)
-  app.get("/api/traceability/:internalLot", isAuthenticated, async (req, res, next) => {
+  // Importante: a ordem das rotas é crítica - rotas mais específicas devem vir antes das mais genéricas
+  
+  // 1. Busca avançada com parâmetros de filtro
+  app.get("/api/traceability/search", isAuthenticated, async (req, res, next) => {
     try {
       const user = req.user!;
-      const { internalLot } = req.params;
+      const { 
+        internalLot, supplierLot, productId, 
+        supplierId, manufacturerId, startDate, endDate 
+      } = req.query;
       
-      // Find entry certificate by internal lot
+      console.log("Busca avançada com filtros:", { 
+        internalLot, supplierLot, productId, 
+        supplierId, manufacturerId, startDate, endDate 
+      });
+      
+      // Obter todos os certificados do tenant
       const allCertificates = await storage.getEntryCertificatesByTenant(user.tenantId);
-      const entryCertificate = allCertificates.find(c => c.internalLot === internalLot);
       
-      if (!entryCertificate) {
-        return res.status(404).json({ message: "Internal lot not found" });
+      // Aplicar filtros
+      const filteredCertificates = allCertificates.filter(cert => {
+        let matchesFilters = true;
+        
+        if (internalLot && typeof internalLot === 'string') {
+          matchesFilters = matchesFilters && cert.internalLot.toLowerCase().includes(internalLot.toLowerCase());
+        }
+        
+        if (supplierLot && typeof supplierLot === 'string') {
+          matchesFilters = matchesFilters && cert.supplierLot.toLowerCase().includes(supplierLot.toLowerCase());
+        }
+        
+        if (productId && typeof productId === 'string') {
+          matchesFilters = matchesFilters && cert.productId === parseInt(productId, 10);
+        }
+        
+        if (supplierId && typeof supplierId === 'string') {
+          matchesFilters = matchesFilters && cert.supplierId === parseInt(supplierId, 10);
+        }
+        
+        if (manufacturerId && typeof manufacturerId === 'string') {
+          matchesFilters = matchesFilters && cert.manufacturerId === parseInt(manufacturerId, 10);
+        }
+        
+        // Para datas, usamos o campo entryDate ao invés de createdAt
+        if (startDate && typeof startDate === 'string') {
+          const certDate = new Date(cert.entryDate);
+          const filterDate = new Date(startDate);
+          matchesFilters = matchesFilters && certDate >= filterDate;
+        }
+        
+        if (endDate && typeof endDate === 'string') {
+          const certDate = new Date(cert.entryDate);
+          const filterDate = new Date(endDate);
+          // Ajusta a data final para o fim do dia (23:59:59)
+          filterDate.setHours(23, 59, 59, 999);
+          matchesFilters = matchesFilters && certDate <= filterDate;
+        }
+        
+        return matchesFilters;
+      });
+      
+      console.log(`Certificados filtrados: ${filteredCertificates.length}`);
+      
+      // Se não encontrou nenhum certificado
+      if (filteredCertificates.length === 0) {
+        return res.status(200).json([]);
       }
       
-      // Get all issued certificates for this entry certificate
-      const issuedCertificates = await storage.getIssuedCertificatesByEntryCertificate(
-        entryCertificate.id,
-        user.tenantId
-      );
-      
-      // Get related entities
-      const [product, supplier, manufacturer] = await Promise.all([
-        storage.getProduct(entryCertificate.productId, user.tenantId),
-        storage.getSupplier(entryCertificate.supplierId, user.tenantId),
-        storage.getManufacturer(entryCertificate.manufacturerId, user.tenantId)
-      ]);
-      
-      // Get client info for issued certificates
-      const enhancedIssuedCertificates = await Promise.all(issuedCertificates.map(async cert => {
-        const client = await storage.getClient(cert.clientId, user.tenantId);
+      // Processar detalhes para cada certificado encontrado
+      const detailedCertificates = await Promise.all(filteredCertificates.map(async (entryCertificate) => {
+        // Get all issued certificates for this entry certificate
+        const issuedCertificates = await storage.getIssuedCertificatesByEntryCertificate(
+          entryCertificate.id,
+          user.tenantId
+        );
+        
+        // Get related entities
+        const [product, supplier, manufacturer] = await Promise.all([
+          storage.getProduct(entryCertificate.productId, user.tenantId),
+          storage.getSupplier(entryCertificate.supplierId, user.tenantId),
+          storage.getManufacturer(entryCertificate.manufacturerId, user.tenantId)
+        ]);
+        
+        // Get client info for issued certificates
+        const enhancedIssuedCertificates = await Promise.all(issuedCertificates.map(async cert => {
+          const client = await storage.getClient(cert.clientId, user.tenantId);
+          return {
+            ...cert,
+            clientName: client?.name
+          };
+        }));
+        
+        // Calculate remaining quantity
+        const receivedQuantity = Number(entryCertificate.receivedQuantity);
+        const soldQuantity = enhancedIssuedCertificates.reduce(
+          (sum, cert) => sum + Number(cert.soldQuantity), 
+          0
+        );
+        const remainingQuantity = receivedQuantity - soldQuantity;
+        
         return {
-          ...cert,
-          clientName: client?.name
+          entryCertificate: {
+            ...entryCertificate,
+            productName: product?.technicalName,
+            supplierName: supplier?.name,
+            manufacturerName: manufacturer?.name
+          },
+          issuedCertificates: enhancedIssuedCertificates,
+          summary: {
+            receivedQuantity,
+            soldQuantity,
+            remainingQuantity,
+            measureUnit: entryCertificate.measureUnit
+          }
         };
       }));
       
-      // Calculate remaining quantity
-      const receivedQuantity = Number(entryCertificate.receivedQuantity);
-      const soldQuantity = enhancedIssuedCertificates.reduce(
-        (sum, cert) => sum + Number(cert.soldQuantity), 
-        0
-      );
-      const remainingQuantity = receivedQuantity - soldQuantity;
-      
-      res.json({
-        entryCertificate: {
-          ...entryCertificate,
-          productName: product?.technicalName,
-          supplierName: supplier?.name,
-          manufacturerName: manufacturer?.name
-        },
-        issuedCertificates: enhancedIssuedCertificates,
-        summary: {
-          receivedQuantity,
-          soldQuantity,
-          remainingQuantity,
-          measureUnit: entryCertificate.measureUnit
-        }
-      });
+      res.json(detailedCertificates);
     } catch (error) {
       next(error);
     }
   });
   
-  // 2. Nova rota para busca por lote do fornecedor
+  // 2. Busca por lote do fornecedor
   app.get("/api/traceability/supplier/:supplierLot", isAuthenticated, async (req, res, next) => {
     try {
       const user = req.user!;
@@ -2132,8 +2191,8 @@ Em um ambiente de produção, este seria o conteúdo real do arquivo.`);
     }
   });
   
-  // 3. Rota de busca avançada com parâmetros de filtro
-  app.get("/api/traceability/search", isAuthenticated, async (req, res, next) => {
+  // 3. Busca por lote interno (manter para compatibilidade)
+  app.get("/api/traceability/:internalLot", isAuthenticated, async (req, res, next) => {
     try {
       const user = req.user!;
       const { 
