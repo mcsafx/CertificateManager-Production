@@ -2121,7 +2121,8 @@ Em um ambiente de produção, este seria o conteúdo real do arquivo.`);
   app.get("/api/traceability/supplier/:supplierLot", isAuthenticated, async (req, res, next) => {
     try {
       const user = req.user!;
-      const { supplierLot } = req.params;
+      // Decodificar o parâmetro da URL para tratar caracteres especiais como "/"
+      const supplierLot = decodeURIComponent(req.params.supplierLot);
       
       console.log(`Buscando por lote do fornecedor: ${supplierLot}`);
       
@@ -2193,6 +2194,74 @@ Em um ambiente de produção, este seria o conteúdo real do arquivo.`);
   
   // 3. Busca por lote interno (manter para compatibilidade)
   app.get("/api/traceability/:internalLot", isAuthenticated, async (req, res, next) => {
+    try {
+      const user = req.user!;
+      // Decodificar o parâmetro da URL para tratar caracteres especiais como "/"
+      const internalLot = decodeURIComponent(req.params.internalLot);
+      
+      console.log(`Buscando por lote interno: ${internalLot}`);
+      
+      // Find entry certificate by internal lot
+      const allCertificates = await storage.getEntryCertificatesByTenant(user.tenantId);
+      const entryCertificate = allCertificates.find(c => c.internalLot === internalLot);
+      
+      if (!entryCertificate) {
+        console.log(`Lote interno não encontrado: ${internalLot}`);
+        return res.status(404).json({ message: "Internal lot not found" });
+      }
+      
+      // Get all issued certificates for this entry certificate
+      const issuedCertificates = await storage.getIssuedCertificatesByEntryCertificate(
+        entryCertificate.id,
+        user.tenantId
+      );
+      
+      // Get related entities
+      const [product, supplier, manufacturer] = await Promise.all([
+        storage.getProduct(entryCertificate.productId, user.tenantId),
+        storage.getSupplier(entryCertificate.supplierId, user.tenantId),
+        storage.getManufacturer(entryCertificate.manufacturerId, user.tenantId)
+      ]);
+      
+      // Get client info for issued certificates
+      const enhancedIssuedCertificates = await Promise.all(issuedCertificates.map(async cert => {
+        const client = await storage.getClient(cert.clientId, user.tenantId);
+        return {
+          ...cert,
+          clientName: client?.name
+        };
+      }));
+      
+      // Calculate remaining quantity
+      const receivedQuantity = Number(entryCertificate.receivedQuantity);
+      const soldQuantity = enhancedIssuedCertificates.reduce(
+        (sum, cert) => sum + Number(cert.soldQuantity), 
+        0
+      );
+      const remainingQuantity = receivedQuantity - soldQuantity;
+      
+      res.json({
+        entryCertificate: {
+          ...entryCertificate,
+          productName: product?.technicalName,
+          supplierName: supplier?.name,
+          manufacturerName: manufacturer?.name
+        },
+        issuedCertificates: enhancedIssuedCertificates,
+        summary: {
+          receivedQuantity,
+          soldQuantity,
+          remainingQuantity,
+          measureUnit: entryCertificate.measureUnit
+        }
+      });
+    } catch (error) {
+      next(error);
+    }
+  });
+  
+  // 4. Busca avançada com filtros
+  app.get("/api/traceability/search", isAuthenticated, async (req, res, next) => {
     try {
       const user = req.user!;
       const { 
