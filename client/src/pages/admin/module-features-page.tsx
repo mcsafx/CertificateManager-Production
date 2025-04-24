@@ -418,7 +418,7 @@ export default function ModuleFeaturesPage() {
                     Nova Funcionalidade
                   </Button>
                 </DialogTrigger>
-                <DialogContent>
+                <DialogContent className="max-w-4xl w-full">
                   <DialogHeader>
                     <DialogTitle>Criar Nova Funcionalidade</DialogTitle>
                     <DialogDescription>
@@ -428,143 +428,147 @@ export default function ModuleFeaturesPage() {
                   
                   <Form {...form}>
                     <form onSubmit={form.handleSubmit(onCreateSubmit)} className="space-y-4">
-                      <FormField
-                        control={form.control}
-                        name="moduleId"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Módulo</FormLabel>
-                            <Select 
-                              onValueChange={(value) => field.onChange(parseInt(value))}
-                              defaultValue={field.value.toString()}
-                            >
-                              <FormControl>
-                                <SelectTrigger>
-                                  <SelectValue placeholder="Selecione um módulo" />
-                                </SelectTrigger>
-                              </FormControl>
-                              <SelectContent>
-                                {modules.map((module) => (
-                                  <SelectItem key={module.id} value={module.id.toString()}>
-                                    {module.name}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                      
-                      {/* Seletor de modo único ou múltiplo */}
-                      <div className="flex items-center justify-between mb-4">
-                        <div className="flex items-center gap-2">
-                          <Switch
-                            checked={isMultiSelectMode}
-                            onCheckedChange={setIsMultiSelectMode}
-                            id="multi-select-mode"
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <FormField
+                            control={form.control}
+                            name="moduleId"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Módulo</FormLabel>
+                                <Select 
+                                  onValueChange={(value) => field.onChange(parseInt(value))}
+                                  defaultValue={field.value.toString()}
+                                >
+                                  <FormControl>
+                                    <SelectTrigger>
+                                      <SelectValue placeholder="Selecione um módulo" />
+                                    </SelectTrigger>
+                                  </FormControl>
+                                  <SelectContent>
+                                    {modules.map((module) => (
+                                      <SelectItem key={module.id} value={module.id.toString()}>
+                                        {module.name}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                                <FormMessage />
+                              </FormItem>
+                            )}
                           />
-                          <Label htmlFor="multi-select-mode" className="cursor-pointer">
-                            Seleção múltipla de funcionalidades
-                          </Label>
+                          
+                          {/* Seletor de modo único ou múltiplo */}
+                          <div className="flex items-center justify-between my-4">
+                            <div className="flex items-center gap-2">
+                              <Switch
+                                checked={isMultiSelectMode}
+                                onCheckedChange={setIsMultiSelectMode}
+                                id="multi-select-mode"
+                              />
+                              <Label htmlFor="multi-select-mode" className="cursor-pointer">
+                                Seleção múltipla
+                              </Label>
+                            </div>
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Info className="h-4 w-4 text-muted-foreground" />
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  <p>Ative para selecionar várias funcionalidades de uma vez.</p>
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                          </div>
+                          
+                          <FormField
+                            control={form.control}
+                            name="description"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Descrição</FormLabel>
+                                <FormControl>
+                                  <Textarea 
+                                    placeholder="Descreva a funcionalidade..." 
+                                    {...field} 
+                                    className="h-[120px]"
+                                  />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
                         </div>
-                        <TooltipProvider>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <Info className="h-4 w-4 text-muted-foreground" />
-                            </TooltipTrigger>
-                            <TooltipContent>
-                              <p>Ative para selecionar várias funcionalidades de uma vez.</p>
-                              <p>Desative para adicionar uma única funcionalidade.</p>
-                            </TooltipContent>
-                          </Tooltip>
-                        </TooltipProvider>
+                        
+                        <div>
+                          {isMultiSelectMode ? (
+                            // Modo de seleção múltipla
+                            <FormField
+                              control={form.control}
+                              name="featureIds"
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>
+                                    <div className="flex items-center gap-2">
+                                      <span>Funcionalidades</span>
+                                      <Badge variant="outline">{field.value?.length || 0} selecionada(s)</Badge>
+                                    </div>
+                                  </FormLabel>
+                                  <FormControl>
+                                    <MultiCheckboxFeatureSelect
+                                      values={field.value || []}
+                                      onValuesChange={field.onChange}
+                                      moduleId={form.watch("moduleId") || undefined}
+                                    />
+                                  </FormControl>
+                                  <FormDescription>
+                                    Selecione as funcionalidades que deseja adicionar ao módulo.
+                                  </FormDescription>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                          ) : (
+                            // Modo de seleção única
+                            <FormField
+                              control={form.control}
+                              name="featureId"
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>
+                                    <div className="flex items-center gap-2">
+                                      <span>Funcionalidade</span>
+                                      <TooltipProvider>
+                                        <Tooltip>
+                                          <TooltipTrigger asChild>
+                                            <Info className="h-4 w-4 text-muted-foreground" />
+                                          </TooltipTrigger>
+                                          <TooltipContent>
+                                            <p>Selecione a funcionalidade para adicionar ao módulo.</p>
+                                          </TooltipContent>
+                                        </Tooltip>
+                                      </TooltipProvider>
+                                    </div>
+                                  </FormLabel>
+                                  <FormControl>
+                                    <CheckboxFeatureSelect 
+                                      value={field.value}
+                                      onValueChange={field.onChange}
+                                    />
+                                  </FormControl>
+                                  <FormDescription>
+                                    Selecione a funcionalidade que deseja adicionar.
+                                  </FormDescription>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                          )}
+                        </div>
                       </div>
                       
-                      {isMultiSelectMode ? (
-                        // Modo de seleção múltipla
-                        <FormField
-                          control={form.control}
-                          name="featureIds"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>
-                                <div className="flex items-center gap-2">
-                                  <span>Funcionalidades</span>
-                                  <Badge variant="outline">{field.value?.length || 0} selecionada(s)</Badge>
-                                </div>
-                              </FormLabel>
-                              <FormControl>
-                                <MultiCheckboxFeatureSelect
-                                  values={field.value || []}
-                                  onValuesChange={field.onChange}
-                                  moduleId={form.watch("moduleId") || undefined}
-                                />
-                              </FormControl>
-                              <FormDescription>
-                                Selecione as funcionalidades que deseja adicionar ao módulo.
-                                Você pode selecionar várias de uma vez.
-                              </FormDescription>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                      ) : (
-                        // Modo de seleção única
-                        <FormField
-                          control={form.control}
-                          name="featureId"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>
-                                <div className="flex items-center gap-2">
-                                  <span>Funcionalidade</span>
-                                  <TooltipProvider>
-                                    <Tooltip>
-                                      <TooltipTrigger asChild>
-                                        <Info className="h-4 w-4 text-muted-foreground" />
-                                      </TooltipTrigger>
-                                      <TooltipContent>
-                                        <p>Selecione a funcionalidade que deseja adicionar ao módulo.</p>
-                                        <p>O caminho será definido automaticamente.</p>
-                                      </TooltipContent>
-                                    </Tooltip>
-                                  </TooltipProvider>
-                                </div>
-                              </FormLabel>
-                              <FormControl>
-                                <CheckboxFeatureSelect 
-                                  value={field.value}
-                                  onValueChange={field.onChange}
-                                />
-                              </FormControl>
-                              <FormDescription>
-                                Selecione a funcionalidade que deseja adicionar ao módulo.
-                              </FormDescription>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                      )}
-                      
-                      <FormField
-                        control={form.control}
-                        name="description"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Descrição</FormLabel>
-                            <FormControl>
-                              <Textarea 
-                                placeholder="Descreva a funcionalidade..." 
-                                {...field} 
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                      
-                      <DialogFooter>
+                      <DialogFooter className="mt-6">
                         <Button 
                           type="button" 
                           variant="outline" 
@@ -627,7 +631,7 @@ export default function ModuleFeaturesPage() {
       
       {/* Diálogo de Edição */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent>
+        <DialogContent className="max-w-4xl w-full">
           <DialogHeader>
             <DialogTitle>Editar Funcionalidade</DialogTitle>
             <DialogDescription>
@@ -637,85 +641,90 @@ export default function ModuleFeaturesPage() {
           
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onEditSubmit)} className="space-y-4">
-              <FormField
-                control={form.control}
-                name="moduleId"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Módulo</FormLabel>
-                    <Select 
-                      onValueChange={(value) => field.onChange(parseInt(value))}
-                      defaultValue={field.value.toString()}
-                      value={field.value.toString()}
-                    >
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Selecione um módulo" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {modules.map((module) => (
-                          <SelectItem key={module.id} value={module.id.toString()}>
-                            {module.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <FormField
+                    control={form.control}
+                    name="moduleId"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Módulo</FormLabel>
+                        <Select 
+                          onValueChange={(value) => field.onChange(parseInt(value))}
+                          defaultValue={field.value.toString()}
+                          value={field.value.toString()}
+                        >
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Selecione um módulo" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {modules.map((module) => (
+                              <SelectItem key={module.id} value={module.id.toString()}>
+                                {module.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  
+                  <FormField
+                    control={form.control}
+                    name="description"
+                    render={({ field }) => (
+                      <FormItem className="mt-4">
+                        <FormLabel>Descrição</FormLabel>
+                        <FormControl>
+                          <Textarea {...field} className="h-[120px]" />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+                
+                <div>
+                  <FormField
+                    control={form.control}
+                    name="featureId"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>
+                          <div className="flex items-center gap-2">
+                            <span>Funcionalidade</span>
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Info className="h-4 w-4 text-muted-foreground" />
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  <p>Selecione a funcionalidade para adicionar ao módulo.</p>
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                          </div>
+                        </FormLabel>
+                        <FormControl>
+                          <CheckboxFeatureSelect 
+                            value={field.value}
+                            onValueChange={field.onChange}
+                          />
+                        </FormControl>
+                        <FormDescription>
+                          Selecione a funcionalidade que deseja adicionar.
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+              </div>
               
-              <FormField
-                control={form.control}
-                name="featureId"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>
-                      <div className="flex items-center gap-2">
-                        <span>Funcionalidade</span>
-                        <TooltipProvider>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <Info className="h-4 w-4 text-muted-foreground" />
-                            </TooltipTrigger>
-                            <TooltipContent>
-                              <p>Selecione a funcionalidade que deseja adicionar ao módulo.</p>
-                              <p>O caminho será definido automaticamente.</p>
-                            </TooltipContent>
-                          </Tooltip>
-                        </TooltipProvider>
-                      </div>
-                    </FormLabel>
-                    <FormControl>
-                      <CheckboxFeatureSelect 
-                        value={field.value}
-                        onValueChange={field.onChange}
-                      />
-                    </FormControl>
-                    <FormDescription>
-                      Selecione a funcionalidade que deseja adicionar ao módulo.
-                    </FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              
-              <FormField
-                control={form.control}
-                name="description"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Descrição</FormLabel>
-                    <FormControl>
-                      <Textarea {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              
-              <DialogFooter>
+              <DialogFooter className="mt-6">
                 <Button 
                   type="button" 
                   variant="outline" 
@@ -742,7 +751,7 @@ export default function ModuleFeaturesPage() {
       
       {/* Diálogo de Exclusão */}
       <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
-        <DialogContent>
+        <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>Confirmar Exclusão</DialogTitle>
             <DialogDescription>
@@ -752,7 +761,7 @@ export default function ModuleFeaturesPage() {
             </DialogDescription>
           </DialogHeader>
           
-          <DialogFooter>
+          <DialogFooter className="mt-6">
             <Button 
               type="button" 
               variant="outline" 
