@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Layout } from "@/components/layout/layout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -20,8 +20,15 @@ import {
   Calendar,
   Scale,
   FileText,
-  Users
+  Users,
+  Filter,
+  X,
+  ChevronDown
 } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
 
 type TraceabilityResult = {
   entryCertificate: {
@@ -57,6 +64,32 @@ type TraceabilityResult = {
   };
 };
 
+// Interfaces para os dados de filtro
+interface Product {
+  id: number;
+  name: string;
+}
+
+interface Supplier {
+  id: number;
+  name: string;
+}
+
+interface Manufacturer {
+  id: number;
+  name: string;
+}
+
+interface FilterOptions {
+  internalLot?: string;
+  supplierLot?: string;
+  productId?: number;
+  supplierId?: number;
+  manufacturerId?: number;
+  startDate?: string;
+  endDate?: string;
+}
+
 export default function TraceabilityPage() {
   const { toast } = useToast();
   const [internalLot, setInternalLot] = useState("");
@@ -64,13 +97,102 @@ export default function TraceabilityPage() {
   const [traceabilityResult, setTraceabilityResult] = useState<TraceabilityResult | null>(null);
   const [hasSearched, setHasSearched] = useState(false);
   
+  // Estados para os dados dos filtros
+  const [products, setProducts] = useState<Product[]>([]);
+  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
+  const [manufacturers, setManufacturers] = useState<Manufacturer[]>([]);
+  const [isLoadingOptions, setIsLoadingOptions] = useState(false);
+  
+  // Estado para os filtros aplicados
+  const [filters, setFilters] = useState<FilterOptions>({});
+  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
+  const [activeFiltersCount, setActiveFiltersCount] = useState(0);
+  
+  // Carregar opções de filtro ao montar o componente
+  useEffect(() => {
+    const loadFilterOptions = async () => {
+      setIsLoadingOptions(true);
+      try {
+        // Carregar produtos
+        const productsResponse = await apiRequest("GET", "/api/products", undefined);
+        const productsData = await productsResponse.json();
+        setProducts(productsData);
+        
+        // Carregar fornecedores
+        const suppliersResponse = await apiRequest("GET", "/api/suppliers", undefined);
+        const suppliersData = await suppliersResponse.json();
+        setSuppliers(suppliersData);
+        
+        // Carregar fabricantes
+        const manufacturersResponse = await apiRequest("GET", "/api/manufacturers", undefined);
+        const manufacturersData = await manufacturersResponse.json();
+        setManufacturers(manufacturersData);
+      } catch (error) {
+        console.error("Erro ao carregar opções de filtro:", error);
+      } finally {
+        setIsLoadingOptions(false);
+      }
+    };
+    
+    loadFilterOptions();
+  }, []);
+  
+  // Atualizar contagem de filtros ativos quando os filtros mudam
+  useEffect(() => {
+    const count = Object.values(filters).filter(value => 
+      value !== undefined && value !== "" && value !== null
+    ).length;
+    setActiveFiltersCount(count);
+  }, [filters]);
+  
+  // Função para atualizar um filtro específico
+  const updateFilter = (key: keyof FilterOptions, value: any) => {
+    setFilters(prev => ({
+      ...prev,
+      [key]: value === "" ? undefined : value
+    }));
+  };
+  
+  // Função para limpar todos os filtros
+  const clearFilters = () => {
+    setFilters({});
+    setInternalLot("");
+  };
+
+  // Função para construir a URL de busca com os filtros
+  const buildSearchUrl = () => {
+    // Se estamos usando apenas o filtro simples de lote interno
+    if (!showAdvancedFilters && internalLot.trim()) {
+      return `/api/traceability/${internalLot.trim()}`;
+    }
+    
+    // Construir os parâmetros de consulta para filtros avançados
+    const queryParams = new URLSearchParams();
+    
+    if (filters.internalLot) queryParams.append('internalLot', filters.internalLot);
+    if (filters.supplierLot) queryParams.append('supplierLot', filters.supplierLot);
+    if (filters.productId) queryParams.append('productId', filters.productId.toString());
+    if (filters.supplierId) queryParams.append('supplierId', filters.supplierId.toString());
+    if (filters.manufacturerId) queryParams.append('manufacturerId', filters.manufacturerId.toString());
+    if (filters.startDate) queryParams.append('startDate', filters.startDate);
+    if (filters.endDate) queryParams.append('endDate', filters.endDate);
+    
+    return `/api/traceability/search?${queryParams.toString()}`;
+  };
+  
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!internalLot.trim()) {
+    // Validar se pelo menos um filtro foi preenchido
+    const hasSimpleFilter = !showAdvancedFilters && internalLot.trim();
+    const hasAdvancedFilter = showAdvancedFilters && Object.values(filters).some(val => 
+      val !== undefined && val !== '' && val !== null
+    );
+    
+    if (!hasSimpleFilter && !hasAdvancedFilter) {
       toast({
-        title: "Campo vazio",
-        description: "Por favor, informe o lote interno para consultar.",
+        title: "Filtros vazios",
+        description: "Por favor, informe pelo menos um filtro para realizar a consulta.",
         variant: "destructive",
       });
       return;
@@ -80,13 +202,36 @@ export default function TraceabilityPage() {
     setHasSearched(true);
     
     try {
-      const response = await apiRequest("GET", `/api/traceability/${internalLot.trim()}`, undefined);
+      const searchUrl = buildSearchUrl();
+      const response = await apiRequest("GET", searchUrl, undefined);
       const data = await response.json();
-      setTraceabilityResult(data);
+      
+      if (Array.isArray(data) && data.length === 0) {
+        toast({
+          title: "Nenhum resultado",
+          description: "Não foram encontrados lotes com os filtros informados.",
+          variant: "default",
+        });
+        setTraceabilityResult(null);
+      } else if (Array.isArray(data) && data.length > 0) {
+        // Se retornou uma lista, exibir apenas o primeiro resultado
+        // ou implementar uma interface para selecionar qual exibir
+        setTraceabilityResult(data[0]);
+        
+        if (data.length > 1) {
+          toast({
+            title: "Múltiplos resultados",
+            description: `Foram encontrados ${data.length} lotes. Exibindo o primeiro resultado.`,
+            variant: "default",
+          });
+        }
+      } else {
+        setTraceabilityResult(data);
+      }
     } catch (error: any) {
       toast({
         title: "Erro na consulta",
-        description: error.message || "Não foi possível encontrar o lote informado.",
+        description: error.message || "Não foi possível encontrar lotes com os filtros informados.",
         variant: "destructive",
       });
       setTraceabilityResult(null);
@@ -103,33 +248,298 @@ export default function TraceabilityPage() {
         </div>
         
         <Card className="mb-6">
-          <CardHeader>
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle>Consultar Lote</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleSearch} className="flex space-x-2">
-              <div className="relative flex-1">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-                <Input 
-                  placeholder="Digite o número do lote interno..." 
-                  className="pl-10"
-                  value={internalLot}
-                  onChange={(e) => setInternalLot(e.target.value)}
-                />
-              </div>
-              <Button type="submit" disabled={isLoading}>
-                {isLoading ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Consultando...
-                  </>
-                ) : (
-                  <>
-                    <ClipboardList className="mr-2 h-4 w-4" />
-                    Consultar
-                  </>
+            <div className="flex items-center gap-2">
+              <Button 
+                variant={showAdvancedFilters ? "default" : "outline"} 
+                size="sm" 
+                className="h-8"
+                onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
+              >
+                <Filter className="h-4 w-4 mr-1" />
+                {showAdvancedFilters ? "Ocultar Filtros" : "Filtros Avançados"}
+                {activeFiltersCount > 0 && !showAdvancedFilters && (
+                  <Badge variant="secondary" className="ml-1 px-1.5">
+                    {activeFiltersCount}
+                  </Badge>
                 )}
               </Button>
+              
+              {activeFiltersCount > 0 && (
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  className="h-8 text-gray-500"
+                  onClick={clearFilters}
+                >
+                  <X className="h-4 w-4 mr-1" />
+                  Limpar
+                </Button>
+              )}
+            </div>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={handleSearch}>
+              {!showAdvancedFilters ? (
+                // Filtro simples por lote interno
+                <div className="flex space-x-2">
+                  <div className="relative flex-1">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                    <Input 
+                      placeholder="Digite o número do lote interno..." 
+                      className="pl-10"
+                      value={internalLot}
+                      onChange={(e) => setInternalLot(e.target.value)}
+                    />
+                  </div>
+                  <Button type="submit" disabled={isLoading}>
+                    {isLoading ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Consultando...
+                      </>
+                    ) : (
+                      <>
+                        <ClipboardList className="mr-2 h-4 w-4" />
+                        Consultar
+                      </>
+                    )}
+                  </Button>
+                </div>
+              ) : (
+                // Filtros avançados
+                <div className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {/* Lote Interno */}
+                    <div className="space-y-2">
+                      <Label htmlFor="internalLot">Lote Interno</Label>
+                      <Input
+                        id="internalLot"
+                        placeholder="Ex: WA2025"
+                        value={filters.internalLot || ""}
+                        onChange={(e) => updateFilter("internalLot", e.target.value)}
+                      />
+                    </div>
+                    
+                    {/* Lote do Fornecedor */}
+                    <div className="space-y-2">
+                      <Label htmlFor="supplierLot">Lote do Fornecedor</Label>
+                      <Input
+                        id="supplierLot"
+                        placeholder="Ex: AG2025"
+                        value={filters.supplierLot || ""}
+                        onChange={(e) => updateFilter("supplierLot", e.target.value)}
+                      />
+                    </div>
+                    
+                    {/* Produto */}
+                    <div className="space-y-2">
+                      <Label htmlFor="productId">Produto</Label>
+                      <Select
+                        value={filters.productId?.toString() || ""}
+                        onValueChange={(value) => updateFilter("productId", value ? Number(value) : undefined)}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Selecione um produto" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {products.map((product) => (
+                            <SelectItem key={product.id} value={product.id.toString()}>
+                              {product.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    
+                    {/* Fornecedor */}
+                    <div className="space-y-2">
+                      <Label htmlFor="supplierId">Fornecedor</Label>
+                      <Select
+                        value={filters.supplierId?.toString() || ""}
+                        onValueChange={(value) => updateFilter("supplierId", value ? Number(value) : undefined)}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Selecione um fornecedor" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {suppliers.map((supplier) => (
+                            <SelectItem key={supplier.id} value={supplier.id.toString()}>
+                              {supplier.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    
+                    {/* Fabricante */}
+                    <div className="space-y-2">
+                      <Label htmlFor="manufacturerId">Fabricante</Label>
+                      <Select
+                        value={filters.manufacturerId?.toString() || ""}
+                        onValueChange={(value) => updateFilter("manufacturerId", value ? Number(value) : undefined)}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Selecione um fabricante" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {manufacturers.map((manufacturer) => (
+                            <SelectItem key={manufacturer.id} value={manufacturer.id.toString()}>
+                              {manufacturer.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    
+                    {/* Data inicial */}
+                    <div className="space-y-2">
+                      <Label htmlFor="startDate">Data Inicial</Label>
+                      <Input
+                        id="startDate"
+                        type="date"
+                        value={filters.startDate || ""}
+                        onChange={(e) => updateFilter("startDate", e.target.value)}
+                      />
+                    </div>
+                    
+                    {/* Data final */}
+                    <div className="space-y-2">
+                      <Label htmlFor="endDate">Data Final</Label>
+                      <Input
+                        id="endDate"
+                        type="date"
+                        value={filters.endDate || ""}
+                        onChange={(e) => updateFilter("endDate", e.target.value)}
+                      />
+                    </div>
+                  </div>
+                  
+                  <div className="flex justify-end space-x-2 mt-4">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={clearFilters}
+                    >
+                      Limpar Filtros
+                    </Button>
+                    <Button 
+                      type="submit" 
+                      disabled={isLoading}
+                    >
+                      {isLoading ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Consultando...
+                        </>
+                      ) : (
+                        <>
+                          <Search className="mr-2 h-4 w-4" />
+                          Buscar
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                </div>
+              )}
+              
+              {/* Lista de filtros ativos, visível apenas quando temos filtros e o painel avançado não está aberto */}
+              {activeFiltersCount > 0 && !showAdvancedFilters && (
+                <div className="flex flex-wrap gap-2 mt-3">
+                  {filters.internalLot && (
+                    <Badge variant="secondary" className="pl-2 pr-1 py-1 flex items-center">
+                      Lote Interno: {filters.internalLot}
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        className="h-4 w-4 p-0 ml-1"
+                        onClick={() => updateFilter("internalLot", undefined)}
+                      >
+                        <X className="h-3 w-3" />
+                      </Button>
+                    </Badge>
+                  )}
+                  {filters.supplierLot && (
+                    <Badge variant="secondary" className="pl-2 pr-1 py-1 flex items-center">
+                      Lote Fornecedor: {filters.supplierLot}
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        className="h-4 w-4 p-0 ml-1"
+                        onClick={() => updateFilter("supplierLot", undefined)}
+                      >
+                        <X className="h-3 w-3" />
+                      </Button>
+                    </Badge>
+                  )}
+                  {filters.productId && (
+                    <Badge variant="secondary" className="pl-2 pr-1 py-1 flex items-center">
+                      Produto: {products.find(p => p.id === filters.productId)?.name}
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        className="h-4 w-4 p-0 ml-1"
+                        onClick={() => updateFilter("productId", undefined)}
+                      >
+                        <X className="h-3 w-3" />
+                      </Button>
+                    </Badge>
+                  )}
+                  {filters.supplierId && (
+                    <Badge variant="secondary" className="pl-2 pr-1 py-1 flex items-center">
+                      Fornecedor: {suppliers.find(s => s.id === filters.supplierId)?.name}
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        className="h-4 w-4 p-0 ml-1"
+                        onClick={() => updateFilter("supplierId", undefined)}
+                      >
+                        <X className="h-3 w-3" />
+                      </Button>
+                    </Badge>
+                  )}
+                  {filters.manufacturerId && (
+                    <Badge variant="secondary" className="pl-2 pr-1 py-1 flex items-center">
+                      Fabricante: {manufacturers.find(m => m.id === filters.manufacturerId)?.name}
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        className="h-4 w-4 p-0 ml-1"
+                        onClick={() => updateFilter("manufacturerId", undefined)}
+                      >
+                        <X className="h-3 w-3" />
+                      </Button>
+                    </Badge>
+                  )}
+                  {filters.startDate && (
+                    <Badge variant="secondary" className="pl-2 pr-1 py-1 flex items-center">
+                      De: {filters.startDate}
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        className="h-4 w-4 p-0 ml-1"
+                        onClick={() => updateFilter("startDate", undefined)}
+                      >
+                        <X className="h-3 w-3" />
+                      </Button>
+                    </Badge>
+                  )}
+                  {filters.endDate && (
+                    <Badge variant="secondary" className="pl-2 pr-1 py-1 flex items-center">
+                      Até: {filters.endDate}
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        className="h-4 w-4 p-0 ml-1"
+                        onClick={() => updateFilter("endDate", undefined)}
+                      >
+                        <X className="h-3 w-3" />
+                      </Button>
+                    </Badge>
+                  )}
+                </div>
+              )}
             </form>
           </CardContent>
         </Card>
