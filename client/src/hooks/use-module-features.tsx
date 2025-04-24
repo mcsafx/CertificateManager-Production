@@ -29,9 +29,9 @@ export function useModuleFeatures() {
     isLoading: isLoadingFeatures,
     error: featuresError,
   } = useQuery<ModuleFeature[]>({
-    queryKey: ["/api/module-features"],
+    queryKey: ["/api/admin/module-features"],
     queryFn: async () => {
-      const response = await fetch("/api/module-features");
+      const response = await fetch("/api/admin/module-features");
       if (!response.ok) {
         throw new Error("Erro ao carregar funcionalidades");
       }
@@ -62,7 +62,7 @@ export function useModuleFeatures() {
         title: "Sucesso!",
         description: "Funcionalidade criada com sucesso.",
       });
-      queryClient.invalidateQueries({ queryKey: ["/api/module-features"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/module-features"] });
       return true;
     },
     onError: (error: Error) => {
@@ -98,7 +98,7 @@ export function useModuleFeatures() {
         title: "Sucesso!",
         description: "Funcionalidade atualizada com sucesso.",
       });
-      queryClient.invalidateQueries({ queryKey: ["/api/module-features"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/module-features"] });
       return true;
     },
     onError: (error: Error) => {
@@ -114,7 +114,7 @@ export function useModuleFeatures() {
   // Mutation para excluir uma funcionalidade
   const deleteFeatureMutation = useMutation({
     mutationFn: async (id: number) => {
-      const response = await fetch(`/api/module-features/${id}`, {
+      const response = await fetch(`/api/admin/module-features/${id}`, {
         method: "DELETE",
       });
       
@@ -130,7 +130,7 @@ export function useModuleFeatures() {
         title: "Sucesso!",
         description: "Funcionalidade excluída com sucesso.",
       });
-      queryClient.invalidateQueries({ queryKey: ["/api/module-features"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/module-features"] });
       return true;
     },
     onError: (error: Error) => {
