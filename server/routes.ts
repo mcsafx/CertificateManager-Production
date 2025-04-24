@@ -2122,7 +2122,18 @@ Em um ambiente de produção, este seria o conteúdo real do arquivo.`);
     try {
       const user = req.user!;
       // Decodificar o parâmetro da URL para tratar caracteres especiais como "/"
-      const supplierLot = decodeURIComponent(req.params.supplierLot);
+      let supplierLot = "";
+      try {
+        // Primeiro tentamos decodificar normalmente
+        supplierLot = decodeURIComponent(req.params.supplierLot);
+        // Caso ainda esteja com %2F no lugar de /
+        if (supplierLot.includes('%2F')) {
+          supplierLot = supplierLot.replace(/%2F/g, '/');
+        }
+        console.log("Lote de fornecedor decodificado para busca direta:", supplierLot);
+      } catch (e) {
+        supplierLot = req.params.supplierLot;
+      }
       
       console.log(`Buscando por lote do fornecedor: ${supplierLot}`);
       
@@ -2197,7 +2208,18 @@ Em um ambiente de produção, este seria o conteúdo real do arquivo.`);
     try {
       const user = req.user!;
       // Decodificar o parâmetro da URL para tratar caracteres especiais como "/"
-      const internalLot = decodeURIComponent(req.params.internalLot);
+      let internalLot = "";
+      try {
+        // Primeiro tentamos decodificar normalmente
+        internalLot = decodeURIComponent(req.params.internalLot);
+        // Caso ainda esteja com %2F no lugar de /
+        if (internalLot.includes('%2F')) {
+          internalLot = internalLot.replace(/%2F/g, '/');
+        }
+        console.log("Lote interno decodificado para busca direta:", internalLot);
+      } catch (e) {
+        internalLot = req.params.internalLot;
+      }
       
       console.log(`Buscando por lote interno: ${internalLot}`);
       
@@ -2270,11 +2292,34 @@ Em um ambiente de produção, este seria o conteúdo real do arquivo.`);
       console.log("Busca avançada com filtros:", params);
       
       // Decodificar os parâmetros de texto que podem conter caracteres especiais
-      let decodedInternalLot = params.internalLot && typeof params.internalLot === 'string' 
-        ? decodeURIComponent(params.internalLot) : undefined;
+      // Certificar-se de decodificar corretamente, mesmo se já estiver parcialmente codificado
+      let decodedInternalLot: string | undefined = undefined;
+      if (params.internalLot && typeof params.internalLot === 'string') {
+        try {
+          decodedInternalLot = decodeURIComponent(params.internalLot);
+          // Caso ainda esteja com %2F no lugar de /
+          if (decodedInternalLot.includes('%2F')) {
+            decodedInternalLot = decodedInternalLot.replace(/%2F/g, '/');
+          }
+          console.log("Lote interno decodificado:", decodedInternalLot);
+        } catch (e) {
+          decodedInternalLot = params.internalLot;
+        }
+      }
       
-      let decodedSupplierLot = params.supplierLot && typeof params.supplierLot === 'string'
-        ? decodeURIComponent(params.supplierLot) : undefined;
+      let decodedSupplierLot: string | undefined = undefined;
+      if (params.supplierLot && typeof params.supplierLot === 'string') {
+        try {
+          decodedSupplierLot = decodeURIComponent(params.supplierLot);
+          // Caso ainda esteja com %2F no lugar de /
+          if (decodedSupplierLot.includes('%2F')) {
+            decodedSupplierLot = decodedSupplierLot.replace(/%2F/g, '/');
+          }
+          console.log("Lote do fornecedor decodificado:", decodedSupplierLot);
+        } catch (e) {
+          decodedSupplierLot = params.supplierLot;
+        }
+      }
       
       const productId = params.productId;
       const supplierId = params.supplierId;
