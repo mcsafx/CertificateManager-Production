@@ -163,14 +163,16 @@ export default function TraceabilityPage() {
   const buildSearchUrl = () => {
     // Se estamos usando apenas o filtro simples de lote do fornecedor
     if (!showAdvancedFilters && supplierLot.trim()) {
-      return `/api/traceability/supplier/${supplierLot.trim()}`;
+      // Codificar o lote do fornecedor para lidar com caracteres especiais como "/"
+      const encodedSupplierLot = encodeURIComponent(supplierLot.trim());
+      return `/api/traceability/supplier/${encodedSupplierLot}`;
     }
     
     // Construir os parâmetros de consulta para filtros avançados
     const queryParams = new URLSearchParams();
     
-    if (filters.internalLot) queryParams.append('internalLot', filters.internalLot);
-    if (filters.supplierLot) queryParams.append('supplierLot', filters.supplierLot);
+    if (filters.internalLot) queryParams.append('internalLot', encodeURIComponent(filters.internalLot));
+    if (filters.supplierLot) queryParams.append('supplierLot', encodeURIComponent(filters.supplierLot));
     if (filters.productId) queryParams.append('productId', filters.productId.toString());
     if (filters.supplierId) queryParams.append('supplierId', filters.supplierId.toString());
     if (filters.manufacturerId) queryParams.append('manufacturerId', filters.manufacturerId.toString());
