@@ -66,6 +66,7 @@ const userProfileSchema = z.object({
 const tenantProfileSchema = z.object({
   name: z.string().min(1, "Nome da empresa é obrigatório"),
   cnpj: z.string().min(14, "CNPJ deve ter pelo menos 14 dígitos"),
+  phone: z.string().optional(),
   address: z.string().min(1, "Endereço é obrigatório"),
 });
 
@@ -255,6 +256,7 @@ export default function SettingsPage() {
       tenantProfileForm.reset({
         name: tenant.name,
         cnpj: tenant.cnpj,
+        phone: tenant.phone || '',
         address: tenant.address,
       });
     }
