@@ -2952,6 +2952,39 @@ Em um ambiente de produção, este seria o conteúdo real do arquivo.`);
     }
   });
   
+  // Endpoint para obter as funcionalidades disponíveis para o usuário
+  app.get("/api/user/features", isAuthenticated, async (req, res) => {
+    const user = req.user!;
+    try {
+      // Para administradores do sistema, retorna todas as funcionalidades
+      if (user.role === "admin" || user.role === "system_admin") {
+        const allFeatures = await storage.getModuleFeatures();
+        return res.json(allFeatures);
+      }
+      
+      // Para outros usuários, retorna apenas as funcionalidades dos módulos do plano da tenant
+      const tenantModules = await storage.getTenantEnabledModules(user.tenantId);
+      
+      if (!tenantModules || tenantModules.length === 0) {
+        return res.json([]);
+      }
+      
+      const moduleIds = tenantModules.map(module => module.id);
+      
+      // Buscar todas as features associadas aos módulos do plano da tenant
+      const features = [];
+      for (const moduleId of moduleIds) {
+        const moduleFeatures = await storage.getModuleFeaturesByModule(moduleId);
+        features.push(...moduleFeatures);
+      }
+      
+      res.json(features);
+    } catch (error) {
+      console.error("Error fetching user features:", error);
+      res.status(500).json({ message: "Error fetching user features" });
+    }
+  });
+  
   // Rotas para gerenciamento de arquivos gerais (nova tabela 'files')
   
   // Listar arquivos do tenant (com filtro opcional por categoria)
