@@ -1,0 +1,40 @@
+Por favor, altere o layout do certificado gerado na visualização (https://630f2cf7-c367-4803-9035-198333bf3671-00-1ldc1bdmjntwr.riker.replit.dev/api/issued-certificates/view/), para que o certificado gerado seja inspirado na imagem em anexo:
+Aqui está um prompt ajustado para criar o design do certificado conforme suas especificações:
+
+---
+
+**Layout e Estrutura do Certificado:**
+
+1. **Cabeçalho**:
+   - **Canto Superior Esquerdo**: Logomarca da empresa emissora (mesma posição do exemplo anexado).
+   - **Canto Superior Direito**: Informações da empresa emissora (Ex.: Nome, endereço, telefone).
+
+2. **Divisão Principal**:
+   - **Seção 1: Dados do Cliente**:
+     - Nome do cliente.
+     - Endereço do cliente.
+     - Telefone do cliente.
+
+   - **Seção 2: Informações do Produto**:
+     - Nome do produto.
+     - Número da nota fiscal.
+     - Data de emissão da nota fiscal.
+     - Quantidade vendida.
+     - Lote interno (identificado como "Lote do Produto").
+     - Data de fabricação.
+     - Data de validade.
+     - Nome do fabricante.
+     - País de origem.
+
+   - **Seção 3: Características e/ou Especificações**:
+     - Tabela contendo as colunas: **Características**, **Unidades**, **Especificação** e **Valor**.
+     - Dados devem ser preenchidos conforme exemplo, com características como índice hidroxílico, conteúdo enxertado, viscosidade, e água.
+
+3. **Rodapé**:
+   - Mensagem padrão:
+     - "Os dados informados neste Certificado são resultados obtidos em nosso laboratório, seguindo rigorosamente nossos padrões. Estas recomendações são dadas de boa fé, sendo que, se o armazenamento, transporte, e/ou manuseio não forem adequados às nossas recomendações, não nos responsabilizamos por eventual garantia."
+
+**Estilo Visual**:
+- Certificado com estilo corporativo e profissional.
+- Cores neutras como branco, cinza e preto para texto, com pequenos detalhes em vermelho vinho (baseado no design anexado).
+- Divisões e tabelas bem demarcadas para leitura clara.
