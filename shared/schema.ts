@@ -56,6 +56,7 @@ export const tenants = pgTable("tenants", {
   name: text("name").notNull(),
   cnpj: text("cnpj").notNull().unique(),
   address: text("address").notNull(),
+  phone: text("phone"),
   logoUrl: text("logo_url"),
   active: boolean("active").notNull().default(true),
   // Campos relacionados aos planos de assinatura
@@ -293,6 +294,7 @@ export const insertTenantSchema = createInsertSchema(tenants).pick({
   name: true,
   cnpj: true,
   address: true,
+  phone: true,
   logoUrl: true,
   active: true,
   planId: true,
