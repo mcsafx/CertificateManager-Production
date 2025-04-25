@@ -50,7 +50,7 @@ export default function TenantsPage() {
   });
 
   // Buscar lista de tenants
-  const { data: tenants, isLoading } = useQuery({
+  const tenantsQuery = useQuery({
     queryKey: ['/api/admin/tenants'],
     queryFn: async () => {
       const response = await apiRequest('GET', '/api/admin/tenants');
@@ -60,6 +60,8 @@ export default function TenantsPage() {
       return response.json();
     }
   });
+  
+  const { data: tenants, isLoading } = tenantsQuery;
 
   // Schema para validação do formulário
   const tenantSchema = z.object({
@@ -151,22 +153,38 @@ export default function TenantsPage() {
     mutationFn: async (id: number) => {
       const response = await apiRequest('DELETE', `/api/admin/tenants/${id}`);
       if (!response.ok) {
-        throw new Error('Erro ao excluir tenant');
+        const errorText = await response.text().catch(() => "Erro desconhecido");
+        throw new Error(errorText || 'Erro ao excluir tenant');
       }
-      return response.json();
+      // Para respostas 204 No Content, não tentamos fazer response.json()
+      if (response.status === 204) {
+        return { success: true };
+      }
+      
+      // Outras respostas de sucesso
+      try {
+        return await response.json();
+      } catch (e) {
+        return { success: true };
+      }
     },
     onSuccess: () => {
+      // Importante: invalidar a consulta para atualizar a lista
       queryClient.invalidateQueries({ queryKey: ['/api/admin/tenants'] });
       setOpenDeleteDialog(false);
       toast({
         title: "Tenant excluído",
         description: "O tenant foi excluído com sucesso",
       });
+      
+      // Forçar uma recarga da lista de tenants
+      tenantsQuery.refetch();
     },
-    onError: (error) => {
+    onError: (error: any) => {
+      console.error("Erro na exclusão do tenant:", error);
       toast({
         title: "Erro ao excluir tenant",
-        description: error.message,
+        description: error.message || "Não foi possível excluir o tenant",
         variant: "destructive",
       });
     }
