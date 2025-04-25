@@ -602,6 +602,411 @@ Em um ambiente de produção, este seria o conteúdo real do arquivo.`);
     }
   });
   
+  // Endpoint para visualização de certificados emitidos em HTML
+  app.get("/api/issued-certificates/view/:id", isAuthenticated, async (req, res, next) => {
+    try {
+      const user = req.user!;
+      const certificateId = Number(req.params.id);
+      
+      // Obter o certificado
+      const certificate = await storage.getIssuedCertificate(certificateId, user.tenantId);
+      
+      if (!certificate) {
+        return res.status(404).json({ message: "Certificado não encontrado" });
+      }
+      
+      // Obter o certificado de entrada relacionado
+      const entryCertificate = await storage.getEntryCertificate(certificate.entryCertificateId, user.tenantId);
+      
+      if (!entryCertificate) {
+        return res.status(404).json({ message: "Certificado de entrada não encontrado" });
+      }
+      
+      // Buscar dados relacionados
+      const [supplier, manufacturer, product, client, results, tenant] = await Promise.all([
+        storage.getSupplier(entryCertificate.supplierId, user.tenantId),
+        storage.getManufacturer(entryCertificate.manufacturerId, user.tenantId),
+        storage.getProduct(entryCertificate.productId, user.tenantId),
+        storage.getClient(certificate.clientId, user.tenantId),
+        storage.getResultsByEntryCertificate(entryCertificate.id, user.tenantId),
+        storage.getTenant(user.tenantId)
+      ]);
+      
+      // Formatar datas
+      const formatDate = (date: Date) => {
+        if (!date) return 'N/A';
+        return new Date(date).toLocaleDateString('pt-BR');
+      };
+      
+      // Cálculo do período de validade
+      const calcValidityPeriod = (mfgDate: string | null, expDate: string | null): string => {
+        if (!mfgDate || !expDate) return 'N/A';
+        
+        try {
+          const mfg = new Date(mfgDate);
+          const exp = new Date(expDate);
+          
+          // Calcula diferença em meses
+          const diffMonths = (exp.getFullYear() - mfg.getFullYear()) * 12 + 
+                              (exp.getMonth() - mfg.getMonth());
+          
+          return `${diffMonths} MESES`;
+        } catch (e) {
+          return 'N/A';
+        }
+      };
+      
+      // Renderizar HTML
+      res.setHeader('Content-Type', 'text/html');
+      res.send(`
+        <!DOCTYPE html>
+        <html lang="pt-BR">
+        <head>
+          <title>Certificado #${certificate.id} - ${product ? product.technicalName : 'Produto'}</title>
+          <meta charset="UTF-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <style>
+            body {
+              font-family: Arial, sans-serif;
+              margin: 0;
+              padding: 0;
+              color: #333;
+              background-color: #f9f9f9;
+            }
+            
+            .a4-page {
+              width: 210mm;
+              min-height: 297mm;
+              padding: 20mm;
+              margin: 10mm auto;
+              background: white;
+              box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+              position: relative;
+              overflow: hidden;
+            }
+            
+            .watermark {
+              position: absolute;
+              top: 50%;
+              left: 50%;
+              transform: translate(-50%, -50%) rotate(-45deg);
+              font-size: 8rem;
+              color: rgba(0, 0, 0, 0.03);
+              z-index: 0;
+              white-space: nowrap;
+            }
+            
+            .cert-header {
+              display: flex;
+              justify-content: space-between;
+              align-items: center;
+              border-bottom: 2px solid #f0f0f0;
+              padding-bottom: 15px;
+              margin-bottom: 30px;
+            }
+            
+            .logo-area {
+              display: flex;
+              flex-direction: column;
+            }
+            
+            .logo-placeholder {
+              font-size: 24px;
+              font-weight: bold;
+              color: #1a56db;
+            }
+            
+            .cert-title {
+              font-size: 24px;
+              font-weight: bold;
+              color: #1a56db;
+              text-align: right;
+            }
+            
+            .cert-id {
+              font-size: 18px;
+              color: #666;
+              text-align: right;
+            }
+            
+            .section {
+              margin-bottom: 20px;
+              position: relative;
+              z-index: 1;
+            }
+            
+            .section-title {
+              font-size: 18px;
+              color: #1a56db;
+              margin-bottom: 10px;
+              padding-bottom: 5px;
+              border-bottom: 1px solid #eaeaea;
+            }
+            
+            .info-grid {
+              display: grid;
+              grid-template-columns: repeat(3, 1fr);
+              gap: 15px;
+            }
+            
+            .info-item {
+              margin-bottom: 15px;
+            }
+            
+            .info-label {
+              font-size: 12px;
+              color: #666;
+              margin-bottom: 5px;
+            }
+            
+            .info-value {
+              font-size: 14px;
+              font-weight: 500;
+            }
+            
+            table {
+              width: 100%;
+              border-collapse: collapse;
+              margin-bottom: 20px;
+            }
+            
+            th {
+              text-align: left;
+              padding: 10px;
+              background-color: #f5f7fb;
+              border: 1px solid #e2e8f0;
+              font-size: 14px;
+            }
+            
+            td {
+              padding: 10px;
+              border: 1px solid #e2e8f0;
+              font-size: 14px;
+            }
+            
+            .badge {
+              display: inline-block;
+              padding: 5px 10px;
+              border-radius: 15px;
+              font-size: 12px;
+              font-weight: bold;
+            }
+            
+            .badge-approved {
+              background-color: #d1fae5;
+              color: #065f46;
+            }
+            
+            .badge-rejected {
+              background-color: #fee2e2;
+              color: #b91c1c;
+            }
+            
+            .badge-pending {
+              background-color: #fef3c7;
+              color: #92400e;
+            }
+            
+            .approval-section {
+              display: flex;
+              justify-content: space-between;
+              margin: 30px 0;
+              font-size: 16px;
+            }
+            
+            .approval .approved {
+              color: #047857;
+              font-weight: bold;
+            }
+            
+            .signature-area {
+              margin-top: 50px;
+              text-align: center;
+            }
+            
+            .signature-line {
+              width: 200px;
+              margin: 0 auto;
+              border-bottom: 1px solid #333;
+            }
+            
+            .signature-name {
+              margin-top: 10px;
+              font-weight: bold;
+            }
+            
+            .signature-title {
+              font-size: 14px;
+              color: #666;
+            }
+            
+            .footer {
+              margin-top: 50px;
+              text-align: center;
+              font-size: 12px;
+              color: #666;
+            }
+            
+            @media print {
+              body {
+                background: none;
+              }
+              
+              .a4-page {
+                width: 100%;
+                height: 100%;
+                margin: 0;
+                padding: 15mm;
+                box-shadow: none;
+              }
+              
+              .no-print {
+                display: none;
+              }
+            }
+          </style>
+        </head>
+        <body>
+          <div class="a4-page">
+            <div class="watermark">CERTIFICADO</div>
+            
+            <header class="cert-header">
+              <div class="logo-area">
+                <div class="logo-placeholder">${tenant ? tenant.name : 'CertQuality'}</div>
+                <div>Sistema de Gestão de Certificados</div>
+              </div>
+              <div>
+                <div class="cert-title">Certificado de Análise</div>
+                <div class="cert-id">NF: ${certificate.invoiceNumber}</div>
+              </div>
+            </header>
+            
+            <section class="section">
+              <h2 class="section-title">Dados do Cliente</h2>
+              <div class="info-grid">
+                <div class="info-item">
+                  <div class="info-label">Cliente</div>
+                  <div class="info-value">${client ? client.name : 'N/A'}</div>
+                </div>
+                <div class="info-item">
+                  <div class="info-label">CNPJ</div>
+                  <div class="info-value">${client ? client.cnpj : 'N/A'}</div>
+                </div>
+                <div class="info-item">
+                  <div class="info-label">Data de Emissão</div>
+                  <div class="info-value">${certificate.issueDate ? formatDate(new Date(certificate.issueDate)) : 'N/A'}</div>
+                </div>
+                <div class="info-item">
+                  <div class="info-label">Quantidade Vendida</div>
+                  <div class="info-value">${certificate.soldQuantity} ${certificate.measureUnit}</div>
+                </div>
+                <div class="info-item">
+                  <div class="info-label">Lote Personalizado</div>
+                  <div class="info-value">${certificate.customLot}</div>
+                </div>
+              </div>
+            </section>
+            
+            <section class="section">
+              <h2 class="section-title">Dados do Produto</h2>
+              <div class="info-grid">
+                <div class="info-item">
+                  <div class="info-label">Produto</div>
+                  <div class="info-value">${product ? product.technicalName : 'N/A'}</div>
+                </div>
+                <div class="info-item">
+                  <div class="info-label">Fabricante</div>
+                  <div class="info-value">${manufacturer ? manufacturer.name : 'N/A'}</div>
+                </div>
+                <div class="info-item">
+                  <div class="info-label">Fornecedor</div>
+                  <div class="info-value">${supplier ? supplier.name : 'N/A'}</div>
+                </div>
+                <div class="info-item">
+                  <div class="info-label">Lote Interno</div>
+                  <div class="info-value">${entryCertificate.internalLot}</div>
+                </div>
+                <div class="info-item">
+                  <div class="info-label">Lote do Fornecedor</div>
+                  <div class="info-value">${entryCertificate.supplierLot}</div>
+                </div>
+                <div class="info-item">
+                  <div class="info-label">Data de Fabricação</div>
+                  <div class="info-value">${entryCertificate.manufacturingDate ? formatDate(new Date(entryCertificate.manufacturingDate)) : 'N/A'}</div>
+                </div>
+                <div class="info-item">
+                  <div class="info-label">Data de Validade</div>
+                  <div class="info-value">${entryCertificate.expirationDate ? formatDate(new Date(entryCertificate.expirationDate)) : 'N/A'}</div>
+                </div>
+              </div>
+            </section>
+            
+            <section class="section">
+              <h2 class="section-title">Características e Resultados</h2>
+              <table>
+                <thead>
+                  <tr>
+                    <th>Característica</th>
+                    <th>Método</th>
+                    <th>Unidade</th>
+                    <th>Especificação</th>
+                    <th>Resultado</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${results.map((result: any) => `
+                    <tr>
+                      <td>${result.characteristicName}</td>
+                      <td>${result.analysisMethod || 'N/A'}</td>
+                      <td>${result.unit || 'N/A'}</td>
+                      <td>${result.minValue && result.maxValue 
+                        ? `${result.minValue} - ${result.maxValue}` 
+                        : (result.minValue || result.maxValue || 'N/A')}</td>
+                      <td>${result.obtainedValue || 'N/A'}</td>
+                    </tr>
+                  `).join('')}
+                </tbody>
+              </table>
+            </section>
+            
+            <div class="approval-section">
+              <div class="approval">
+                Status: <span class="approved">APROVADO</span>
+              </div>
+              <div class="validity">
+                Validade: ${entryCertificate.expirationDate ? 
+                  calcValidityPeriod(entryCertificate.manufacturingDate, entryCertificate.expirationDate) : 'N/A'}
+              </div>
+            </div>
+            
+            <div class="signature-area">
+              <div class="signature-line"></div>
+              <div class="signature-name">Controle de Qualidade</div>
+              <div class="signature-title">${tenant ? tenant.name : 'CertQuality'}</div>
+            </div>
+            
+            <div class="footer">
+              <p>Este certificado foi gerado pelo sistema CertQuality em ${new Date().toLocaleString('pt-BR')}</p>
+              <p>Documento válido sem assinatura. Para verificar a autenticidade, entre em contato com nosso departamento de qualidade.</p>
+            </div>
+            
+            <div class="no-print" style="margin-top: 30px; text-align: center;">
+              <button onclick="window.print()" style="padding: 10px 20px; background-color: #1a56db; color: white; border: none; border-radius: 5px; cursor: pointer;">
+                Imprimir Certificado
+              </button>
+              <button onclick="window.location.href='/issued-certificates/${certificate.id}'" style="padding: 10px 20px; background-color: #f3f4f6; color: #374151; border: none; border-radius: 5px; cursor: pointer; margin-left: 10px;">
+                Voltar
+              </button>
+            </div>
+          </div>
+        </body>
+        </html>
+      `);
+    } catch (error) {
+      next(error);
+    }
+  });
+  
   // Rota para download do arquivo original do certificado
   app.get("/api/certificates/download/:id", isAuthenticated, async (req, res, next) => {
     try {
