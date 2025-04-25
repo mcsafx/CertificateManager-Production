@@ -656,13 +656,13 @@ Em um ambiente de produção, este seria o conteúdo real do arquivo.`);
         }
       };
       
-      // Renderizar HTML
+      // Renderizar HTML com layout inspirado na imagem de referência
       res.setHeader('Content-Type', 'text/html');
       res.send(`
         <!DOCTYPE html>
         <html lang="pt-BR">
         <head>
-          <title>Certificado #${certificate.id} - ${product ? product.technicalName : 'Produto'}</title>
+          <title>Certificado de Qualidade - ${product ? product.technicalName : 'Produto'}</title>
           <meta charset="UTF-8">
           <meta name="viewport" content="width=device-width, initial-scale=1.0">
           <style>
@@ -672,179 +672,160 @@ Em um ambiente de produção, este seria o conteúdo real do arquivo.`);
               padding: 0;
               color: #333;
               background-color: #f9f9f9;
+              line-height: 1.3;
             }
             
             .a4-page {
               width: 210mm;
               min-height: 297mm;
-              padding: 20mm;
+              padding: 10mm;
               margin: 10mm auto;
               background: white;
               box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
               position: relative;
-              overflow: hidden;
             }
             
-            .watermark {
-              position: absolute;
-              top: 50%;
-              left: 50%;
-              transform: translate(-50%, -50%) rotate(-45deg);
-              font-size: 8rem;
-              color: rgba(0, 0, 0, 0.03);
-              z-index: 0;
-              white-space: nowrap;
-            }
-            
-            .cert-header {
+            .company-header {
               display: flex;
-              justify-content: space-between;
+              justify-content: flex-start;
               align-items: center;
-              border-bottom: 2px solid #f0f0f0;
-              padding-bottom: 15px;
-              margin-bottom: 30px;
+              margin-bottom: 15px;
             }
             
-            .logo-area {
-              display: flex;
-              flex-direction: column;
+            .company-logo {
+              max-height: 70px;
+              max-width: 250px;
+              margin-right: 10px;
             }
             
-            .logo-placeholder {
-              font-size: 24px;
+            .company-name {
               font-weight: bold;
-              color: #1a56db;
+              font-size: 26px;
+              color: #9e2a2b;
+              text-transform: uppercase;
+            }
+            
+            .company-subtitle {
+              font-size: 12px;
+              margin-top: 3px;
             }
             
             .cert-title {
-              font-size: 24px;
+              text-align: center;
+              font-size: 22px;
               font-weight: bold;
-              color: #1a56db;
-              text-align: right;
-            }
-            
-            .cert-id {
-              font-size: 18px;
-              color: #666;
-              text-align: right;
-            }
-            
-            .section {
-              margin-bottom: 20px;
-              position: relative;
-              z-index: 1;
-            }
-            
-            .section-title {
-              font-size: 18px;
-              color: #1a56db;
-              margin-bottom: 10px;
-              padding-bottom: 5px;
-              border-bottom: 1px solid #eaeaea;
+              padding: 10px 0;
+              margin: 15px 0;
+              border: 1px solid #000;
             }
             
             .info-grid {
               display: grid;
-              grid-template-columns: repeat(3, 1fr);
-              gap: 15px;
-            }
-            
-            .info-item {
-              margin-bottom: 15px;
+              grid-template-columns: 150px 1fr;
+              margin-bottom: 10px;
+              align-items: center;
             }
             
             .info-label {
-              font-size: 12px;
-              color: #666;
-              margin-bottom: 5px;
+              font-weight: normal;
+              text-align: right;
+              padding-right: 15px;
             }
             
             .info-value {
-              font-size: 14px;
-              font-weight: 500;
+              font-weight: bold;
+              background-color: #eee;
+              padding: 5px 10px;
+              min-height: 20px;
+            }
+            
+            .analysis-title {
+              text-align: center;
+              font-size: 20px;
+              font-weight: bold;
+              margin: 30px 0 10px 0;
+              text-transform: uppercase;
+            }
+            
+            .cert-subtitle {
+              text-align: center;
+              font-size: 16px;
+              margin-bottom: 15px;
             }
             
             table {
               width: 100%;
               border-collapse: collapse;
-              margin-bottom: 20px;
+              margin-top: 10px;
+              border: 1px solid #000;
+            }
+            
+            th, td {
+              border: 1px solid #000;
+              padding: 6px 8px;
+              text-align: center;
             }
             
             th {
-              text-align: left;
-              padding: 10px;
-              background-color: #f5f7fb;
-              border: 1px solid #e2e8f0;
-              font-size: 14px;
-            }
-            
-            td {
-              padding: 10px;
-              border: 1px solid #e2e8f0;
-              font-size: 14px;
-            }
-            
-            .badge {
-              display: inline-block;
-              padding: 5px 10px;
-              border-radius: 15px;
-              font-size: 12px;
               font-weight: bold;
+              text-transform: uppercase;
+              font-size: 13px;
             }
             
-            .badge-approved {
-              background-color: #d1fae5;
-              color: #065f46;
-            }
-            
-            .badge-rejected {
-              background-color: #fee2e2;
-              color: #b91c1c;
-            }
-            
-            .badge-pending {
-              background-color: #fef3c7;
-              color: #92400e;
+            .characteristic-label {
+              text-transform: uppercase;
+              font-size: 13px;
             }
             
             .approval-section {
+              margin-top: 30px;
+              text-align: center;
+            }
+            
+            .valid-period {
+              margin-top: 20px;
+              font-weight: bold;
+              text-align: right;
+            }
+            
+            .disclaimer {
+              margin-top: 30px;
+              font-size: 11px;
+              line-height: 1.2;
+            }
+            
+            .quality-control {
               display: flex;
               justify-content: space-between;
-              margin: 30px 0;
-              font-size: 16px;
+              margin-top: 20px;
             }
             
-            .approval .approved {
-              color: #047857;
+            .quality-control-text {
               font-weight: bold;
             }
             
-            .signature-area {
-              margin-top: 50px;
+            .quality-control-subtitle {
+              font-weight: normal;
+              font-size: 11px;
+            }
+            
+            .approval-status {
               text-align: center;
-            }
-            
-            .signature-line {
-              width: 200px;
-              margin: 0 auto;
-              border-bottom: 1px solid #333;
-            }
-            
-            .signature-name {
-              margin-top: 10px;
+              margin-top: 20px;
               font-weight: bold;
+              font-size: 18px;
             }
             
-            .signature-title {
-              font-size: 14px;
-              color: #666;
-            }
-            
-            .footer {
-              margin-top: 50px;
-              text-align: center;
-              font-size: 12px;
-              color: #666;
+            .print-btn {
+              display: block;
+              margin: 20px auto 0;
+              padding: 10px 20px;
+              background-color: #9e2a2b;
+              color: white;
+              border: none;
+              border-radius: 4px;
+              cursor: pointer;
+              font-weight: bold;
             }
             
             @media print {
@@ -853,151 +834,123 @@ Em um ambiente de produção, este seria o conteúdo real do arquivo.`);
               }
               
               .a4-page {
-                width: 100%;
-                height: 100%;
-                margin: 0;
-                padding: 15mm;
                 box-shadow: none;
+                margin: 0;
+                padding: 10mm;
               }
               
-              .no-print {
+              .print-btn {
                 display: none;
+              }
+              
+              @page {
+                size: A4;
+                margin: 0;
               }
             }
           </style>
         </head>
         <body>
           <div class="a4-page">
-            <div class="watermark">CERTIFICADO</div>
+            <!-- Cabeçalho da Empresa -->
+            <div class="company-header">
+              ${tenant?.logoUrl 
+                ? `<img src="${tenant.logoUrl}" alt="${tenant.name}" class="company-logo">` 
+                : `<div class="company-name">${tenant?.name || 'AGLUTINA'}</div>`}
+              ${!tenant?.logoUrl && `<div class="company-subtitle">Importadora e Distribuidora S/A</div>`}
+            </div>
             
-            <header class="cert-header">
-              <div class="logo-area">
-                <div class="logo-placeholder">${tenant ? tenant.name : 'CertQuality'}</div>
-                <div>Sistema de Gestão de Certificados</div>
-              </div>
-              <div>
-                <div class="cert-title">Certificado de Análise</div>
-                <div class="cert-id">NF: ${certificate.invoiceNumber}</div>
-              </div>
-            </header>
+            <!-- Título do Certificado -->
+            <div class="cert-title">CERTIFICADO DE QUALIDADE</div>
             
-            <section class="section">
-              <h2 class="section-title">Dados do Cliente</h2>
+            <!-- Informações do Cliente e Produto -->
+            <div class="info-section">
               <div class="info-grid">
-                <div class="info-item">
-                  <div class="info-label">Cliente</div>
-                  <div class="info-value">${client ? client.name : 'N/A'}</div>
-                </div>
-                <div class="info-item">
-                  <div class="info-label">CNPJ</div>
-                  <div class="info-value">${client ? client.cnpj : 'N/A'}</div>
-                </div>
-                <div class="info-item">
-                  <div class="info-label">Data de Emissão</div>
-                  <div class="info-value">${certificate.issueDate ? formatDate(new Date(certificate.issueDate)) : 'N/A'}</div>
-                </div>
-                <div class="info-item">
-                  <div class="info-label">Quantidade Vendida</div>
-                  <div class="info-value">${certificate.soldQuantity} ${certificate.measureUnit}</div>
-                </div>
-                <div class="info-item">
-                  <div class="info-label">Lote Personalizado</div>
-                  <div class="info-value">${certificate.customLot}</div>
-                </div>
+                <div class="info-label">Empresa:</div>
+                <div class="info-value">${client ? client.name : 'N/A'}</div>
+                
+                <div class="info-label">Produto:</div>
+                <div class="info-value">${product ? product.technicalName : 'N/A'}</div>
+                
+                <div class="info-label">Data de Emissão:</div>
+                <div class="info-value">${certificate.issueDate ? formatDate(new Date(certificate.issueDate)) : 'N/A'}</div>
+                
+                <div class="info-label">Quantidade (${certificate.measureUnit}):</div>
+                <div class="info-value">${certificate.soldQuantity}</div>
+                
+                <div class="info-label">Lote do Produto:</div>
+                <div class="info-value">${certificate.customLot || entryCertificate.internalLot}</div>
+                
+                <div class="info-label">Data de Fabricação:</div>
+                <div class="info-value">${entryCertificate.manufacturingDate ? formatDate(new Date(entryCertificate.manufacturingDate)) : 'N/A'}</div>
+                
+                <div class="info-label">Validade:</div>
+                <div class="info-value">${entryCertificate.expirationDate ? formatDate(new Date(entryCertificate.expirationDate)) : 'N/A'}</div>
+                
+                <div class="info-label">Nota fiscal:</div>
+                <div class="info-value">${certificate.invoiceNumber}</div>
               </div>
-            </section>
+            </div>
             
-            <section class="section">
-              <h2 class="section-title">Dados do Produto</h2>
-              <div class="info-grid">
-                <div class="info-item">
-                  <div class="info-label">Produto</div>
-                  <div class="info-value">${product ? product.technicalName : 'N/A'}</div>
-                </div>
-                <div class="info-item">
-                  <div class="info-label">Fabricante</div>
-                  <div class="info-value">${manufacturer ? manufacturer.name : 'N/A'}</div>
-                </div>
-                <div class="info-item">
-                  <div class="info-label">Fornecedor</div>
-                  <div class="info-value">${supplier ? supplier.name : 'N/A'}</div>
-                </div>
-                <div class="info-item">
-                  <div class="info-label">Lote Interno</div>
-                  <div class="info-value">${entryCertificate.internalLot}</div>
-                </div>
-                <div class="info-item">
-                  <div class="info-label">Lote do Fornecedor</div>
-                  <div class="info-value">${entryCertificate.supplierLot}</div>
-                </div>
-                <div class="info-item">
-                  <div class="info-label">Data de Fabricação</div>
-                  <div class="info-value">${entryCertificate.manufacturingDate ? formatDate(new Date(entryCertificate.manufacturingDate)) : 'N/A'}</div>
-                </div>
-                <div class="info-item">
-                  <div class="info-label">Data de Validade</div>
-                  <div class="info-value">${entryCertificate.expirationDate ? formatDate(new Date(entryCertificate.expirationDate)) : 'N/A'}</div>
-                </div>
-              </div>
-            </section>
+            <!-- Título da Seção de Análises -->
+            <div class="analysis-title">BOLETIM DE ANÁLISES</div>
+            <div class="cert-subtitle">Certificate Of Analysis</div>
             
-            <section class="section">
-              <h2 class="section-title">Características e Resultados</h2>
-              <table>
-                <thead>
+            <!-- Tabela de Análises -->
+            <table>
+              <thead>
+                <tr>
+                  <th>PRODUTO<br/><span style="font-weight:normal;font-size:11px;">PRODUCT</span></th>
+                  <th colspan="3">${product ? product.technicalName : 'N/A'}</th>
+                </tr>
+                <tr>
+                  <th>CARACTERÍSTICAS<br/><span style="font-weight:normal;font-size:11px;">CHARACTERISTICS</span></th>
+                  <th>UNIDADES<br/><span style="font-weight:normal;font-size:11px;">UNITS</span></th>
+                  <th>ESPECIFICAÇÃO<br/><span style="font-weight:normal;font-size:11px;">SPECIFICATION</span></th>
+                  <th>VALOR<br/><span style="font-weight:normal;font-size:11px;">VALUE</span></th>
+                </tr>
+              </thead>
+              <tbody>
+                ${results.length > 0 ? results.map((result: any) => `
                   <tr>
-                    <th>Característica</th>
-                    <th>Método</th>
-                    <th>Unidade</th>
-                    <th>Especificação</th>
-                    <th>Resultado</th>
+                    <td class="characteristic-label">${result.characteristicName}<br/><span style="font-weight:normal;font-size:11px;text-transform:none;">${result.characteristicName.toLowerCase()}</span></td>
+                    <td>${result.unit}</td>
+                    <td>${result.minValue && result.maxValue ? `${result.minValue} - ${result.maxValue}` : (result.minValue || result.maxValue || 'N/A')}</td>
+                    <td><strong>${result.obtainedValue}</strong></td>
                   </tr>
-                </thead>
-                <tbody>
-                  ${results.map((result: any) => `
-                    <tr>
-                      <td>${result.characteristicName}</td>
-                      <td>${result.analysisMethod || 'N/A'}</td>
-                      <td>${result.unit || 'N/A'}</td>
-                      <td>${result.minValue && result.maxValue 
-                        ? `${result.minValue} - ${result.maxValue}` 
-                        : (result.minValue || result.maxValue || 'N/A')}</td>
-                      <td>${result.obtainedValue || 'N/A'}</td>
-                    </tr>
-                  `).join('')}
-                </tbody>
-              </table>
-            </section>
+                `).join('') : `
+                  <tr>
+                    <td colspan="4">Sem resultados disponíveis</td>
+                  </tr>
+                `}
+              </tbody>
+            </table>
             
-            <div class="approval-section">
-              <div class="approval">
-                Status: <span class="approved">APROVADO</span>
+            <!-- Seção de Controle de Qualidade -->
+            <div class="quality-control">
+              <div>
+                <div class="quality-control-text">Controle de Qualidade<br/><span class="quality-control-subtitle">Quality Control</span></div>
               </div>
-              <div class="validity">
-                Validade: ${entryCertificate.expirationDate ? 
-                  calcValidityPeriod(entryCertificate.manufacturingDate, entryCertificate.expirationDate) : 'N/A'}
+              <div style="text-align: right;">
+                <div class="quality-control-text">Validade:<br/><span class="quality-control-subtitle">Validity:</span></div>
+                <div>Um ano</div>
               </div>
             </div>
             
-            <div class="signature-area">
-              <div class="signature-line"></div>
-              <div class="signature-name">Controle de Qualidade</div>
-              <div class="signature-title">${tenant ? tenant.name : 'CertQuality'}</div>
+            <!-- Status de Aprovação -->
+            <div class="approval-status">
+              APROVADO
             </div>
             
-            <div class="footer">
-              <p>Este certificado foi gerado pelo sistema CertQuality em ${new Date().toLocaleString('pt-BR')}</p>
-              <p>Documento válido sem assinatura. Para verificar a autenticidade, entre em contato com nosso departamento de qualidade.</p>
+            <!-- Disclaimer -->
+            <div class="disclaimer">
+              <p>Os dados informados neste Certificado são resultados obtidos em nosso laboratório, seguindo rigorosamente nossos padrões. 
+              Estas recomendações são dadas de boa fé, sendo que, se o armazenamento, transporte, e/ou manuseio não forem adequados 
+              às nossas recomendações, não nos responsabilizamos por eventual garantia.</p>
             </div>
             
-            <div class="no-print" style="margin-top: 30px; text-align: center;">
-              <button onclick="window.print()" style="padding: 10px 20px; background-color: #1a56db; color: white; border: none; border-radius: 5px; cursor: pointer;">
-                Imprimir Certificado
-              </button>
-              <button onclick="window.location.href='/issued-certificates/${certificate.id}'" style="padding: 10px 20px; background-color: #f3f4f6; color: #374151; border: none; border-radius: 5px; cursor: pointer; margin-left: 10px;">
-                Voltar
-              </button>
-            </div>
+            <!-- Botão de Impressão (visível apenas na tela) -->
+            <button class="print-btn" onclick="window.print()">Imprimir Certificado</button>
           </div>
         </body>
         </html>
