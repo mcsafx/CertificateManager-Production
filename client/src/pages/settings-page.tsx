@@ -566,6 +566,20 @@ export default function SettingsPage() {
                       
                       <FormField
                         control={tenantProfileForm.control}
+                        name="phone"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Telefone</FormLabel>
+                            <FormControl>
+                              <Input placeholder="(00) 0000-0000" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      
+                      <FormField
+                        control={tenantProfileForm.control}
                         name="address"
                         render={({ field }) => (
                           <FormItem>
