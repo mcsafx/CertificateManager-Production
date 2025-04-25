@@ -1334,8 +1334,21 @@ export class MemStorage implements IStorage {
   }
   
   async isFeatureAccessible(featurePath: string, tenantId: number): Promise<boolean> {
-    // Na implementação em memória, todas as funcionalidades estão disponíveis
-    return true;
+    // Obter o tenant
+    const tenant = this.tenants.get(tenantId);
+    if (!tenant) {
+      return false;
+    }
+    
+    // Obter os módulos do plano do tenant
+    const modules = await this.getModulesByPlan(tenant.planId);
+    if (!modules || modules.length === 0) {
+      return false;
+    }
+    
+    // Na implementação em memória, simplesmente verificamos se o módulo existe
+    // Em uma implementação real, verificaríamos se o módulo tem a feature específica
+    return modules.length > 0;
   }
   
   // Implementação dos métodos administrativos
@@ -2603,12 +2616,14 @@ export class DatabaseStorage implements IStorage {
       // Obter o tenant
       const tenant = await this.getTenant(tenantId);
       if (!tenant) {
+        console.log(`Tenant não encontrado: ${tenantId}`);
         return false;
       }
       
       // Obter todos os módulos do plano do tenant
       const modules = await this.getModulesByPlan(tenant.planId);
       if (!modules || modules.length === 0) {
+        console.log(`Nenhum módulo encontrado para o plano ${tenant.planId} do tenant ${tenantId}`);
         return false;
       }
       
@@ -2616,16 +2631,27 @@ export class DatabaseStorage implements IStorage {
       const moduleIds = modules.map(module => module.id);
       
       // Verificar se existe alguma funcionalidade com o caminho especificado em algum dos módulos disponíveis
-      const [feature] = await db.select()
+      // Utilização de LIKE ou expressão de padrão para verificar se featurePath corresponde
+      // a algum padrão de permissão nas funcionalidades disponíveis
+      const features = await db.select()
         .from(moduleFeatures)
-        .where(
-          and(
-            sql`${moduleFeatures.moduleId} IN (${moduleIds.join(',')})`,
-            sql`${featurePath} LIKE ${moduleFeatures.featurePath}`
-          )
-        );
+        .where(eq(moduleFeatures.moduleId, sql`ANY(ARRAY[${moduleIds.join(',')}])`));
       
-      return !!feature;
+      // Verificar manualmente se o featurePath corresponde a algum dos padrões de funcionalidades
+      // Suporte a padrões como '/api/something/*'
+      for (const feature of features) {
+        // Converte padrões como '/api/products/*' para expressões regulares
+        const pattern = feature.featurePath.replace(/\*/g, '.*');
+        const regex = new RegExp(`^${pattern}$`);
+        
+        if (regex.test(featurePath)) {
+          console.log(`Acesso permitido: ${featurePath} corresponde ao padrão ${feature.featurePath} no módulo ${feature.moduleId}`);
+          return true;
+        }
+      }
+      
+      console.log(`Acesso negado: ${featurePath} não corresponde a nenhuma funcionalidade disponível para o tenant ${tenantId} no plano ${tenant.planId}`);
+      return false;
     } catch (error) {
       console.error("Error checking feature accessibility:", error);
       return false;
