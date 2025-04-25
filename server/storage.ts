@@ -2391,93 +2391,148 @@ export class DatabaseStorage implements IStorage {
       // Isso não é necessário pois plan_modules não tem chave estrangeira para tenant
       
       // 3. Remover arquivos do tenant
-      const files = await db.select().from(files).where(eq(files.tenantId, id));
-      console.log(`Encontrados ${files.length} arquivos para o tenant ${id}`);
-      for (const file of files) {
-        await db.delete(files).where(eq(files.id, file.id));
+      try {
+        const filesList = await db.select().from(files).where(eq(files.tenantId, id));
+        console.log(`Encontrados ${filesList.length} arquivos para o tenant ${id}`);
+        for (const file of filesList) {
+          await db.delete(files).where(eq(files.id, file.id));
+        }
+      } catch (error) {
+        console.log(`Erro ao processar arquivos do tenant ${id}:`, error);
+        // Continuar mesmo com erro para tentar remover outros registros
       }
       
       // 4. Remover produtos do tenant
-      const products = await db.select().from(products).where(eq(products.tenantId, id));
-      console.log(`Encontrados ${products.length} produtos para o tenant ${id}`);
-      for (const product of products) {
-        await db.delete(products).where(eq(products.id, product.id));
+      try {
+        const productsList = await db.select().from(products).where(eq(products.tenantId, id));
+        console.log(`Encontrados ${productsList.length} produtos para o tenant ${id}`);
+        for (const product of productsList) {
+          await db.delete(products).where(eq(products.id, product.id));
+        }
+      } catch (error) {
+        console.log(`Erro ao processar produtos do tenant ${id}:`, error);
+        // Continuar mesmo com erro para tentar remover outros registros
       }
       
       // 5. Remover produtos base do tenant
-      const baseProducts = await db.select().from(baseProducts).where(eq(baseProducts.tenantId, id));
-      console.log(`Encontrados ${baseProducts.length} produtos base para o tenant ${id}`);
-      for (const baseProduct of baseProducts) {
-        await db.delete(baseProducts).where(eq(baseProducts.id, baseProduct.id));
+      try {
+        const baseProductsList = await db.select().from(productBase).where(eq(productBase.tenantId, id));
+        console.log(`Encontrados ${baseProductsList.length} produtos base para o tenant ${id}`);
+        for (const baseProduct of baseProductsList) {
+          await db.delete(productBase).where(eq(productBase.id, baseProduct.id));
+        }
+      } catch (error) {
+        console.log(`Erro ao processar produtos base do tenant ${id}:`, error);
+        // Continuar mesmo com erro para tentar remover outros registros
       }
       
       // 6. Remover certificados de entrada
-      const entryCertificates = await db.select().from(entryCertificates).where(eq(entryCertificates.tenantId, id));
-      console.log(`Encontrados ${entryCertificates.length} certificados de entrada para o tenant ${id}`);
-      for (const entryCertificate of entryCertificates) {
-        // 6.1 Remover resultados de análise
-        await db.delete(entryCertificateResults)
-          .where(eq(entryCertificateResults.entryCertificateId, entryCertificate.id));
-        
-        // 6.2 Remover o certificado de entrada
-        await db.delete(entryCertificates).where(eq(entryCertificates.id, entryCertificate.id));
+      try {
+        const entryCertificatesList = await db.select().from(entryCertificates).where(eq(entryCertificates.tenantId, id));
+        console.log(`Encontrados ${entryCertificatesList.length} certificados de entrada para o tenant ${id}`);
+        for (const entryCertificate of entryCertificatesList) {
+          // 6.1 Remover resultados de análise
+          await db.delete(entryCertificateResults)
+            .where(eq(entryCertificateResults.entryCertificateId, entryCertificate.id));
+          
+          // 6.2 Remover o certificado de entrada
+          await db.delete(entryCertificates).where(eq(entryCertificates.id, entryCertificate.id));
+        }
+      } catch (error) {
+        console.log(`Erro ao processar certificados de entrada do tenant ${id}:`, error);
+        // Continuar mesmo com erro para tentar remover outros registros
       }
       
       // 7. Remover certificados emitidos
-      const issuedCertificates = await db.select().from(issuedCertificates).where(eq(issuedCertificates.tenantId, id));
-      console.log(`Encontrados ${issuedCertificates.length} certificados emitidos para o tenant ${id}`);
-      for (const issuedCertificate of issuedCertificates) {
-        await db.delete(issuedCertificates).where(eq(issuedCertificates.id, issuedCertificate.id));
+      try {
+        const issuedCertificatesList = await db.select().from(issuedCertificates).where(eq(issuedCertificates.tenantId, id));
+        console.log(`Encontrados ${issuedCertificatesList.length} certificados emitidos para o tenant ${id}`);
+        for (const issuedCertificate of issuedCertificatesList) {
+          await db.delete(issuedCertificates).where(eq(issuedCertificates.id, issuedCertificate.id));
+        }
+      } catch (error) {
+        console.log(`Erro ao processar certificados emitidos do tenant ${id}:`, error);
+        // Continuar mesmo com erro para tentar remover outros registros
       }
       
       // 8. Remover fornecedores
-      const suppliers = await db.select().from(suppliers).where(eq(suppliers.tenantId, id));
-      console.log(`Encontrados ${suppliers.length} fornecedores para o tenant ${id}`);
-      for (const supplier of suppliers) {
-        await db.delete(suppliers).where(eq(suppliers.id, supplier.id));
+      try {
+        const suppliersList = await db.select().from(suppliers).where(eq(suppliers.tenantId, id));
+        console.log(`Encontrados ${suppliersList.length} fornecedores para o tenant ${id}`);
+        for (const supplier of suppliersList) {
+          await db.delete(suppliers).where(eq(suppliers.id, supplier.id));
+        }
+      } catch (error) {
+        console.log(`Erro ao processar fornecedores do tenant ${id}:`, error);
+        // Continuar mesmo com erro para tentar remover outros registros
       }
       
       // 9. Remover fabricantes
-      const manufacturers = await db.select().from(manufacturers).where(eq(manufacturers.tenantId, id));
-      console.log(`Encontrados ${manufacturers.length} fabricantes para o tenant ${id}`);
-      for (const manufacturer of manufacturers) {
-        await db.delete(manufacturers).where(eq(manufacturers.id, manufacturer.id));
+      try {
+        const manufacturersList = await db.select().from(manufacturers).where(eq(manufacturers.tenantId, id));
+        console.log(`Encontrados ${manufacturersList.length} fabricantes para o tenant ${id}`);
+        for (const manufacturer of manufacturersList) {
+          await db.delete(manufacturers).where(eq(manufacturers.id, manufacturer.id));
+        }
+      } catch (error) {
+        console.log(`Erro ao processar fabricantes do tenant ${id}:`, error);
+        // Continuar mesmo com erro para tentar remover outros registros
       }
       
       // 10. Remover clientes
-      const clients = await db.select().from(clients).where(eq(clients.tenantId, id));
-      console.log(`Encontrados ${clients.length} clientes para o tenant ${id}`);
-      for (const client of clients) {
-        await db.delete(clients).where(eq(clients.id, client.id));
+      try {
+        const clientsList = await db.select().from(clients).where(eq(clients.tenantId, id));
+        console.log(`Encontrados ${clientsList.length} clientes para o tenant ${id}`);
+        for (const client of clientsList) {
+          await db.delete(clients).where(eq(clients.id, client.id));
+        }
+      } catch (error) {
+        console.log(`Erro ao processar clientes do tenant ${id}:`, error);
+        // Continuar mesmo com erro para tentar remover outros registros
       }
       
       // 11. Remover categorias e subcategorias de produtos
-      const categories = await db.select().from(productCategories).where(eq(productCategories.tenantId, id));
-      console.log(`Encontrados ${categories.length} categorias para o tenant ${id}`);
-      for (const category of categories) {
-        // Remover subcategorias primeiro
-        await db.delete(productSubcategories)
-          .where(and(
-            eq(productSubcategories.categoryId, category.id),
-            eq(productSubcategories.tenantId, id)
-          ));
-        
-        // Remover a categoria
-        await db.delete(productCategories).where(eq(productCategories.id, category.id));
+      try {
+        const categoriesList = await db.select().from(productCategories).where(eq(productCategories.tenantId, id));
+        console.log(`Encontrados ${categoriesList.length} categorias para o tenant ${id}`);
+        for (const category of categoriesList) {
+          // Remover subcategorias primeiro
+          await db.delete(productSubcategories)
+            .where(and(
+              eq(productSubcategories.categoryId, category.id),
+              eq(productSubcategories.tenantId, id)
+            ));
+          
+          // Remover a categoria
+          await db.delete(productCategories).where(eq(productCategories.id, category.id));
+        }
+      } catch (error) {
+        console.log(`Erro ao processar categorias de produtos do tenant ${id}:`, error);
+        // Continuar mesmo com erro para tentar remover outros registros
       }
       
       // 12. Remover características de produtos
-      const characteristics = await db.select().from(productCharacteristics).where(eq(productCharacteristics.tenantId, id));
-      console.log(`Encontrados ${characteristics.length} características para o tenant ${id}`);
-      for (const characteristic of characteristics) {
-        await db.delete(productCharacteristics).where(eq(productCharacteristics.id, characteristic.id));
+      try {
+        const characteristicsList = await db.select().from(productCharacteristics).where(eq(productCharacteristics.tenantId, id));
+        console.log(`Encontrados ${characteristicsList.length} características para o tenant ${id}`);
+        for (const characteristic of characteristicsList) {
+          await db.delete(productCharacteristics).where(eq(productCharacteristics.id, characteristic.id));
+        }
+      } catch (error) {
+        console.log(`Erro ao processar características de produtos do tenant ${id}:`, error);
+        // Continuar mesmo com erro para tentar remover outros registros
       }
       
       // 13. Remover tipos de embalagem
-      const packageTypes = await db.select().from(packageTypes).where(eq(packageTypes.tenantId, id));
-      console.log(`Encontrados ${packageTypes.length} tipos de embalagem para o tenant ${id}`);
-      for (const packageType of packageTypes) {
-        await db.delete(packageTypes).where(eq(packageTypes.id, packageType.id));
+      try {
+        const packageTypesList = await db.select().from(packageTypes).where(eq(packageTypes.tenantId, id));
+        console.log(`Encontrados ${packageTypesList.length} tipos de embalagem para o tenant ${id}`);
+        for (const packageType of packageTypesList) {
+          await db.delete(packageTypes).where(eq(packageTypes.id, packageType.id));
+        }
+      } catch (error) {
+        console.log(`Erro ao processar tipos de embalagem do tenant ${id}:`, error);
+        // Continuar mesmo com erro para tentar remover outros registros
       }
       
       // Finalmente, remover o tenant
