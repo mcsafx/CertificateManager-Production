@@ -18,7 +18,8 @@ import {
   Store,
   Truck,
   BarChart,
-  Beaker
+  Beaker,
+  Eye
 } from "lucide-react";
 import { IssuedCertificate, EntryCertificate, Client, EntryCertificateResult, Tenant, Product } from "@shared/schema";
 import { formatDate } from "@/lib/utils";
@@ -495,6 +496,21 @@ export default function IssuedCertificateDetailPage() {
   };
 
   // Handle download of certificate
+  // Função para visualizar o certificado em HTML
+  const handleView = () => {
+    if (!certificate) {
+      toast({
+        title: "Erro ao visualizar certificado",
+        description: "Dados do certificado não encontrados.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    // Abre o certificado em uma nova janela utilizando o endpoint HTML
+    window.open(`/api/issued-certificates/view/${certificate.id}`, "_blank");
+  };
+
   const handleDownload = async () => {
     if (!certificate || !certificate.entryCertificate || !tenantData || !client) {
       toast({
@@ -611,10 +627,16 @@ export default function IssuedCertificateDetailPage() {
             )}
           </div>
           {certificate && (
-            <Button onClick={handleDownload}>
-              <Download className="h-4 w-4 mr-2" />
-              Gerar Certificado PDF
-            </Button>
+            <div className="flex space-x-2">
+              <Button variant="outline" onClick={handleView}>
+                <Eye className="h-4 w-4 mr-2" />
+                Visualizar Certificado
+              </Button>
+              <Button onClick={handleDownload}>
+                <Download className="h-4 w-4 mr-2" />
+                Gerar Certificado PDF
+              </Button>
+            </div>
           )}
         </div>
 
