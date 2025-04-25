@@ -2956,32 +2956,49 @@ Em um ambiente de produção, este seria o conteúdo real do arquivo.`);
   app.get("/api/user/features", isAuthenticated, async (req, res) => {
     const user = req.user!;
     try {
+      console.log(`[/api/user/features] Obtendo funcionalidades para usuário ${user.username} (ID: ${user.id}, Tenant: ${user.tenantId}, Role: ${user.role})`);
+      
       // Para administradores do sistema, retorna todas as funcionalidades
       if (user.role === "admin" || user.role === "system_admin") {
+        console.log(`[/api/user/features] Usuário é administrador do sistema, retornando todas as funcionalidades`);
         const allFeatures = await storage.getModuleFeatures();
         return res.json(allFeatures);
       }
       
       // Para outros usuários, retorna apenas as funcionalidades dos módulos do plano da tenant
-      const tenantModules = await storage.getTenantEnabledModules(user.tenantId);
+      // 1. Encontrar o tenant
+      const tenant = await storage.getTenant(user.tenantId);
+      if (!tenant) {
+        console.log(`[/api/user/features] Tenant não encontrado (ID: ${user.tenantId})`);
+        return res.status(404).json({ message: "Tenant não encontrado" });
+      }
+      console.log(`[/api/user/features] Tenant encontrado: ${tenant.name} (ID: ${tenant.id}, Plano: ${tenant.planId})`);
       
-      if (!tenantModules || tenantModules.length === 0) {
+      // 2. Obter os módulos do plano do tenant
+      const planModules = await storage.getModulesByPlan(tenant.planId);
+      if (!planModules || planModules.length === 0) {
+        console.log(`[/api/user/features] Nenhum módulo encontrado para o plano ${tenant.planId}`);
         return res.json([]);
       }
+      console.log(`[/api/user/features] Módulos do plano ${tenant.planId}:`, planModules.map(m => `${m.id} (${m.name})`));
       
-      const moduleIds = tenantModules.map(module => module.id);
+      // 3. Obter as funcionalidades associadas a esses módulos
+      const moduleIds = planModules.map(module => module.id);
+      console.log(`[/api/user/features] IDs dos módulos habilitados: ${moduleIds.join(', ')}`);
       
-      // Buscar todas as features associadas aos módulos do plano da tenant
+      // 4. Buscar todas as features associadas aos módulos do plano da tenant
       const features = [];
       for (const moduleId of moduleIds) {
         const moduleFeatures = await storage.getModuleFeaturesByModule(moduleId);
+        console.log(`[/api/user/features] Módulo ${moduleId} tem ${moduleFeatures.length} funcionalidades`);
         features.push(...moduleFeatures);
       }
       
+      console.log(`[/api/user/features] Total de funcionalidades disponíveis: ${features.length}`);
       res.json(features);
     } catch (error) {
-      console.error("Error fetching user features:", error);
-      res.status(500).json({ message: "Error fetching user features" });
+      console.error("[/api/user/features] Erro ao obter funcionalidades:", error);
+      res.status(500).json({ message: "Erro ao obter funcionalidades do usuário" });
     }
   });
   
