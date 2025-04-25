@@ -2377,15 +2377,118 @@ export class DatabaseStorage implements IStorage {
   
   // Implementação dos métodos administrativos
   async deleteTenant(id: number): Promise<boolean> {
-    // Antes de remover o tenant, devemos remover todos os usuários associados
-    const users = await this.getUsersByTenant(id);
-    for (const user of users) {
-      await this.deleteUser(user.id);
+    try {
+      console.log(`Iniciando exclusão do tenant ID: ${id}`);
+      
+      // 1. Remover todos os usuários associados
+      const users = await this.getUsersByTenant(id);
+      console.log(`Encontrados ${users.length} usuários para o tenant ${id}`);
+      for (const user of users) {
+        await this.deleteUser(user.id);
+      }
+      
+      // 2. Remover todas as associações de plano-módulo
+      // Isso não é necessário pois plan_modules não tem chave estrangeira para tenant
+      
+      // 3. Remover arquivos do tenant
+      const files = await db.select().from(files).where(eq(files.tenantId, id));
+      console.log(`Encontrados ${files.length} arquivos para o tenant ${id}`);
+      for (const file of files) {
+        await db.delete(files).where(eq(files.id, file.id));
+      }
+      
+      // 4. Remover produtos do tenant
+      const products = await db.select().from(products).where(eq(products.tenantId, id));
+      console.log(`Encontrados ${products.length} produtos para o tenant ${id}`);
+      for (const product of products) {
+        await db.delete(products).where(eq(products.id, product.id));
+      }
+      
+      // 5. Remover produtos base do tenant
+      const baseProducts = await db.select().from(baseProducts).where(eq(baseProducts.tenantId, id));
+      console.log(`Encontrados ${baseProducts.length} produtos base para o tenant ${id}`);
+      for (const baseProduct of baseProducts) {
+        await db.delete(baseProducts).where(eq(baseProducts.id, baseProduct.id));
+      }
+      
+      // 6. Remover certificados de entrada
+      const entryCertificates = await db.select().from(entryCertificates).where(eq(entryCertificates.tenantId, id));
+      console.log(`Encontrados ${entryCertificates.length} certificados de entrada para o tenant ${id}`);
+      for (const entryCertificate of entryCertificates) {
+        // 6.1 Remover resultados de análise
+        await db.delete(entryCertificateResults)
+          .where(eq(entryCertificateResults.entryCertificateId, entryCertificate.id));
+        
+        // 6.2 Remover o certificado de entrada
+        await db.delete(entryCertificates).where(eq(entryCertificates.id, entryCertificate.id));
+      }
+      
+      // 7. Remover certificados emitidos
+      const issuedCertificates = await db.select().from(issuedCertificates).where(eq(issuedCertificates.tenantId, id));
+      console.log(`Encontrados ${issuedCertificates.length} certificados emitidos para o tenant ${id}`);
+      for (const issuedCertificate of issuedCertificates) {
+        await db.delete(issuedCertificates).where(eq(issuedCertificates.id, issuedCertificate.id));
+      }
+      
+      // 8. Remover fornecedores
+      const suppliers = await db.select().from(suppliers).where(eq(suppliers.tenantId, id));
+      console.log(`Encontrados ${suppliers.length} fornecedores para o tenant ${id}`);
+      for (const supplier of suppliers) {
+        await db.delete(suppliers).where(eq(suppliers.id, supplier.id));
+      }
+      
+      // 9. Remover fabricantes
+      const manufacturers = await db.select().from(manufacturers).where(eq(manufacturers.tenantId, id));
+      console.log(`Encontrados ${manufacturers.length} fabricantes para o tenant ${id}`);
+      for (const manufacturer of manufacturers) {
+        await db.delete(manufacturers).where(eq(manufacturers.id, manufacturer.id));
+      }
+      
+      // 10. Remover clientes
+      const clients = await db.select().from(clients).where(eq(clients.tenantId, id));
+      console.log(`Encontrados ${clients.length} clientes para o tenant ${id}`);
+      for (const client of clients) {
+        await db.delete(clients).where(eq(clients.id, client.id));
+      }
+      
+      // 11. Remover categorias e subcategorias de produtos
+      const categories = await db.select().from(productCategories).where(eq(productCategories.tenantId, id));
+      console.log(`Encontrados ${categories.length} categorias para o tenant ${id}`);
+      for (const category of categories) {
+        // Remover subcategorias primeiro
+        await db.delete(productSubcategories)
+          .where(and(
+            eq(productSubcategories.categoryId, category.id),
+            eq(productSubcategories.tenantId, id)
+          ));
+        
+        // Remover a categoria
+        await db.delete(productCategories).where(eq(productCategories.id, category.id));
+      }
+      
+      // 12. Remover características de produtos
+      const characteristics = await db.select().from(productCharacteristics).where(eq(productCharacteristics.tenantId, id));
+      console.log(`Encontrados ${characteristics.length} características para o tenant ${id}`);
+      for (const characteristic of characteristics) {
+        await db.delete(productCharacteristics).where(eq(productCharacteristics.id, characteristic.id));
+      }
+      
+      // 13. Remover tipos de embalagem
+      const packageTypes = await db.select().from(packageTypes).where(eq(packageTypes.tenantId, id));
+      console.log(`Encontrados ${packageTypes.length} tipos de embalagem para o tenant ${id}`);
+      for (const packageType of packageTypes) {
+        await db.delete(packageTypes).where(eq(packageTypes.id, packageType.id));
+      }
+      
+      // Finalmente, remover o tenant
+      console.log(`Removendo o tenant ID: ${id}`);
+      const result = await db.delete(tenants).where(eq(tenants.id, id));
+      
+      return result.rowCount > 0;
+    } catch (error) {
+      console.error(`Erro ao excluir tenant ${id}:`, error);
+      throw error;
     }
-    
-    // Remover o tenant
-    const result = await db.delete(tenants).where(eq(tenants.id, id));
-    return result.rowCount > 0;
   }
   
   async getPlans(): Promise<any[]> {
