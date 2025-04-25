@@ -117,6 +117,7 @@ export default function SettingsPage() {
     defaultValues: {
       name: "",
       cnpj: "",
+      phone: "",
       address: "",
     },
   });
