@@ -9,8 +9,8 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { Info } from "lucide-react";
 
 interface CheckboxFeatureSelectProps {
-  value: string; // ID da funcionalidade selecionada
-  onValueChange: (value: string) => void;
+  value: string[]; // Lista de IDs das funcionalidades selecionadas
+  onValueChange: (value: string[]) => void;
 }
 
 export function CheckboxFeatureSelect({ value, onValueChange }: CheckboxFeatureSelectProps) {
@@ -19,13 +19,66 @@ export function CheckboxFeatureSelect({ value, onValueChange }: CheckboxFeatureS
   
   // Quando uma funcionalidade é selecionada, expande automaticamente o módulo pai
   useEffect(() => {
-    if (value) {
-      const feature = findFeatureById(value);
-      if (feature && !openModules.includes(feature.moduleCode)) {
-        setOpenModules(prev => [...prev, feature.moduleCode]);
+    if (value && value.length > 0) {
+      const selectedModules = value.map(featureId => {
+        const feature = findFeatureById(featureId);
+        return feature?.moduleCode || '';
+      }).filter(moduleCode => moduleCode && !openModules.includes(moduleCode));
+      
+      if (selectedModules.length > 0) {
+        setOpenModules(prev => [...prev, ...selectedModules]);
       }
     }
   }, [value, openModules]);
+
+  // Função para verificar se uma funcionalidade está selecionada
+  const isFeatureSelected = (featureId: string) => {
+    return value.includes(featureId);
+  };
+  
+  // Função para lidar com a seleção/deseleção de funcionalidades
+  const handleFeatureToggle = (featureId: string, checked: boolean) => {
+    if (checked) {
+      // Adicionar à lista de selecionados
+      onValueChange([...value, featureId]);
+    } else {
+      // Remover da lista de selecionados
+      onValueChange(value.filter(id => id !== featureId));
+    }
+  };
+  
+  // Função para selecionar/desselecionar todas as funcionalidades de um módulo
+  const handleToggleAllModuleFeatures = (moduleCode: string, checked: boolean) => {
+    const moduleFeatures = getFeaturesByModule(moduleCode);
+    const moduleFeatureIds = moduleFeatures.map(f => f.id);
+    
+    if (checked) {
+      // Selecionar todas as funcionalidades do módulo que ainda não estão selecionadas
+      const newSelectedIds = [...value];
+      moduleFeatureIds.forEach(id => {
+        if (!newSelectedIds.includes(id)) {
+          newSelectedIds.push(id);
+        }
+      });
+      onValueChange(newSelectedIds);
+    } else {
+      // Remover todas as funcionalidades do módulo
+      onValueChange(value.filter(id => !moduleFeatureIds.includes(id)));
+    }
+  };
+  
+  // Função para verificar se todas as funcionalidades de um módulo estão selecionadas
+  const areAllModuleFeaturesSelected = (moduleCode: string) => {
+    const moduleFeatures = getFeaturesByModule(moduleCode);
+    return moduleFeatures.length > 0 && moduleFeatures.every(feature => isFeatureSelected(feature.id));
+  };
+  
+  // Função para verificar se algumas (mas não todas) as funcionalidades de um módulo estão selecionadas
+  const areSomeModuleFeaturesSelected = (moduleCode: string) => {
+    const moduleFeatures = getFeaturesByModule(moduleCode);
+    return moduleFeatures.some(feature => isFeatureSelected(feature.id)) && 
+           !moduleFeatures.every(feature => isFeatureSelected(feature.id));
+  };
 
   // Manipula a alteração no acordeão
   const handleAccordionChange = (moduleCode: string) => {
@@ -54,6 +107,20 @@ export function CheckboxFeatureSelect({ value, onValueChange }: CheckboxFeatureS
               className="hover:no-underline"
             >
               <div className="flex items-center gap-2">
+                <Checkbox
+                  id={`module-${module.code}`}
+                  checked={areAllModuleFeaturesSelected(module.code)}
+                  onClick={(e) => e.stopPropagation()}
+                  onCheckedChange={(checked) => {
+                    handleToggleAllModuleFeatures(module.code, checked === true);
+                  }}
+                  className="mr-1"
+                  data-state={
+                    areSomeModuleFeaturesSelected(module.code) 
+                      ? "indeterminate" 
+                      : (areAllModuleFeaturesSelected(module.code) ? "checked" : "unchecked")
+                  }
+                />
                 <span>{module.name}</span>
                 <TooltipProvider>
                   <Tooltip>
@@ -76,13 +143,9 @@ export function CheckboxFeatureSelect({ value, onValueChange }: CheckboxFeatureS
                   <div key={feature.id} className="flex items-start space-x-2">
                     <Checkbox
                       id={feature.id}
-                      checked={value === feature.id}
+                      checked={isFeatureSelected(feature.id)}
                       onCheckedChange={(checked) => {
-                        if (checked) {
-                          onValueChange(feature.id);
-                        } else {
-                          onValueChange('');
-                        }
+                        handleFeatureToggle(feature.id, checked === true);
                       }}
                     />
                     <div className="w-full">
