@@ -111,6 +111,26 @@ export function MultiCheckboxFeatureSelect({
           
           return (
             <AccordionItem key={module.code} value={module.code}>
+              <div className="flex items-center gap-2 mb-1 justify-between">
+                <div className="flex items-center">
+                  <Checkbox
+                    id={`multi-module-${module.code}`}
+                    checked={allSelected}
+                    onCheckedChange={() => handleSelectAllModule(module.code)}
+                    className="mr-1"
+                  />
+                  <Label 
+                    htmlFor={`multi-module-${module.code}`}
+                    className="text-sm font-medium cursor-pointer"
+                  >
+                    {allSelected ? "Desmarcar todos" : "Selecionar todos"}
+                  </Label>
+                </div>
+                <Badge variant="outline">
+                  {selectedCount}/{moduleFeatures.length}
+                </Badge>
+              </div>
+              
               <AccordionTrigger 
                 onClick={(e) => {
                   e.preventDefault();
@@ -118,7 +138,7 @@ export function MultiCheckboxFeatureSelect({
                 }}
                 className="hover:no-underline"
               >
-                <div className="flex items-center gap-2 w-full">
+                <div className="flex items-center gap-2">
                   <span>{module.name}</span>
                   <TooltipProvider>
                     <Tooltip>
@@ -130,23 +150,6 @@ export function MultiCheckboxFeatureSelect({
                       </TooltipContent>
                     </Tooltip>
                   </TooltipProvider>
-                  <Badge variant="outline" className="ml-2">
-                    {selectedCount}/{moduleFeatures.length}
-                  </Badge>
-                  
-                  <div className="ml-auto">
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleSelectAllModule(module.code);
-                      }}
-                    >
-                      {allSelected ? "Desmarcar todos" : "Selecionar todos"}
-                    </Button>
-                  </div>
                 </div>
               </AccordionTrigger>
               <AccordionContent>

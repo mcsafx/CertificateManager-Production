@@ -99,6 +99,28 @@ export function CheckboxFeatureSelect({ value, onValueChange }: CheckboxFeatureS
       >
         {MODULES.map(module => (
           <AccordionItem key={module.code} value={module.code}>
+            <div className="flex items-center gap-2 mb-1">
+              <Checkbox
+                id={`module-${module.code}`}
+                checked={areAllModuleFeaturesSelected(module.code)}
+                onCheckedChange={(checked) => {
+                  handleToggleAllModuleFeatures(module.code, checked === true);
+                }}
+                className="mr-1"
+                data-state={
+                  areSomeModuleFeaturesSelected(module.code) 
+                    ? "indeterminate" 
+                    : (areAllModuleFeaturesSelected(module.code) ? "checked" : "unchecked")
+                }
+              />
+              <Label 
+                htmlFor={`module-${module.code}`}
+                className="text-sm font-medium cursor-pointer"
+              >
+                Selecionar todas
+              </Label>
+            </div>
+            
             <AccordionTrigger 
               onClick={(e) => {
                 e.preventDefault();
@@ -107,20 +129,6 @@ export function CheckboxFeatureSelect({ value, onValueChange }: CheckboxFeatureS
               className="hover:no-underline"
             >
               <div className="flex items-center gap-2">
-                <Checkbox
-                  id={`module-${module.code}`}
-                  checked={areAllModuleFeaturesSelected(module.code)}
-                  onClick={(e) => e.stopPropagation()}
-                  onCheckedChange={(checked) => {
-                    handleToggleAllModuleFeatures(module.code, checked === true);
-                  }}
-                  className="mr-1"
-                  data-state={
-                    areSomeModuleFeaturesSelected(module.code) 
-                      ? "indeterminate" 
-                      : (areAllModuleFeaturesSelected(module.code) ? "checked" : "unchecked")
-                  }
-                />
                 <span>{module.name}</span>
                 <TooltipProvider>
                   <Tooltip>
