@@ -69,6 +69,9 @@ export default function ModuleFeaturesPage() {
   const [activeTab, setActiveTab] = useState("modules");
   const [isMultiSelectMode, setIsMultiSelectMode] = useState(true); // Por padrão, usamos o modo múltiplo
   
+  // Estado para rastrear possíveis erros do componente
+  const [componentErrors, setComponentErrors] = useState<string[]>([]);
+  
   // Utilizando o hook personalizado para módulos e funcionalidades
   const {
     modules,
@@ -553,8 +556,8 @@ export default function ModuleFeaturesPage() {
                                   </FormLabel>
                                   <FormControl>
                                     <CheckboxFeatureSelect 
-                                      value={field.value}
-                                      onValueChange={field.onChange}
+                                      value={field.value ? [field.value] : []}
+                                      onValueChange={(values) => field.onChange(values.length > 0 ? values[0] : "")}
                                     />
                                   </FormControl>
                                   <FormDescription>
@@ -710,8 +713,8 @@ export default function ModuleFeaturesPage() {
                         </FormLabel>
                         <FormControl>
                           <CheckboxFeatureSelect 
-                            value={field.value}
-                            onValueChange={field.onChange}
+                            value={field.value ? [field.value] : []}
+                            onValueChange={(values) => field.onChange(values.length > 0 ? values[0] : "")}
                           />
                         </FormControl>
                         <FormDescription>
