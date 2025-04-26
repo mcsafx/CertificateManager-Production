@@ -610,6 +610,7 @@ export default function ModuleFeaturesPage() {
                 data={modules}
                 searchColumn="name"
                 searchPlaceholder="Buscar módulos..."
+                pageSize={50}
               />
             )}
           </TabsContent>
@@ -626,6 +627,7 @@ export default function ModuleFeaturesPage() {
                 data={features}
                 searchColumn="featureName"
                 searchPlaceholder="Buscar funcionalidades..."
+                pageSize={50}
               />
             )}
           </TabsContent>
