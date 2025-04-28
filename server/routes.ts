@@ -200,100 +200,109 @@ Em um ambiente de produção, este seria o conteúdo real do arquivo.`);
               padding: 0;
               color: #333;
               background-color: #f9f9f9;
-              line-height: 1.3;
-              font-size: 12px;
+              line-height: 1.2;
+              font-size: 11px;
             }
             
             .a4-page {
               width: 210mm;
               min-height: 297mm;
-              padding: 12mm;
+              padding: 10mm 8mm;
               margin: 10mm auto;
               background: white;
               box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
               position: relative;
+              box-sizing: border-box;
             }
             
             .header {
               display: flex;
               justify-content: space-between;
-              margin-bottom: 12px;
+              margin-bottom: 8px;
             }
             
             .logo-container {
-              flex: 0 0 40%;
+              flex: 0 0 35%;
             }
             
             .company-logo {
-              max-height: 60px;
-              max-width: 180px;
+              max-height: 50px;
+              max-width: 150px;
             }
             
             .company-info {
-              flex: 0 0 55%;
+              flex: 0 0 60%;
               text-align: right;
-              font-size: 11px;
+              font-size: 10px;
             }
             
             .company-name {
               font-weight: bold;
-              font-size: 14px;
-              margin-bottom: 3px;
+              font-size: 13px;
+              margin-bottom: 2px;
             }
             
             .page-title {
               text-align: center;
-              font-size: 18px;
+              font-size: 16px;
               font-weight: bold;
-              margin: 12px 0;
+              margin: 10px 0;
               border-top: 1px solid #ddd;
               border-bottom: 1px solid #ddd;
-              padding: 6px 0;
+              padding: 5px 0;
             }
             
             .section {
-              margin-bottom: 12px;
+              margin-bottom: 10px;
             }
             
             .section-title {
-              font-size: 14px;
+              font-size: 13px;
               font-weight: bold;
-              margin-bottom: 6px;
+              margin-bottom: 5px;
               border-bottom: 1px solid #eee;
-              padding-bottom: 3px;
+              padding-bottom: 2px;
             }
             
             .info-grid {
               display: grid;
-              grid-template-columns: 1fr 1fr;
+              grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
               gap: 8px;
+              width: 100%;
             }
             
             .info-item {
-              margin-bottom: 4px;
+              margin-bottom: 3px;
+              overflow: hidden;
+              white-space: nowrap;
+              text-overflow: ellipsis;
             }
             
             .info-label {
               font-weight: bold;
               margin-bottom: 1px;
-              font-size: 11px;
+              font-size: 10px;
             }
             
             .info-value {
-              font-size: 11px;
+              font-size: 10px;
             }
             
             table {
               width: 100%;
               border-collapse: collapse;
-              margin: 8px 0;
+              margin: 6px 0;
+              table-layout: fixed;
             }
             
             th, td {
               border: 1px solid #ddd;
-              padding: 4px 5px;
+              padding: 3px 4px;
               text-align: left;
-              font-size: 11px;
+              font-size: 10px;
+              overflow: hidden;
+              white-space: normal;
+              word-break: break-word;
             }
             
             th {
@@ -302,35 +311,36 @@ Em um ambiente de produção, este seria o conteúdo real do arquivo.`);
             }
             
             .footer {
-              margin-top: 15px;
-              font-size: 10px;
+              margin-top: 10px;
+              font-size: 9px;
               border-top: 1px solid #eee;
-              padding-top: 8px;
+              padding-top: 6px;
             }
             
             .print-btn {
               display: block;
-              margin: 20px auto 0;
-              padding: 10px 20px;
+              margin: 15px auto 0;
+              padding: 8px 15px;
               background-color: #4a6da7;
               color: white;
               border: none;
               border-radius: 4px;
               cursor: pointer;
               font-weight: bold;
+              font-size: 12px;
             }
             
             @media print {
               body {
                 background: none;
-                font-size: 11px;
-                line-height: 1.2;
+                font-size: 10px;
+                line-height: 1.1;
               }
               
               .a4-page {
                 box-shadow: none;
                 margin: 0;
-                padding: 8mm;
+                padding: 5mm;
                 width: 100%;
                 height: 100%;
                 min-height: auto;
@@ -338,20 +348,20 @@ Em um ambiente de produção, este seria o conteúdo real do arquivo.`);
               }
               
               .header {
-                margin-bottom: 10px;
-              }
-              
-              .page-title {
-                margin: 8px 0;
-                padding: 4px 0;
-              }
-              
-              .section {
                 margin-bottom: 8px;
               }
               
+              .page-title {
+                margin: 6px 0;
+                padding: 3px 0;
+              }
+              
+              .section {
+                margin-bottom: 6px;
+              }
+              
               .info-grid {
-                gap: 6px;
+                gap: 5px;
               }
               
               .info-item {
@@ -359,16 +369,16 @@ Em um ambiente de produção, este seria o conteúdo real do arquivo.`);
               }
               
               table {
-                margin: 6px 0;
+                margin: 5px 0;
               }
               
               th, td {
-                padding: 3px 4px;
+                padding: 2px 3px;
               }
               
               .footer {
-                margin-top: 8px;
-                padding-top: 4px;
+                margin-top: 6px;
+                padding-top: 3px;
               }
               
               .print-btn {
@@ -377,7 +387,7 @@ Em um ambiente de produção, este seria o conteúdo real do arquivo.`);
               
               @page {
                 size: A4 portrait;
-                margin: 0.5cm;
+                margin: 0.3cm;
               }
             }
           </style>
@@ -605,100 +615,109 @@ Em um ambiente de produção, este seria o conteúdo real do arquivo.`);
               padding: 0;
               color: #333;
               background-color: #f9f9f9;
-              line-height: 1.3;
-              font-size: 12px;
+              line-height: 1.2;
+              font-size: 11px;
             }
             
             .a4-page {
               width: 210mm;
               min-height: 297mm;
-              padding: 12mm;
+              padding: 10mm 8mm;
               margin: 10mm auto;
               background: white;
               box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
               position: relative;
+              box-sizing: border-box;
             }
             
             .header {
               display: flex;
               justify-content: space-between;
-              margin-bottom: 12px;
+              margin-bottom: 8px;
             }
             
             .logo-container {
-              flex: 0 0 40%;
+              flex: 0 0 35%;
             }
             
             .company-logo {
-              max-height: 60px;
-              max-width: 180px;
+              max-height: 50px;
+              max-width: 150px;
             }
             
             .company-info {
-              flex: 0 0 55%;
+              flex: 0 0 60%;
               text-align: right;
-              font-size: 11px;
+              font-size: 10px;
             }
             
             .company-name {
               font-weight: bold;
-              font-size: 14px;
-              margin-bottom: 3px;
+              font-size: 13px;
+              margin-bottom: 2px;
             }
             
             .page-title {
               text-align: center;
-              font-size: 18px;
+              font-size: 16px;
               font-weight: bold;
-              margin: 12px 0;
+              margin: 10px 0;
               border-top: 1px solid #ddd;
               border-bottom: 1px solid #ddd;
-              padding: 6px 0;
+              padding: 5px 0;
             }
             
             .section {
-              margin-bottom: 12px;
+              margin-bottom: 10px;
             }
             
             .section-title {
-              font-size: 14px;
+              font-size: 13px;
               font-weight: bold;
-              margin-bottom: 6px;
+              margin-bottom: 5px;
               border-bottom: 1px solid #eee;
-              padding-bottom: 3px;
+              padding-bottom: 2px;
             }
             
             .info-grid {
               display: grid;
-              grid-template-columns: 1fr 1fr;
+              grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
               gap: 8px;
+              width: 100%;
             }
             
             .info-item {
-              margin-bottom: 4px;
+              margin-bottom: 3px;
+              overflow: hidden;
+              white-space: nowrap;
+              text-overflow: ellipsis;
             }
             
             .info-label {
               font-weight: bold;
               margin-bottom: 1px;
-              font-size: 11px;
+              font-size: 10px;
             }
             
             .info-value {
-              font-size: 11px;
+              font-size: 10px;
             }
             
             table {
               width: 100%;
               border-collapse: collapse;
-              margin: 8px 0;
+              margin: 6px 0;
+              table-layout: fixed;
             }
             
             th, td {
               border: 1px solid #ddd;
-              padding: 4px 5px;
+              padding: 3px 4px;
               text-align: left;
-              font-size: 11px;
+              font-size: 10px;
+              overflow: hidden;
+              white-space: normal;
+              word-break: break-word;
             }
             
             th {
@@ -707,35 +726,36 @@ Em um ambiente de produção, este seria o conteúdo real do arquivo.`);
             }
             
             .footer {
-              margin-top: 15px;
-              font-size: 10px;
+              margin-top: 10px;
+              font-size: 9px;
               border-top: 1px solid #eee;
-              padding-top: 8px;
+              padding-top: 6px;
             }
             
             .print-btn {
               display: block;
-              margin: 20px auto 0;
-              padding: 10px 20px;
+              margin: 15px auto 0;
+              padding: 8px 15px;
               background-color: #4a6da7;
               color: white;
               border: none;
               border-radius: 4px;
               cursor: pointer;
               font-weight: bold;
+              font-size: 12px;
             }
             
             @media print {
               body {
                 background: none;
-                font-size: 11px;
-                line-height: 1.2;
+                font-size: 10px;
+                line-height: 1.1;
               }
               
               .a4-page {
                 box-shadow: none;
                 margin: 0;
-                padding: 8mm;
+                padding: 5mm;
                 width: 100%;
                 height: 100%;
                 min-height: auto;
@@ -743,20 +763,20 @@ Em um ambiente de produção, este seria o conteúdo real do arquivo.`);
               }
               
               .header {
-                margin-bottom: 10px;
-              }
-              
-              .page-title {
-                margin: 8px 0;
-                padding: 4px 0;
-              }
-              
-              .section {
                 margin-bottom: 8px;
               }
               
+              .page-title {
+                margin: 6px 0;
+                padding: 3px 0;
+              }
+              
+              .section {
+                margin-bottom: 6px;
+              }
+              
               .info-grid {
-                gap: 6px;
+                gap: 5px;
               }
               
               .info-item {
@@ -764,16 +784,16 @@ Em um ambiente de produção, este seria o conteúdo real do arquivo.`);
               }
               
               table {
-                margin: 6px 0;
+                margin: 5px 0;
               }
               
               th, td {
-                padding: 3px 4px;
+                padding: 2px 3px;
               }
               
               .footer {
-                margin-top: 8px;
-                padding-top: 4px;
+                margin-top: 6px;
+                padding-top: 3px;
               }
               
               .print-btn {
@@ -782,7 +802,7 @@ Em um ambiente de produção, este seria o conteúdo real do arquivo.`);
               
               @page {
                 size: A4 portrait;
-                margin: 0.5cm;
+                margin: 0.3cm;
               }
             }
           </style>
