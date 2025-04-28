@@ -164,7 +164,7 @@ export default function SettingsPage() {
   // Update tenant profile
   const updateTenantMutation = useMutation({
     mutationFn: async (data: TenantProfileFormValues) => {
-      await apiRequest("PATCH", `/api/tenants/${user?.tenantId}`, data);
+      await apiRequest("PATCH", "/api/tenant/profile", data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [`/api/tenants/${user?.tenantId}`] });
@@ -390,7 +390,7 @@ export default function SettingsPage() {
   // Upload da logomarca
   const uploadLogoMutation = useMutation({
     mutationFn: async (logoUrl: string) => {
-      await apiRequest("PATCH", `/api/tenants/${user?.tenantId}`, {
+      await apiRequest("PATCH", "/api/tenant/profile", {
         logoUrl
       });
     },
