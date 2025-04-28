@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Layout } from "@/components/layout/layout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -19,10 +19,11 @@ import {
   Calendar, 
   FileText 
 } from "lucide-react";
-import { IssuedCertificate, EntryCertificate, Client } from "@shared/schema";
+import { IssuedCertificate, EntryCertificate, Client, Supplier, Manufacturer } from "@shared/schema";
 import { IssueCertificateForm } from "@/components/certificates/issue-certificate-form";
 import { formatDate } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
+import { Label } from "@/components/ui/label";
 
 export default function IssuedCertificatesPage() {
   const { toast } = useToast();
@@ -36,6 +37,16 @@ export default function IssuedCertificatesPage() {
     endDate: "",
     invoiceNumber: "",
     customLot: "",
+  });
+  
+  // Estado dos filtros para boletins de entrada
+  const [entryCertFilters, setEntryCertFilters] = useState({
+    manufacturerId: "",
+    supplierId: "",
+    productName: "",
+    internalLot: "",
+    supplierLot: "",
+    entryDate: "",
   });
   
   // Fetch issued certificates
@@ -55,6 +66,16 @@ export default function IssuedCertificatesPage() {
   // Fetch clients for filtering
   const { data: clients } = useQuery<Client[]>({
     queryKey: ["/api/clients"],
+  });
+  
+  // Fetch suppliers for filtering
+  const { data: suppliers } = useQuery<Supplier[]>({
+    queryKey: ["/api/suppliers"],
+  });
+  
+  // Fetch manufacturers for filtering
+  const { data: manufacturers } = useQuery<Manufacturer[]>({
+    queryKey: ["/api/manufacturers"],
   });
   
   // Filter certificates based on filter criteria
@@ -101,6 +122,66 @@ export default function IssuedCertificatesPage() {
         return matches;
       })
     : [];
+    
+  // Filter entry certificates based on filter criteria
+  const filteredEntryCertificates = useMemo(() => {
+    if (!entryCertificates) return [];
+    
+    return entryCertificates.filter(cert => {
+      let matches = true;
+      
+      // Filtro por fabricante
+      if (entryCertFilters.manufacturerId && cert.manufacturerId.toString() !== entryCertFilters.manufacturerId) {
+        matches = false;
+      }
+      
+      // Filtro por fornecedor
+      if (entryCertFilters.supplierId && cert.supplierId.toString() !== entryCertFilters.supplierId) {
+        matches = false;
+      }
+      
+      // Filtro por nome do produto (busca parcial case-insensitive)
+      if (entryCertFilters.productName && cert.productName) {
+        const productNameLower = cert.productName.toLowerCase();
+        const searchTermLower = entryCertFilters.productName.toLowerCase();
+        if (!productNameLower.includes(searchTermLower)) {
+          matches = false;
+        }
+      }
+      
+      // Filtro por lote interno (busca parcial case-insensitive)
+      if (entryCertFilters.internalLot && cert.internalLot) {
+        const internalLotLower = cert.internalLot.toLowerCase();
+        const searchTermLower = entryCertFilters.internalLot.toLowerCase();
+        if (!internalLotLower.includes(searchTermLower)) {
+          matches = false;
+        }
+      }
+      
+      // Filtro por lote do fornecedor (busca parcial case-insensitive)
+      if (entryCertFilters.supplierLot && cert.supplierLot) {
+        const supplierLotLower = cert.supplierLot.toLowerCase();
+        const searchTermLower = entryCertFilters.supplierLot.toLowerCase();
+        if (!supplierLotLower.includes(searchTermLower)) {
+          matches = false;
+        }
+      }
+      
+      // Filtro por data de entrada
+      if (entryCertFilters.entryDate) {
+        const entryDate = new Date(cert.entryDate);
+        const filterDate = new Date(entryCertFilters.entryDate);
+        // Resetar horas para comparar apenas as datas
+        entryDate.setHours(0, 0, 0, 0);
+        filterDate.setHours(0, 0, 0, 0);
+        if (entryDate.getTime() !== filterDate.getTime()) {
+          matches = false;
+        }
+      }
+      
+      return matches;
+    });
+  }, [entryCertificates, entryCertFilters]);
   
   // Handle opening the issue dialog
   const handleIssueNew = () => {
@@ -329,11 +410,133 @@ export default function IssuedCertificatesPage() {
                   Selecione um boletim de entrada para emitir um novo boletim para cliente.
                 </p>
                 
+                {/* Filtros para boletins de entrada */}
+                <Card className="p-4">
+                  <h3 className="mb-3 text-sm font-medium">Filtros</h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                    {/* Filtro por Fabricante */}
+                    <div className="space-y-2">
+                      <Label htmlFor="manufacturerFilter">Fabricante</Label>
+                      <Select
+                        value={entryCertFilters.manufacturerId}
+                        onValueChange={(value) => 
+                          setEntryCertFilters({...entryCertFilters, manufacturerId: value})
+                        }
+                      >
+                        <SelectTrigger id="manufacturerFilter">
+                          <SelectValue placeholder="Todos" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SafeSelectItem value="">Todos</SafeSelectItem>
+                          {manufacturers?.map((manufacturer) => (
+                            <SafeSelectItem key={manufacturer.id} value={manufacturer.id.toString()}>
+                              {manufacturer.name}
+                            </SafeSelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    
+                    {/* Filtro por Fornecedor */}
+                    <div className="space-y-2">
+                      <Label htmlFor="supplierFilter">Fornecedor</Label>
+                      <Select
+                        value={entryCertFilters.supplierId}
+                        onValueChange={(value) => 
+                          setEntryCertFilters({...entryCertFilters, supplierId: value})
+                        }
+                      >
+                        <SelectTrigger id="supplierFilter">
+                          <SelectValue placeholder="Todos" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SafeSelectItem value="">Todos</SafeSelectItem>
+                          {suppliers?.map((supplier) => (
+                            <SafeSelectItem key={supplier.id} value={supplier.id.toString()}>
+                              {supplier.name}
+                            </SafeSelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    
+                    {/* Filtro por Produto (busca por texto) */}
+                    <div className="space-y-2">
+                      <Label htmlFor="productFilter">Produto</Label>
+                      <Input
+                        id="productFilter"
+                        placeholder="Buscar por nome de produto"
+                        value={entryCertFilters.productName}
+                        onChange={(e) => 
+                          setEntryCertFilters({...entryCertFilters, productName: e.target.value})
+                        }
+                      />
+                    </div>
+                    
+                    {/* Filtro por Lote Interno */}
+                    <div className="space-y-2">
+                      <Label htmlFor="internalLotFilter">Lote Interno</Label>
+                      <Input
+                        id="internalLotFilter"
+                        placeholder="Lote interno"
+                        value={entryCertFilters.internalLot}
+                        onChange={(e) => 
+                          setEntryCertFilters({...entryCertFilters, internalLot: e.target.value})
+                        }
+                      />
+                    </div>
+                    
+                    {/* Filtro por Lote do Fornecedor */}
+                    <div className="space-y-2">
+                      <Label htmlFor="supplierLotFilter">Lote do Fornecedor</Label>
+                      <Input
+                        id="supplierLotFilter"
+                        placeholder="Lote do fornecedor"
+                        value={entryCertFilters.supplierLot}
+                        onChange={(e) => 
+                          setEntryCertFilters({...entryCertFilters, supplierLot: e.target.value})
+                        }
+                      />
+                    </div>
+                    
+                    {/* Filtro por período - Data de Entrada */}
+                    <div className="space-y-2">
+                      <Label htmlFor="entryDateFilter">Data de Entrada</Label>
+                      <Input
+                        id="entryDateFilter"
+                        type="date"
+                        value={entryCertFilters.entryDate}
+                        onChange={(e) => 
+                          setEntryCertFilters({...entryCertFilters, entryDate: e.target.value})
+                        }
+                      />
+                    </div>
+                  </div>
+                  
+                  <div className="flex justify-end mt-4">
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => setEntryCertFilters({
+                        manufacturerId: "",
+                        supplierId: "",
+                        productName: "",
+                        internalLot: "",
+                        supplierLot: "",
+                        entryDate: "",
+                      })}
+                      className="mr-2"
+                    >
+                      Limpar Filtros
+                    </Button>
+                  </div>
+                </Card>
+                
                 {isLoadingEntries ? (
                   <div className="flex justify-center items-center h-64">
                     <Loader2 className="h-8 w-8 animate-spin text-primary" />
                   </div>
-                ) : entryCertificates && entryCertificates.length > 0 ? (
+                ) : entryCertificates && filteredEntryCertificates.length > 0 ? (
                   <div className="overflow-y-auto max-h-[400px]">
                     <Table>
                       <TableHeader>
@@ -347,7 +550,7 @@ export default function IssuedCertificatesPage() {
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {entryCertificates.map((cert) => (
+                        {filteredEntryCertificates.map((cert) => (
                           <TableRow key={cert.id}>
                             <TableCell>{cert.productName || `Produto #${cert.productId}`}</TableCell>
                             <TableCell>{cert.internalLot}</TableCell>
