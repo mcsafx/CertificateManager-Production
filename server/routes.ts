@@ -2417,6 +2417,11 @@ Em um ambiente de produção, este seria o conteúdo real do arquivo.`);
         return res.status(404).json({ message: "Certificado não encontrado" });
       }
       
+      // Ajustar a rastreabilidade não é necessário explicitamente aqui, pois
+      // quando calculamos a quantidade restante dinamicamente, ela já considera
+      // apenas os certificados emitidos existentes no sistema.
+      // Ao excluir o certificado, a próxima consulta já mostrará a quantidade atualizada.
+      
       // Excluir o certificado
       const success = await storage.deleteIssuedCertificate(certificateId, user.tenantId);
       
