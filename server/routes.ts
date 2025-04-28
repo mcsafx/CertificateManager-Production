@@ -2404,6 +2404,32 @@ Em um ambiente de produção, este seria o conteúdo real do arquivo.`);
       next(error);
     }
   });
+  
+  app.delete("/api/issued-certificates/:id", isAuthenticated, async (req, res, next) => {
+    try {
+      const user = req.user!;
+      const certificateId = Number(req.params.id);
+      
+      // Obter o certificado antes de excluí-lo para ajustar a rastreabilidade
+      const certificate = await storage.getIssuedCertificate(certificateId, user.tenantId);
+      
+      if (!certificate) {
+        return res.status(404).json({ message: "Certificado não encontrado" });
+      }
+      
+      // Excluir o certificado
+      const success = await storage.deleteIssuedCertificate(certificateId, user.tenantId);
+      
+      if (!success) {
+        return res.status(500).json({ message: "Erro ao excluir certificado" });
+      }
+      
+      // Retornar uma resposta 204 (No Content) para indicar o sucesso
+      res.status(204).end();
+    } catch (error) {
+      next(error);
+    }
+  });
 
   // Traceability routes
   // Importante: a ordem das rotas é crítica - rotas mais específicas devem vir antes das mais genéricas

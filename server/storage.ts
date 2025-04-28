@@ -153,6 +153,7 @@ export interface IStorage {
   createIssuedCertificate(certificate: InsertIssuedCertificate): Promise<IssuedCertificate>;
   getIssuedCertificatesByTenant(tenantId: number, filters?: Record<string, any>): Promise<IssuedCertificate[]>;
   getIssuedCertificatesByEntryCertificate(entryCertificateId: number, tenantId: number): Promise<IssuedCertificate[]>;
+  deleteIssuedCertificate(id: number, tenantId: number): Promise<boolean>;
 
   // Package Types
   getPackageType(id: number, tenantId: number): Promise<PackageType | undefined>;
@@ -998,6 +999,12 @@ export class MemStorage implements IStorage {
     return Array.from(this.issuedCertificates.values()).filter(
       (cert) => cert.entryCertificateId === entryCertificateId && cert.tenantId === tenantId
     );
+  }
+  
+  async deleteIssuedCertificate(id: number, tenantId: number): Promise<boolean> {
+    const certificate = await this.getIssuedCertificate(id, tenantId);
+    if (!certificate) return false;
+    return this.issuedCertificates.delete(id);
   }
 
   // Package Type methods
@@ -2177,6 +2184,15 @@ export class DatabaseStorage implements IStorage {
         eq(issuedCertificates.entryCertificateId, entryCertificateId),
         eq(issuedCertificates.tenantId, tenantId)
       ));
+  }
+  
+  async deleteIssuedCertificate(id: number, tenantId: number): Promise<boolean> {
+    const result = await db.delete(issuedCertificates)
+      .where(and(
+        eq(issuedCertificates.id, id),
+        eq(issuedCertificates.tenantId, tenantId)
+      ));
+    return result.rowCount > 0;
   }
 
   // Package Types methods
