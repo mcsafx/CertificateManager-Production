@@ -256,11 +256,19 @@ export default function IssuedCertificatesPage() {
       });
       
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Erro ao excluir o certificado');
+        // Tentar obter detalhes do erro se disponível
+        try {
+          const errorData = await response.json();
+          throw new Error(errorData.message || 'Erro ao excluir o certificado');
+        } catch (e) {
+          // Se não for possível obter JSON (por exemplo, resposta vazia)
+          throw new Error(`Erro ao excluir o certificado: ${response.status} ${response.statusText}`);
+        }
       }
       
-      return response.json();
+      // Não tentamos transformar em JSON para respostas 204 No Content
+      // apenas retornamos true para indicar sucesso
+      return true;
     },
     onSuccess: () => {
       toast({
