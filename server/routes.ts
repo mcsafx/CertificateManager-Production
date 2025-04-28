@@ -523,11 +523,7 @@ Em um ambiente de produção, este seria o conteúdo real do arquivo.`);
             
             <!-- Rodapé -->
             <div class="footer">
-              <p>Os dados informados neste Certificado são resultados obtidos em nosso laboratório, seguindo rigorosamente nossos padrões. 
-              Estas recomendações são dadas de boa fé, sendo que, se o armazenamento, transporte, e/ou manuseio não forem adequados 
-              às nossas recomendações, não nos responsabilizamos por eventual garantia.</p>
-              
-              <div style="margin-top: 20px; text-align: center;">
+              <div style="text-align: center;">
                 <p><strong>Data de emissão do certificado:</strong> ${new Date().toLocaleDateString('pt-BR')}</p>
               </div>
             </div>
@@ -937,11 +933,7 @@ Em um ambiente de produção, este seria o conteúdo real do arquivo.`);
             
             <!-- 3. Rodapé -->
             <div class="footer">
-              <p>Os dados informados neste Certificado são resultados obtidos em nosso laboratório, seguindo rigorosamente nossos padrões. 
-              Estas recomendações são dadas de boa fé, sendo que, se o armazenamento, transporte, e/ou manuseio não forem adequados 
-              às nossas recomendações, não nos responsabilizamos por eventual garantia.</p>
-              
-              <div style="margin-top: 20px; text-align: center;">
+              <div style="text-align: center;">
                 <p><strong>Data de emissão do certificado:</strong> ${new Date().toLocaleDateString('pt-BR')}</p>
               </div>
             </div>
