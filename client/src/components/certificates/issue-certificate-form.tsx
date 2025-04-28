@@ -10,6 +10,7 @@ import { Loader2 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { Select, SelectContent, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { SafeSelectItem } from "@/components/ui/safe-select-item";
+import { Switch } from "@/components/ui/switch";
 
 interface IssueCertificateFormProps {
   entryCertificateId?: number;
@@ -26,6 +27,7 @@ export function IssueCertificateForm({ entryCertificateId, onSuccess }: IssueCer
     soldQuantity: "",
     measureUnit: "",
     customLot: "",
+    showSupplierInfo: false,
   });
   
   // Fetch entry certificate if ID is provided
@@ -65,6 +67,7 @@ export function IssueCertificateForm({ entryCertificateId, onSuccess }: IssueCer
         soldQuantity: parseFloat(formData.soldQuantity),
         measureUnit: formData.measureUnit,
         customLot: formData.customLot,
+        showSupplierInfo: formData.showSupplierInfo,
       };
       
       return await apiRequest("POST", "/api/issued-certificates", payload);
@@ -103,6 +106,13 @@ export function IssueCertificateForm({ entryCertificateId, onSuccess }: IssueCer
     setFormData(prev => ({
       ...prev,
       [name]: value,
+    }));
+  };
+  
+  const handleSwitchChange = (checked: boolean) => {
+    setFormData(prev => ({
+      ...prev,
+      showSupplierInfo: checked,
     }));
   };
   
@@ -249,6 +259,17 @@ export function IssueCertificateForm({ entryCertificateId, onSuccess }: IssueCer
               placeholder="Lote para o cliente"
               required
             />
+          </div>
+          
+          <div className="flex items-center space-x-2">
+            <Switch
+              id="showSupplierInfo"
+              checked={formData.showSupplierInfo}
+              onCheckedChange={handleSwitchChange}
+            />
+            <Label htmlFor="showSupplierInfo" className="cursor-pointer">
+              Exibir informações do fornecedor, fabricante e país de origem no certificado
+            </Label>
           </div>
         </div>
         
