@@ -200,13 +200,14 @@ Em um ambiente de produção, este seria o conteúdo real do arquivo.`);
               padding: 0;
               color: #333;
               background-color: #f9f9f9;
-              line-height: 1.4;
+              line-height: 1.3;
+              font-size: 12px;
             }
             
             .a4-page {
               width: 210mm;
               min-height: 297mm;
-              padding: 15mm;
+              padding: 12mm;
               margin: 10mm auto;
               background: white;
               box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
@@ -216,7 +217,7 @@ Em um ambiente de produção, este seria o conteúdo real do arquivo.`);
             .header {
               display: flex;
               justify-content: space-between;
-              margin-bottom: 20px;
+              margin-bottom: 12px;
             }
             
             .logo-container {
@@ -224,75 +225,75 @@ Em um ambiente de produção, este seria o conteúdo real do arquivo.`);
             }
             
             .company-logo {
-              max-height: 70px;
-              max-width: 200px;
+              max-height: 60px;
+              max-width: 180px;
             }
             
             .company-info {
               flex: 0 0 55%;
               text-align: right;
-              font-size: 13px;
+              font-size: 11px;
             }
             
             .company-name {
               font-weight: bold;
-              font-size: 16px;
-              margin-bottom: 5px;
+              font-size: 14px;
+              margin-bottom: 3px;
             }
             
             .page-title {
               text-align: center;
-              font-size: 22px;
+              font-size: 18px;
               font-weight: bold;
-              margin: 25px 0;
+              margin: 12px 0;
               border-top: 1px solid #ddd;
               border-bottom: 1px solid #ddd;
-              padding: 10px 0;
+              padding: 6px 0;
             }
             
             .section {
-              margin-bottom: 25px;
+              margin-bottom: 12px;
             }
             
             .section-title {
-              font-size: 16px;
+              font-size: 14px;
               font-weight: bold;
-              margin-bottom: 10px;
+              margin-bottom: 6px;
               border-bottom: 1px solid #eee;
-              padding-bottom: 5px;
+              padding-bottom: 3px;
             }
             
             .info-grid {
               display: grid;
               grid-template-columns: 1fr 1fr;
-              gap: 15px;
+              gap: 8px;
             }
             
             .info-item {
-              margin-bottom: 8px;
+              margin-bottom: 4px;
             }
             
             .info-label {
               font-weight: bold;
-              margin-bottom: 3px;
-              font-size: 13px;
+              margin-bottom: 1px;
+              font-size: 11px;
             }
             
             .info-value {
-              font-size: 14px;
+              font-size: 11px;
             }
             
             table {
               width: 100%;
               border-collapse: collapse;
-              margin: 15px 0;
+              margin: 8px 0;
             }
             
             th, td {
               border: 1px solid #ddd;
-              padding: 8px;
+              padding: 4px 5px;
               text-align: left;
-              font-size: 14px;
+              font-size: 11px;
             }
             
             th {
@@ -301,10 +302,10 @@ Em um ambiente de produção, este seria o conteúdo real do arquivo.`);
             }
             
             .footer {
-              margin-top: 30px;
-              font-size: 12px;
+              margin-top: 15px;
+              font-size: 10px;
               border-top: 1px solid #eee;
-              padding-top: 15px;
+              padding-top: 8px;
             }
             
             .print-btn {
@@ -322,12 +323,52 @@ Em um ambiente de produção, este seria o conteúdo real do arquivo.`);
             @media print {
               body {
                 background: none;
+                font-size: 11px;
+                line-height: 1.2;
               }
               
               .a4-page {
                 box-shadow: none;
                 margin: 0;
-                padding: 10mm;
+                padding: 8mm;
+                width: 100%;
+                height: 100%;
+                min-height: auto;
+                page-break-after: always;
+              }
+              
+              .header {
+                margin-bottom: 10px;
+              }
+              
+              .page-title {
+                margin: 8px 0;
+                padding: 4px 0;
+              }
+              
+              .section {
+                margin-bottom: 8px;
+              }
+              
+              .info-grid {
+                gap: 6px;
+              }
+              
+              .info-item {
+                margin-bottom: 2px;
+              }
+              
+              table {
+                margin: 6px 0;
+              }
+              
+              th, td {
+                padding: 3px 4px;
+              }
+              
+              .footer {
+                margin-top: 8px;
+                padding-top: 4px;
               }
               
               .print-btn {
@@ -335,8 +376,8 @@ Em um ambiente de produção, este seria o conteúdo real do arquivo.`);
               }
               
               @page {
-                size: A4;
-                margin: 0;
+                size: A4 portrait;
+                margin: 0.5cm;
               }
             }
           </style>
@@ -564,13 +605,14 @@ Em um ambiente de produção, este seria o conteúdo real do arquivo.`);
               padding: 0;
               color: #333;
               background-color: #f9f9f9;
-              line-height: 1.4;
+              line-height: 1.3;
+              font-size: 12px;
             }
             
             .a4-page {
               width: 210mm;
               min-height: 297mm;
-              padding: 15mm;
+              padding: 12mm;
               margin: 10mm auto;
               background: white;
               box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
@@ -580,7 +622,7 @@ Em um ambiente de produção, este seria o conteúdo real do arquivo.`);
             .header {
               display: flex;
               justify-content: space-between;
-              margin-bottom: 20px;
+              margin-bottom: 12px;
             }
             
             .logo-container {
@@ -588,75 +630,75 @@ Em um ambiente de produção, este seria o conteúdo real do arquivo.`);
             }
             
             .company-logo {
-              max-height: 70px;
-              max-width: 200px;
+              max-height: 60px;
+              max-width: 180px;
             }
             
             .company-info {
               flex: 0 0 55%;
               text-align: right;
-              font-size: 13px;
+              font-size: 11px;
             }
             
             .company-name {
               font-weight: bold;
-              font-size: 16px;
-              margin-bottom: 5px;
+              font-size: 14px;
+              margin-bottom: 3px;
             }
             
             .page-title {
               text-align: center;
-              font-size: 22px;
+              font-size: 18px;
               font-weight: bold;
-              margin: 25px 0;
+              margin: 12px 0;
               border-top: 1px solid #ddd;
               border-bottom: 1px solid #ddd;
-              padding: 10px 0;
+              padding: 6px 0;
             }
             
             .section {
-              margin-bottom: 25px;
+              margin-bottom: 12px;
             }
             
             .section-title {
-              font-size: 16px;
+              font-size: 14px;
               font-weight: bold;
-              margin-bottom: 10px;
+              margin-bottom: 6px;
               border-bottom: 1px solid #eee;
-              padding-bottom: 5px;
+              padding-bottom: 3px;
             }
             
             .info-grid {
               display: grid;
               grid-template-columns: 1fr 1fr;
-              gap: 15px;
+              gap: 8px;
             }
             
             .info-item {
-              margin-bottom: 8px;
+              margin-bottom: 4px;
             }
             
             .info-label {
               font-weight: bold;
-              margin-bottom: 3px;
-              font-size: 13px;
+              margin-bottom: 1px;
+              font-size: 11px;
             }
             
             .info-value {
-              font-size: 14px;
+              font-size: 11px;
             }
             
             table {
               width: 100%;
               border-collapse: collapse;
-              margin: 15px 0;
+              margin: 8px 0;
             }
             
             th, td {
               border: 1px solid #ddd;
-              padding: 8px;
+              padding: 4px 5px;
               text-align: left;
-              font-size: 14px;
+              font-size: 11px;
             }
             
             th {
@@ -665,10 +707,10 @@ Em um ambiente de produção, este seria o conteúdo real do arquivo.`);
             }
             
             .footer {
-              margin-top: 30px;
-              font-size: 12px;
+              margin-top: 15px;
+              font-size: 10px;
               border-top: 1px solid #eee;
-              padding-top: 15px;
+              padding-top: 8px;
             }
             
             .print-btn {
@@ -686,12 +728,52 @@ Em um ambiente de produção, este seria o conteúdo real do arquivo.`);
             @media print {
               body {
                 background: none;
+                font-size: 11px;
+                line-height: 1.2;
               }
               
               .a4-page {
                 box-shadow: none;
                 margin: 0;
-                padding: 10mm;
+                padding: 8mm;
+                width: 100%;
+                height: 100%;
+                min-height: auto;
+                page-break-after: always;
+              }
+              
+              .header {
+                margin-bottom: 10px;
+              }
+              
+              .page-title {
+                margin: 8px 0;
+                padding: 4px 0;
+              }
+              
+              .section {
+                margin-bottom: 8px;
+              }
+              
+              .info-grid {
+                gap: 6px;
+              }
+              
+              .info-item {
+                margin-bottom: 2px;
+              }
+              
+              table {
+                margin: 6px 0;
+              }
+              
+              th, td {
+                padding: 3px 4px;
+              }
+              
+              .footer {
+                margin-top: 8px;
+                padding-top: 4px;
               }
               
               .print-btn {
@@ -699,8 +781,8 @@ Em um ambiente de produção, este seria o conteúdo real do arquivo.`);
               }
               
               @page {
-                size: A4;
-                margin: 0;
+                size: A4 portrait;
+                margin: 0.5cm;
               }
             }
           </style>
