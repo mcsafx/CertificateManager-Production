@@ -136,7 +136,7 @@ export default function SettingsPage() {
   
   // Fetch tenant data
   const { data: tenant, isLoading: isLoadingTenant } = useQuery({
-    queryKey: [`/api/tenants/${user?.tenantId}`],
+    queryKey: ["/api/tenant/profile"],
     enabled: !!user?.tenantId,
   });
   
@@ -167,7 +167,7 @@ export default function SettingsPage() {
       await apiRequest("PATCH", "/api/tenant/profile", data);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [`/api/tenants/${user?.tenantId}`] });
+      queryClient.invalidateQueries({ queryKey: ["/api/tenant/profile"] });
       toast({
         title: "Perfil da empresa atualizado",
         description: "Os dados da empresa foram atualizados com sucesso.",
@@ -395,7 +395,7 @@ export default function SettingsPage() {
       });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [`/api/tenants/${user?.tenantId}`] });
+      queryClient.invalidateQueries({ queryKey: ["/api/tenant/profile"] });
       toast({
         title: "Logomarca atualizada",
         description: "A logomarca da empresa foi atualizada com sucesso.",

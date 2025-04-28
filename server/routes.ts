@@ -1123,6 +1123,20 @@ Em um ambiente de produção, este seria o conteúdo real do arquivo.`);
       next(error);
     }
   });
+  
+  // Endpoint para que membros de um tenant possam obter as informações do seu próprio tenant
+  app.get("/api/tenant/profile", isAuthenticated, async (req, res, next) => {
+    try {
+      const user = req.user!;
+      const tenant = await storage.getTenant(user.tenantId);
+      if (!tenant) {
+        return res.status(404).json({ message: "Tenant not found" });
+      }
+      res.json(tenant);
+    } catch (error) {
+      next(error);
+    }
+  });
 
   // User routes (for admins and tenant admins)
   app.get("/api/users", isAuthenticated, async (req, res, next) => {
