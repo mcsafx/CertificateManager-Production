@@ -931,6 +931,16 @@ Em um ambiente de produção, este seria o conteúdo real do arquivo.`);
               </table>
             </div>
             
+            ${certificate.observations ? `
+            <!-- Seção de Observações -->
+            <div class="section">
+              <div class="section-title">Observações</div>
+              <div class="observations">
+                ${certificate.observations.split('\n').map(line => `<p>${line}</p>`).join('')}
+              </div>
+            </div>
+            ` : ''}
+            
             <!-- 3. Rodapé -->
             <div class="footer">
               <div style="text-align: center;">
