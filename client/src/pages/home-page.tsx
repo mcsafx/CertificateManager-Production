@@ -32,7 +32,7 @@ export default function HomePage() {
   
   const { 
     data: suppliersData,
-    isLoading: isLoadingSupppliers 
+    isLoading: isLoadingSuppliers 
   } = useQuery({
     queryKey: ["/api/suppliers"],
   });
@@ -44,14 +44,23 @@ export default function HomePage() {
     queryKey: ["/api/clients"],
   });
   
+  const { 
+    data: manufacturersData,
+    isLoading: isLoadingManufacturers 
+  } = useQuery({
+    queryKey: ["/api/manufacturers"],
+  });
+  
   const isLoading = isLoadingEntryCertificates || isLoadingIssuedCertificates || 
-                    isLoadingProducts || isLoadingSupppliers || isLoadingClients;
+                    isLoadingProducts || isLoadingSuppliers || 
+                    isLoadingClients || isLoadingManufacturers;
 
   const entryCertificates = entryCertificatesData || [] as any[];
   const issuedCertificates = issuedCertificatesData || [] as any[];
   const products = productsData || [] as any[];
   const suppliers = suppliersData || [] as any[];
   const clients = clientsData || [] as any[];
+  const manufacturers = manufacturersData || [] as any[];
   
   // Calcular dados reais para o gráfico de atividade de boletins
   const generateChartData = () => {
@@ -218,7 +227,7 @@ export default function HomePage() {
                             <Factory className="h-5 w-5 text-gray-600" />
                             <span>Fabricantes</span>
                           </div>
-                          <span className="font-bold">{suppliers.length}</span>
+                          <span className="font-bold">{manufacturers.length}</span>
                         </a>
                       </Link>
                     </div>
