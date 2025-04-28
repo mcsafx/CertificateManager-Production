@@ -1109,6 +1109,20 @@ Em um ambiente de produção, este seria o conteúdo real do arquivo.`);
       next(error);
     }
   });
+  
+  // Endpoint para que membros de um tenant (incluindo não-admin) possam atualizar seu próprio tenant
+  app.patch("/api/tenant/profile", isAuthenticated, async (req, res, next) => {
+    try {
+      const user = req.user!;
+      const tenant = await storage.updateTenant(user.tenantId, req.body);
+      if (!tenant) {
+        return res.status(404).json({ message: "Tenant not found" });
+      }
+      res.json(tenant);
+    } catch (error) {
+      next(error);
+    }
+  });
 
   // User routes (for admins and tenant admins)
   app.get("/api/users", isAuthenticated, async (req, res, next) => {
