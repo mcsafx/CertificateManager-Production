@@ -2783,48 +2783,60 @@ export const storage = isDatabaseConfigured
   ? new DatabaseStorage()
   : new MemStorage();
 
-// Cria tenant e usuário administrador
+// Cria apenas o usuário administrador se necessário, mas não recreia o tenant Admin se foi excluído
 if (isDatabaseConfigured) {
   (async () => {
     try {
-      // Verificar se já existe um tenant admin
-      const adminTenant = await storage.getTenantByName("Admin");
+      // Verificar se existe um usuário admin no sistema
+      const existingAdmin = await storage.getUserByUsername("admin");
       
-      if (!adminTenant) {
-        // Buscar o plano básico para associar ao tenant admin
-        const [basicPlan] = await db.select().from(plans).where(eq(plans.code, "A"));
+      if (!existingAdmin) {
+        // Verificar se já existe um tenant admin ou com CNPJ "00000000000000"
+        let adminTenant = await storage.getTenantByName("Admin");
         
-        if (!basicPlan) {
-          throw new Error("Plano básico não encontrado. Verifique se a migração de planos foi executada corretamente.");
-        }
-
-        // Verificar se já existe um tenant com o CNPJ 00000000000000
-        const existingTenant = await db.select()
-          .from(tenants)
-          .where(eq(tenants.cnpj, "00000000000000"));
-
-        let tenant;
-        if (existingTenant && existingTenant.length > 0) {
-          // Usar o tenant existente
-          tenant = existingTenant[0];
-          console.log("Using existing tenant with CNPJ 00000000000000");
-        } else {
-          // Criar tenant admin
-          tenant = await storage.createTenant({
-            name: "Admin",
-            cnpj: "00000000000000",
-            address: "System Address",
-            active: true,
-            planId: basicPlan.id,
-            planStartDate: new Date().toISOString(), // Convertendo para string
-            storageUsed: 0
-          });
-          console.log("Admin tenant created successfully");
+        // Se não encontrou pelo nome, tenta pelo CNPJ
+        if (!adminTenant) {
+          const [existingTenant] = await db.select()
+            .from(tenants)
+            .where(eq(tenants.cnpj, "00000000000000"));
+            
+          if (existingTenant) {
+            adminTenant = existingTenant;
+          }
         }
         
-        // Verificar se já existe um usuário admin para este tenant
-        const existingAdmin = await storage.getUserByUsername("admin");
-        if (!existingAdmin) {
+        // Só cria o tenant Admin se não existir nenhum tenant no sistema
+        if (!adminTenant) {
+          const tenantCount = await db.select({count: sql`count(*)`}).from(tenants);
+          const totalTenants = Number(tenantCount[0]?.count || 0);
+          
+          // Apenas criamos o tenant Admin se não houver nenhum tenant no sistema
+          if (totalTenants === 0) {
+            // Buscar o plano básico para associar ao tenant admin
+            const [basicPlan] = await db.select().from(plans).where(eq(plans.code, "A"));
+            
+            if (!basicPlan) {
+              throw new Error("Plano básico não encontrado. Verifique se a migração de planos foi executada corretamente.");
+            }
+            
+            // Criar tenant admin apenas na inicialização inicial do sistema
+            adminTenant = await storage.createTenant({
+              name: "Admin",
+              cnpj: "00000000000000",
+              address: "System Address",
+              active: true,
+              planId: basicPlan.id,
+              planStartDate: new Date().toISOString(),
+              storageUsed: 0
+            });
+            console.log("Admin tenant created successfully (first-time initialization)");
+          } else {
+            console.log("Admin tenant not present but other tenants exist - not recreating Admin tenant");
+          }
+        }
+        
+        // Se temos um tenant Admin ou outro tenant existente, podemos criar o usuário admin
+        if (adminTenant) {
           // Criar usuário admin
           const hashedPassword = await hashPassword("admin123");
           await storage.createUser({
@@ -2832,15 +2844,13 @@ if (isDatabaseConfigured) {
             password: hashedPassword,
             name: "System Administrator",
             role: "admin",
-            tenantId: tenant.id,
+            tenantId: adminTenant.id,
             active: true
           });
           console.log("Admin user created successfully");
-        } else {
-          console.log("Admin user already exists");
         }
       } else {
-        console.log("Admin tenant already exists");
+        console.log("Admin user already exists");
       }
     } catch (error) {
       console.error("Error creating admin tenant and user:", error);
