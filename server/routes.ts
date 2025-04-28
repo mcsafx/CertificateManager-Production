@@ -604,6 +604,26 @@ Em um ambiente de produção, este seria o conteúdo real do arquivo.`);
   });
   
   // Endpoint para visualização de certificados emitidos em HTML
+  // Função para formatar números com 4 casas decimais
+  function formatNumberTo4Decimals(value: any): string {
+    if (value === null || value === undefined || value === '') {
+      return 'N/A';
+    }
+    
+    try {
+      // Converte para número e formata com 4 casas decimais
+      const numValue = parseFloat(value);
+      if (isNaN(numValue)) {
+        return 'N/A';
+      }
+      // Formata com 4 casas decimais e troca ponto por vírgula (padrão brasileiro)
+      return numValue.toFixed(4).replace('.', ',');
+    } catch (e) {
+      // Em caso de erro, retorna o valor original
+      return String(value);
+    }
+  }
+
   app.get("/api/issued-certificates/view/:id", isAuthenticated, async (req, res, next) => {
     try {
       const user = req.user!;
@@ -927,8 +947,11 @@ Em um ambiente de produção, este seria o conteúdo real do arquivo.`);
                     <tr>
                       <td>${result.characteristicName}</td>
                       <td>${result.unit}</td>
-                      <td>${result.minValue && result.maxValue ? `${result.minValue} - ${result.maxValue}` : (result.minValue || result.maxValue || 'N/A')}</td>
-                      <td><strong>${result.obtainedValue}</strong></td>
+                      <td>${result.minValue && result.maxValue ? 
+                        `${formatNumberTo4Decimals(result.minValue)} - ${formatNumberTo4Decimals(result.maxValue)}` : 
+                        (result.minValue ? formatNumberTo4Decimals(result.minValue) : 
+                         (result.maxValue ? formatNumberTo4Decimals(result.maxValue) : 'N/A'))}</td>
+                      <td><strong>${formatNumberTo4Decimals(result.obtainedValue)}</strong></td>
                     </tr>
                   `).join('') : `
                     <tr>
