@@ -20,6 +20,8 @@ Este documento lista todos os módulos do sistema e suas respectivas funcionalid
 * **Subcategorias de Produtos** - `/api/product-subcategories*` - Gerenciamento de subcategorias de produtos
 * **Produtos Base** - `/api/product-base*` - Gerenciamento de produtos base
 * **Tipos de Embalagem** - `/api/package-types*` - Gerenciamento de tipos de embalagem
+* **Fornecedores** - `/api/suppliers*` - Gerenciamento de fornecedores
+* **Fabricantes** - `/api/manufacturers*` - Gerenciamento de fabricantes
 
 ## 3. Módulo Certificados (certificates)
 **Descrição:** Gerenciamento básico de certificados
@@ -38,8 +40,6 @@ Este documento lista todos os módulos do sistema e suas respectivas funcionalid
 **Descrição:** Sistema de rastreabilidade completo
 
 ### Features:
-* **Fornecedores** - `/api/suppliers*` - Gerenciamento de fornecedores
-* **Fabricantes** - `/api/manufacturers*` - Gerenciamento de fabricantes
 * **Clientes** - `/api/clients*` - Gerenciamento de clientes
 * **Rastreabilidade** - `/api/traceability*` - Rastreabilidade de produtos e certificados
 
