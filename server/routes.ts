@@ -15,6 +15,7 @@ import {
 } from "@shared/schema";
 import { tempUpload, moveFileToFinalStorage, getFileSizeInMB, removeFile, getFileUrl } from "./services/file-upload";
 import { checkStorageLimits, updateStorageUsed } from "./middlewares/storage-limits";
+import { checkFeatureAccess } from "./middlewares/feature-access";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Set up authentication routes
@@ -1687,7 +1688,7 @@ Em um ambiente de produção, este seria o conteúdo real do arquivo.`);
   });
 
   // Suppliers routes
-  app.get("/api/suppliers", isAuthenticated, async (req, res, next) => {
+  app.get("/api/suppliers", isAuthenticated, checkFeatureAccess("/api/suppliers*"), async (req, res, next) => {
     try {
       const user = req.user!;
       const suppliers = await storage.getSuppliersByTenant(user.tenantId);
@@ -1697,7 +1698,7 @@ Em um ambiente de produção, este seria o conteúdo real do arquivo.`);
     }
   });
 
-  app.post("/api/suppliers", isAuthenticated, async (req, res, next) => {
+  app.post("/api/suppliers", isAuthenticated, checkFeatureAccess("/api/suppliers*"), async (req, res, next) => {
     try {
       const user = req.user!;
       const parsedBody = insertSupplierSchema.parse({
@@ -1765,7 +1766,7 @@ Em um ambiente de produção, este seria o conteúdo real do arquivo.`);
   });
 
   // Manufacturers routes
-  app.get("/api/manufacturers", isAuthenticated, async (req, res, next) => {
+  app.get("/api/manufacturers", isAuthenticated, checkFeatureAccess("/api/manufacturers*"), async (req, res, next) => {
     try {
       const user = req.user!;
       const manufacturers = await storage.getManufacturersByTenant(user.tenantId);
@@ -1775,7 +1776,7 @@ Em um ambiente de produção, este seria o conteúdo real do arquivo.`);
     }
   });
 
-  app.post("/api/manufacturers", isAuthenticated, async (req, res, next) => {
+  app.post("/api/manufacturers", isAuthenticated, checkFeatureAccess("/api/manufacturers*"), async (req, res, next) => {
     try {
       const user = req.user!;
       const parsedBody = insertManufacturerSchema.parse({
