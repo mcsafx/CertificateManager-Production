@@ -935,8 +935,8 @@ Em um ambiente de produção, este seria o conteúdo real do arquivo.`);
             <!-- Seção de Observações -->
             <div class="section">
               <div class="section-title">Observações</div>
-              <div class="observations">
-                ${certificate.observations.split('\n').map(line => `<p>${line}</p>`).join('')}
+              <div class="observations" style="background-color: #f9f9f9; border: 1px solid #eee; padding: 8px; margin-bottom: 10px; line-height: 1.4; font-size: 10px;">
+                ${certificate.observations.split('\n').map(line => `<p style="margin: 3px 0;">${line}</p>`).join('')}
               </div>
             </div>
             ` : ''}
