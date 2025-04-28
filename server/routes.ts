@@ -152,18 +152,39 @@ Em um ambiente de produção, este seria o conteúdo real do arquivo.`);
       }
       
       // Buscar dados relacionados
-      const supplier = await storage.getSupplier(certificate.supplierId, user.tenantId);
-      const manufacturer = await storage.getManufacturer(certificate.manufacturerId, user.tenantId);
-      const product = await storage.getProduct(certificate.productId, user.tenantId);
-      const results = await storage.getResultsByEntryCertificate(certificateId, user.tenantId);
+      const [supplier, manufacturer, product, results, tenant] = await Promise.all([
+        storage.getSupplier(certificate.supplierId, user.tenantId),
+        storage.getManufacturer(certificate.manufacturerId, user.tenantId),
+        storage.getProduct(certificate.productId, user.tenantId),
+        storage.getResultsByEntryCertificate(certificateId, user.tenantId),
+        storage.getTenant(user.tenantId)
+      ]);
       
       // Formatar datas
-      const formatDate = (date: Date) => {
+      const formatDate = (date: Date | string) => {
         if (!date) return 'N/A';
         return new Date(date).toLocaleDateString('pt-BR');
       };
       
-      // Renderizar HTML
+      // Cálculo do período de validade
+      const calcValidityPeriod = (mfgDate: string | null, expDate: string | null): string => {
+        if (!mfgDate || !expDate) return 'N/A';
+        
+        try {
+          const mfg = new Date(mfgDate);
+          const exp = new Date(expDate);
+          
+          // Calcula diferença em meses
+          const diffMonths = (exp.getFullYear() - mfg.getFullYear()) * 12 + 
+                              (exp.getMonth() - mfg.getMonth());
+          
+          return `${diffMonths} MESES`;
+        } catch (e) {
+          return 'N/A';
+        }
+      };
+      
+      // Renderizar HTML com o mesmo layout dos certificados emitidos
       res.setHeader('Content-Type', 'text/html');
       res.send(`
         <!DOCTYPE html>
