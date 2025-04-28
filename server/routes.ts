@@ -893,6 +893,7 @@ Em um ambiente de produção, este seria o conteúdo real do arquivo.`);
                   <div class="info-label">Data de Validade:</div>
                   <div class="info-value">${entryCertificate.expirationDate ? formatDate(new Date(entryCertificate.expirationDate)) : 'N/A'}</div>
                 </div>
+                ${certificate.showSupplierInfo ? `
                 <div class="info-item">
                   <div class="info-label">Nome do Fabricante:</div>
                   <div class="info-value">${manufacturer ? manufacturer.name : 'N/A'}</div>
@@ -901,6 +902,16 @@ Em um ambiente de produção, este seria o conteúdo real do arquivo.`);
                   <div class="info-label">País de Origem:</div>
                   <div class="info-value">${manufacturer ? manufacturer.country : 'N/A'}</div>
                 </div>
+                <div class="info-item">
+                  <div class="info-label">Fornecedor:</div>
+                  <div class="info-value">${supplier ? supplier.name : 'N/A'}</div>
+                </div>
+                ` : `
+                <div class="info-item">
+                  <div class="info-label">Nome do Fabricante:</div>
+                  <div class="info-value">${manufacturer ? manufacturer.name : 'N/A'}</div>
+                </div>
+                `}
               </div>
             </div>
             
