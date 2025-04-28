@@ -18,6 +18,26 @@ import { checkStorageLimits, updateStorageUsed } from "./middlewares/storage-lim
 import { checkFeatureAccess } from "./middlewares/feature-access";
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Função para formatar números com 4 casas decimais
+  function formatNumberTo4Decimals(value: any): string {
+    if (value === null || value === undefined || value === '') {
+      return 'N/A';
+    }
+    
+    try {
+      // Converte para número e formata com 4 casas decimais
+      const numValue = parseFloat(value);
+      if (isNaN(numValue)) {
+        return 'N/A';
+      }
+      // Formata com 4 casas decimais e troca ponto por vírgula (padrão brasileiro)
+      return numValue.toFixed(4).replace('.', ',');
+    } catch (e) {
+      // Em caso de erro, retorna o valor original
+      return String(value);
+    }
+  }
+
   // Set up authentication routes
   setupAuth(app);
   
@@ -560,9 +580,9 @@ Em um ambiente de produção, este seria o conteúdo real do arquivo.`);
                     <tr>
                       <td>${result.characteristicName}</td>
                       <td>${result.unit}</td>
-                      <td>${result.minValue !== null ? result.minValue : '-'}</td>
-                      <td>${result.maxValue !== null ? result.maxValue : '-'}</td>
-                      <td>${result.obtainedValue}</td>
+                      <td>${result.minValue !== null ? formatNumberTo4Decimals(result.minValue) : '-'}</td>
+                      <td>${result.maxValue !== null ? formatNumberTo4Decimals(result.maxValue) : '-'}</td>
+                      <td>${formatNumberTo4Decimals(result.obtainedValue)}</td>
                       <td>${result.analysisMethod || '-'}</td>
                     </tr>
                   `).join('') : `
@@ -604,25 +624,7 @@ Em um ambiente de produção, este seria o conteúdo real do arquivo.`);
   });
   
   // Endpoint para visualização de certificados emitidos em HTML
-  // Função para formatar números com 4 casas decimais
-  function formatNumberTo4Decimals(value: any): string {
-    if (value === null || value === undefined || value === '') {
-      return 'N/A';
-    }
-    
-    try {
-      // Converte para número e formata com 4 casas decimais
-      const numValue = parseFloat(value);
-      if (isNaN(numValue)) {
-        return 'N/A';
-      }
-      // Formata com 4 casas decimais e troca ponto por vírgula (padrão brasileiro)
-      return numValue.toFixed(4).replace('.', ',');
-    } catch (e) {
-      // Em caso de erro, retorna o valor original
-      return String(value);
-    }
-  }
+
 
   app.get("/api/issued-certificates/view/:id", isAuthenticated, async (req, res, next) => {
     try {
