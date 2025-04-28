@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { SafeSelectItem } from "@/components/ui/safe-select-item";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { 
   Loader2, 
@@ -17,19 +17,33 @@ import {
   Eye, 
   Download, 
   Calendar, 
-  FileText 
+  FileText,
+  Trash2 
 } from "lucide-react";
 import { IssuedCertificate, EntryCertificate, Client, Supplier, Manufacturer } from "@shared/schema";
 import { IssueCertificateForm } from "@/components/certificates/issue-certificate-form";
 import { formatDate } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
+import { 
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { queryClient } from "@/lib/queryClient";
 
 export default function IssuedCertificatesPage() {
   const { toast } = useToast();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [selectedCertificateId, setSelectedCertificateId] = useState<number | null>(null);
   const [selectedEntryId, setSelectedEntryId] = useState<number | null>(null);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [certificateToDelete, setCertificateToDelete] = useState<number | null>(null);
   const [filters, setFilters] = useState({
     clientId: "",
     productId: "",
@@ -234,6 +248,52 @@ export default function IssuedCertificatesPage() {
     });
   };
   
+  // Mutation para excluir o certificado
+  const deleteMutation = useMutation({
+    mutationFn: async (certificateId: number) => {
+      const response = await fetch(`/api/issued-certificates/${certificateId}`, {
+        method: 'DELETE',
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Erro ao excluir o certificado');
+      }
+      
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Sucesso!",
+        description: "Certificado excluído com sucesso e estoque atualizado.",
+      });
+      queryClient.invalidateQueries({ queryKey: ['/api/issued-certificates'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/entry-certificates'] });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Erro ao excluir",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  });
+  
+  // Iniciar o processo de exclusão (mostra o diálogo de confirmação)
+  const handleDelete = (id: number) => {
+    setCertificateToDelete(id);
+    setIsDeleteDialogOpen(true);
+  };
+  
+  // Confirmar a exclusão
+  const confirmDelete = () => {
+    if (certificateToDelete) {
+      deleteMutation.mutate(certificateToDelete);
+      setIsDeleteDialogOpen(false);
+      setCertificateToDelete(null);
+    }
+  };
+  
   return (
     <Layout>
       <div className="p-6">
@@ -374,6 +434,9 @@ export default function IssuedCertificatesPage() {
                             </Button>
                             <Button variant="ghost" size="icon" onClick={() => handleDownload(certificate.id)}>
                               <Download className="h-4 w-4 text-primary" />
+                            </Button>
+                            <Button variant="ghost" size="icon" onClick={() => handleDelete(certificate.id)}>
+                              <Trash2 className="h-4 w-4 text-red-500" />
                             </Button>
                           </div>
                         </TableCell>
@@ -613,6 +676,35 @@ export default function IssuedCertificatesPage() {
             </DialogContent>
           </Dialog>
         )}
+        
+        {/* Diálogo de confirmação para exclusão */}
+        <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Confirmar exclusão</AlertDialogTitle>
+              <AlertDialogDescription>
+                Você está prestes a excluir um certificado emitido. Esta ação devolverá a quantidade ao estoque 
+                e não pode ser desfeita. Tem certeza que deseja continuar?
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+              <AlertDialogAction 
+                onClick={confirmDelete} 
+                className="bg-red-600 hover:bg-red-700 focus:ring-red-600"
+              >
+                {deleteMutation.isPending ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Excluindo...
+                  </>
+                ) : (
+                  'Sim, excluir'
+                )}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </Layout>
   );
