@@ -906,12 +906,7 @@ Em um ambiente de produção, este seria o conteúdo real do arquivo.`);
                   <div class="info-label">Fornecedor:</div>
                   <div class="info-value">${supplier ? supplier.name : 'N/A'}</div>
                 </div>
-                ` : `
-                <div class="info-item">
-                  <div class="info-label">Nome do Fabricante:</div>
-                  <div class="info-value">${manufacturer ? manufacturer.name : 'N/A'}</div>
-                </div>
-                `}
+                ` : ``}
               </div>
             </div>
             
