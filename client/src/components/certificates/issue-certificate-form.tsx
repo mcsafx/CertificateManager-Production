@@ -28,6 +28,7 @@ export function IssueCertificateForm({ entryCertificateId, onSuccess }: IssueCer
     measureUnit: "",
     customLot: "",
     showSupplierInfo: false,
+    observations: "",
   });
   
   // Fetch entry certificate if ID is provided
@@ -68,6 +69,7 @@ export function IssueCertificateForm({ entryCertificateId, onSuccess }: IssueCer
         measureUnit: formData.measureUnit,
         customLot: formData.customLot,
         showSupplierInfo: formData.showSupplierInfo,
+        observations: formData.observations,
       };
       
       return await apiRequest("POST", "/api/issued-certificates", payload);
@@ -94,7 +96,7 @@ export function IssueCertificateForm({ entryCertificateId, onSuccess }: IssueCer
   });
   
   // Form change handlers
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({
       ...prev,
@@ -270,6 +272,18 @@ export function IssueCertificateForm({ entryCertificateId, onSuccess }: IssueCer
             <Label htmlFor="showSupplierInfo" className="cursor-pointer">
               Exibir informações do fornecedor, fabricante e país de origem no certificado
             </Label>
+          </div>
+          
+          <div className="md:col-span-2">
+            <Label htmlFor="observations">Observações</Label>
+            <textarea
+              id="observations"
+              name="observations"
+              value={formData.observations}
+              onChange={handleChange}
+              placeholder="Informações adicionais que serão exibidas no certificado (opcional)"
+              className="w-full min-h-[100px] px-3 py-2 border rounded-md text-sm resize-y"
+            />
           </div>
         </div>
         
