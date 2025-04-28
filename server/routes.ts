@@ -308,9 +308,8 @@ Em um ambiente de produção, este seria o conteúdo real do arquivo.`);
             }
             
             .print-btn {
-              position: fixed;
-              top: 20px;
-              right: 20px;
+              display: block;
+              margin: 20px auto 0;
               padding: 10px 20px;
               background-color: #4a6da7;
               color: white;
@@ -318,25 +317,6 @@ Em um ambiente de produção, este seria o conteúdo real do arquivo.`);
               border-radius: 4px;
               cursor: pointer;
               font-weight: bold;
-              z-index: 1000;
-            }
-            
-            .signatures {
-              display: flex;
-              justify-content: space-around;
-              margin-top: 60px;
-            }
-            
-            .signature {
-              width: 40%;
-              text-align: center;
-            }
-            
-            .signature-line {
-              border-top: 1px solid #000;
-              margin-bottom: 8px;
-              margin-left: auto;
-              margin-right: auto;
             }
             
             @media print {
@@ -362,8 +342,6 @@ Em um ambiente de produção, este seria o conteúdo real do arquivo.`);
           </style>
         </head>
         <body>
-          <button class="print-btn" onclick="window.print()">Imprimir Certificado</button>
-          
           <div class="a4-page">
             <!-- 1. Cabeçalho -->
             <div class="header">
@@ -371,7 +349,7 @@ Em um ambiente de produção, este seria o conteúdo real do arquivo.`);
               <div class="logo-container">
                 ${tenant?.logoUrl 
                   ? `<img src="${tenant.logoUrl}" alt="${tenant.name}" class="company-logo">` 
-                  : `<div class="company-name">${tenant?.name || 'CertQuality'}</div>`}
+                  : `<div class="company-name">${tenant?.name || 'Empresa'}</div>`}
               </div>
               
               <!-- Informações da empresa no canto superior direito -->
@@ -386,61 +364,44 @@ Em um ambiente de produção, este seria o conteúdo real do arquivo.`);
             <!-- Título da página -->
             <div class="page-title">CERTIFICADO DE ENTRADA</div>
             
-            <!-- 2. Divisão Principal -->
-            <!-- Seção 1: Dados do Produto -->
+            <!-- Seção: Informações do Fornecedor/Fabricante -->
             <div class="section">
-              <div class="section-title">Dados do Produto</div>
+              <div class="section-title">Dados do Fornecedor/Fabricante</div>
               <div class="info-grid">
                 <div class="info-item">
-                  <div class="info-label">Nome do Produto:</div>
-                  <div class="info-value">${product ? product.technicalName : 'N/A'}</div>
+                  <div class="info-label">Fornecedor:</div>
+                  <div class="info-value">${supplier ? supplier.name : 'N/A'}</div>
                 </div>
                 <div class="info-item">
-                  <div class="info-label">Nome do Fabricante:</div>
+                  <div class="info-label">Fabricante:</div>
                   <div class="info-value">${manufacturer ? manufacturer.name : 'N/A'}</div>
-                </div>
-                <div class="info-item">
-                  <div class="info-label">Lote do Fabricante:</div>
-                  <div class="info-value">${certificate.supplierLot}</div>
                 </div>
                 <div class="info-item">
                   <div class="info-label">País de Origem:</div>
                   <div class="info-value">${manufacturer ? manufacturer.country : 'N/A'}</div>
                 </div>
                 <div class="info-item">
-                  <div class="info-label">Lote Interno:</div>
-                  <div class="info-value">${certificate.internalLot}</div>
-                </div>
-                <div class="info-item">
-                  <div class="info-label">Data Entrada:</div>
-                  <div class="info-value">${formatDate(certificate.entryDate)}</div>
-                </div>
-                <div class="info-item">
-                  <div class="info-label">Data Fabricação:</div>
-                  <div class="info-value">${formatDate(certificate.manufacturingDate || '')}</div>
-                </div>
-                <div class="info-item">
-                  <div class="info-label">Data Validade:</div>
-                  <div class="info-value">${formatDate(certificate.expirationDate || '')}</div>
-                </div>
-                <div class="info-item">
-                  <div class="info-label">Período de Validade:</div>
-                  <div class="info-value">${calcValidityPeriod(certificate.manufacturingDate, certificate.expirationDate)}</div>
-                </div>
-                <div class="info-item">
                   <div class="info-label">Documento de Referência:</div>
-                  <div class="info-value">${certificate.referenceDocument}</div>
+                  <div class="info-value">${certificate.referenceDocument || 'N/A'}</div>
                 </div>
               </div>
             </div>
             
-            <!-- 3. Informações específicas de entrada -->
+            <!-- Seção: Informações do Produto -->
             <div class="section">
-              <div class="section-title">Informações da Entrada</div>
+              <div class="section-title">Informações do Produto</div>
               <div class="info-grid">
                 <div class="info-item">
-                  <div class="info-label">Fornecedor:</div>
-                  <div class="info-value">${supplier ? supplier.name : 'N/A'}</div>
+                  <div class="info-label">Nome do Produto:</div>
+                  <div class="info-value">${product ? product.technicalName : 'N/A'}</div>
+                </div>
+                <div class="info-item">
+                  <div class="info-label">Lote Interno:</div>
+                  <div class="info-value">${certificate.internalLot}</div>
+                </div>
+                <div class="info-item">
+                  <div class="info-label">Lote do Fornecedor:</div>
+                  <div class="info-value">${certificate.supplierLot}</div>
                 </div>
                 <div class="info-item">
                   <div class="info-label">Quantidade Recebida:</div>
@@ -449,6 +410,22 @@ Em um ambiente de produção, este seria o conteúdo real do arquivo.`);
                 <div class="info-item">
                   <div class="info-label">Tipo de Embalagem:</div>
                   <div class="info-value">${certificate.packageType || 'N/A'}</div>
+                </div>
+                <div class="info-item">
+                  <div class="info-label">Data de Entrada:</div>
+                  <div class="info-value">${formatDate(certificate.entryDate)}</div>
+                </div>
+                <div class="info-item">
+                  <div class="info-label">Data de Fabricação:</div>
+                  <div class="info-value">${formatDate(certificate.manufacturingDate || '')}</div>
+                </div>
+                <div class="info-item">
+                  <div class="info-label">Data de Validade:</div>
+                  <div class="info-value">${formatDate(certificate.expirationDate || '')}</div>
+                </div>
+                <div class="info-item">
+                  <div class="info-label">Período de Validade:</div>
+                  <div class="info-value">${calcValidityPeriod(certificate.manufacturingDate, certificate.expirationDate)}</div>
                 </div>
                 <div class="info-item">
                   <div class="info-label">Data de Inspeção:</div>
@@ -461,67 +438,51 @@ Em um ambiente de produção, este seria o conteúdo real do arquivo.`);
               </div>
             </div>
             
-            <!-- 4. Resultados da Análise -->
+            <!-- Seção: Características e Especificações -->
             <div class="section">
-              <div class="section-title">Resultados das Análises</div>
+              <div class="section-title">Características e Especificações</div>
               <table>
                 <thead>
                   <tr>
-                    <th>Ensaio</th>
-                    <th>Unidade</th>
+                    <th>Características</th>
+                    <th>Unidades</th>
                     <th>Especificação</th>
                     <th>Valor</th>
-                    <th>Método de Análise</th>
                   </tr>
                 </thead>
                 <tbody>
-                  ${results && results.length > 0 ? results.map(result => `
+                  ${results.length > 0 ? results.map((result) => `
                     <tr>
                       <td>${result.characteristicName}</td>
-                      <td>${result.unit === 'null' ? '-' : result.unit}</td>
-                      <td>${result.minValue && result.maxValue 
-                        ? `${formatNumberTo4Decimals(result.minValue)} - ${formatNumberTo4Decimals(result.maxValue)}` 
-                        : result.minValue 
-                          ? `Mín: ${formatNumberTo4Decimals(result.minValue)}` 
-                          : result.maxValue 
-                            ? `Máx: ${formatNumberTo4Decimals(result.maxValue)}` 
-                            : '-'}</td>
+                      <td>${result.unit}</td>
+                      <td>${result.minValue && result.maxValue ? 
+                        `${formatNumberTo4Decimals(result.minValue)} - ${formatNumberTo4Decimals(result.maxValue)}` : 
+                        (result.minValue ? formatNumberTo4Decimals(result.minValue) : 
+                         (result.maxValue ? formatNumberTo4Decimals(result.maxValue) : 'N/A'))}</td>
                       <td><strong>${formatNumberTo4Decimals(result.obtainedValue)}</strong></td>
-                      <td>${result.analysisMethod || '-'}</td>
                     </tr>
                   `).join('') : `
                     <tr>
-                      <td colspan="5" style="text-align: center; padding: 20px;">
-                        Nenhum resultado de análise encontrado para este certificado.
-                      </td>
+                      <td colspan="4">Sem resultados disponíveis</td>
                     </tr>
                   `}
                 </tbody>
               </table>
             </div>
             
-            <!-- 5. Observações -->
-            <div class="section">
-              <div class="section-title">Observações</div>
-              <p>Este boletim é válido única e exclusivamente para o lote em referência.</p>
-            </div>
-            
-            <!-- 6. Assinaturas -->
-            <div class="signatures">
-              <div class="signature">
-                <div class="signature-line"></div>
-                <div>Controle de Qualidade</div>
-              </div>
-              <div class="signature">
-                <div class="signature-line"></div>
-                <div>Aprovação</div>
-              </div>
-            </div>
-            
-            <!-- 7. Rodapé -->
+            <!-- Rodapé -->
             <div class="footer">
-              <p>Certificado de Qualidade Nº ${certificate.id} - Emitido em: ${formatDate(new Date())}.</p>
+              <p>Os dados informados neste Certificado são resultados obtidos em nosso laboratório, seguindo rigorosamente nossos padrões. 
+              Estas recomendações são dadas de boa fé, sendo que, se o armazenamento, transporte, e/ou manuseio não forem adequados 
+              às nossas recomendações, não nos responsabilizamos por eventual garantia.</p>
+              
+              <div style="margin-top: 20px; text-align: center;">
+                <p><strong>Data de emissão do certificado:</strong> ${new Date().toLocaleDateString('pt-BR')}</p>
+              </div>
             </div>
+            
+            <!-- Botão de Impressão (visível apenas na tela) -->
+            <button class="print-btn" onclick="window.print()">Imprimir Certificado</button>
           </div>
         </body>
         </html>
