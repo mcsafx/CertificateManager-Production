@@ -245,6 +245,7 @@ export const issuedCertificates = pgTable("issued_certificates", {
   customLot: text("custom_lot").notNull(),
   tenantId: integer("tenant_id").notNull().references(() => tenants.id),
   showSupplierInfo: boolean("show_supplier_info").default(false),
+  observations: text("observations").default(''),
 });
 
 // Insert Schemas
@@ -474,11 +475,13 @@ export const insertIssuedCertificateSchema = createInsertSchema(issuedCertificat
     customLot: true,
     tenantId: true,
     showSupplierInfo: true,
+    observations: true,
   })
   .extend({
     // Aceita tanto string quanto número para campos numéricos
     soldQuantity: z.union([z.string(), z.number()]),
     showSupplierInfo: z.boolean().default(false),
+    observations: z.string().default(''),
   });
 
 // Tabela genérica para arquivos do sistema
