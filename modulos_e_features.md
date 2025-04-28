@@ -71,3 +71,21 @@ Este documento lista todos os módulos do sistema e suas respectivas funcionalid
 ### Plano Básico
 * Módulo Core (core)
 * Módulo Produtos (products)
+* Módulo Certificados (certificates)
+
+### Plano Intermediário
+* Módulo Core (core)
+* Módulo Produtos (products)
+* Módulo Certificados (certificates)
+* Módulo Certificados Avançados (certificates_advanced)
+* Módulo Multi-usuário (multi_user)
+
+### Plano Completo
+* Módulo Core (core)
+* Módulo Produtos (products)
+* Módulo Certificados (certificates)
+* Módulo Certificados Avançados (certificates_advanced)
+* Módulo Rastreabilidade (traceability)
+* Módulo Análises (analytics)
+* Módulo Multi-usuário (multi_user)
+* Módulo API (api)
