@@ -2,10 +2,22 @@ import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import { subscriptionManager } from "./services/subscription-manager";
+import { checkSubscription } from "./middlewares/subscription-check";
 
 const app = express();
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: false, limit: '50mb' }));
+
+// Aplicar verificador de assinatura globalmente a todas as rotas da API
+app.use('/api', (req, res, next) => {
+  // Ignorar as rotas de login e logout
+  if (req.path === '/login' || req.path === '/logout' || req.path === '/user') {
+    return next();
+  }
+  
+  // Aplicar o middleware de verificação de assinatura
+  checkSubscription(req, res, next);
+});
 
 app.use((req, res, next) => {
   const start = Date.now();
