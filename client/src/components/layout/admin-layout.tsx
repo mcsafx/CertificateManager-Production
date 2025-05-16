@@ -2,6 +2,7 @@ import React from "react";
 import { Link, useLocation } from "wouter";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { SubscriptionAlert } from "@/components/subscription-alert";
 import {
   Building,
   HardDrive,
@@ -120,7 +121,10 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
       
       {/* Conteúdo principal */}
       <main className="flex-1 overflow-y-auto bg-background">
-        {children}
+        <div className="container mx-auto px-4 py-6">
+          <SubscriptionAlert />
+          {children}
+        </div>
       </main>
     </div>
   );
