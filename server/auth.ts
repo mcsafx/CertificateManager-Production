@@ -113,16 +113,47 @@ export function setupAuth(app: Express) {
 
   // Login route
   app.post("/api/login", (req, res, next) => {
-    passport.authenticate("local", (err: Error, user: SelectUser, info: any) => {
+    passport.authenticate("local", async (err: Error, user: SelectUser, info: any) => {
       if (err) return next(err);
       if (!user) return res.status(401).json({ message: "Invalid credentials" });
       
-      req.login(user, (err) => {
+      req.login(user, async (err) => {
         if (err) return next(err);
+        
+        // Verificar status da assinatura do tenant
+        let tenantStatus = null;
+        let adminContact = null;
+        
+        if (user.tenantId && user.role !== 'admin') {
+          const tenant = await storage.getTenant(user.tenantId);
+          
+          if (tenant && tenant.paymentStatus === 'overdue') {
+            // Quando a assinatura está vencida, buscar informações de contato do admin
+            const adminTenant = await storage.getTenant(1); // ID 1 é o tenant admin
+            
+            tenantStatus = {
+              status: 'overdue',
+              message: 'Assinatura vencida. Algumas funcionalidades estarão bloqueadas.',
+              contactInfo: adminTenant ? {
+                name: adminTenant.name,
+                phone: adminTenant.phone || 'Não disponível',
+                address: adminTenant.address || 'Não disponível'
+              } : null
+            };
+          } else if (tenant && tenant.paymentStatus === 'pending') {
+            tenantStatus = {
+              status: 'pending',
+              message: 'Assinatura prestes a vencer. Por favor, renove em breve.'
+            };
+          }
+        }
         
         // Omit password from response
         const { password, ...userWithoutPassword } = user;
-        return res.status(200).json(userWithoutPassword);
+        return res.status(200).json({
+          ...userWithoutPassword,
+          tenantStatus
+        });
       });
     })(req, res, next);
   });
