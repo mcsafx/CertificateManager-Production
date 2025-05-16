@@ -886,7 +886,6 @@ export default function TenantsPage() {
                         <Input 
                           type="date" 
                           placeholder="Data do pagamento" 
-                          defaultValue={new Date().toISOString().split('T')[0]}
                           {...field} 
                         />
                       </FormControl>
