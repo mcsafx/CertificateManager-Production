@@ -7,7 +7,7 @@ import { promisify } from "util";
 import { storage } from "./storage";
 import { User as SelectUser, insertUserSchema } from "@shared/schema";
 import { z } from "zod";
-import { checkSubscriptionStatus } from "./middlewares/subscription-check";
+import { checkSubscription } from "./middlewares/subscription-check";
 
 declare global {
   namespace Express {
@@ -156,7 +156,7 @@ export function isAuthenticated(req: Request, res: Response, next: NextFunction)
 export function isAuthenticatedWithSubscription(req: Request, res: Response, next: NextFunction) {
   if (req.isAuthenticated()) {
     // Verifica status da assinatura
-    return checkSubscriptionStatus(req, res, next);
+    return checkSubscription(req, res, next);
   }
   res.status(401).json({ message: "Unauthorized" });
 }
