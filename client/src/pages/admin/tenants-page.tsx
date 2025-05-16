@@ -262,10 +262,16 @@ export default function TenantsPage() {
   // Mutação para renovar assinatura
   const renewSubscriptionMutation = useMutation({
     mutationFn: async ({ tenantId, paymentDate, durationMonths }: { tenantId: number, paymentDate?: string, durationMonths?: number }) => {
+      // Garantir que o durationMonths seja um número válido
+      const duration = typeof durationMonths === 'number' && !isNaN(durationMonths) 
+        ? durationMonths 
+        : 1;
+        
       const response = await apiRequest('POST', `/api/admin/tenants/${tenantId}/renew-subscription`, {
         paymentDate,
-        durationMonths: durationMonths || 1
+        durationMonths: duration
       });
+      
       if (!response.ok) {
         throw new Error('Erro ao renovar assinatura');
       }
@@ -370,8 +376,13 @@ export default function TenantsPage() {
   // Função para processar a renovação da assinatura
   function onRenewSubmit(values: z.infer<typeof renewalSchema>) {
     if (selectedTenant) {
+      // Garantir que o tenant ID seja um número válido
+      const tenantId = typeof selectedTenant.id === 'number' && !isNaN(selectedTenant.id)
+        ? selectedTenant.id
+        : (selectedTenant.tenantId || selectedTenant.id);
+      
       renewSubscriptionMutation.mutate({
-        tenantId: selectedTenant.id,
+        tenantId,
         ...values
       });
     }
@@ -906,6 +917,11 @@ export default function TenantsPage() {
                           min={1}
                           placeholder="Duração em meses" 
                           {...field} 
+                          onChange={(e) => {
+                            // Garantir que o valor seja sempre um número
+                            const value = parseInt(e.target.value, 10);
+                            field.onChange(isNaN(value) ? 1 : value);
+                          }}
                         />
                       </FormControl>
                       <FormDescription>
