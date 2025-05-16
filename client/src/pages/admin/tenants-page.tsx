@@ -8,7 +8,7 @@ import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Loader2, PlusCircle, Trash2, Pencil } from "lucide-react";
+import { Loader2, PlusCircle, Trash2, Pencil, Calendar, RefreshCw, LockIcon, UnlockIcon, CreditCard } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { apiRequest } from "@/lib/queryClient";
@@ -36,6 +36,11 @@ export default function TenantsPage() {
   const [openDeleteDialog, setOpenDeleteDialog] = useState(false);
   const [openEditPlanDialog, setOpenEditPlanDialog] = useState(false);
   const [tenantToEdit, setTenantToEdit] = useState<any>(null);
+  
+  // Estados para gerenciamento de assinatura
+  const [openSubscriptionDialog, setOpenSubscriptionDialog] = useState(false);
+  const [openRenewDialog, setOpenRenewDialog] = useState(false);
+  const [selectedTenant, setSelectedTenant] = useState<any>(null);
 
   // Buscar lista de planos disponíveis
   const { data: plans, isLoading: plansLoading } = useQuery({
@@ -75,6 +80,12 @@ export default function TenantsPage() {
   // Schema para edição de plano
   const planEditSchema = z.object({
     planId: z.coerce.number().min(1, "Selecione um plano"),
+  });
+  
+  // Schema para renovação de assinatura
+  const renewalSchema = z.object({
+    paymentDate: z.string().optional(),
+    durationMonths: z.coerce.number().min(1, "O período mínimo é de 1 mês").default(1),
   });
 
   // Configuração do formulário de criação
@@ -212,6 +223,108 @@ export default function TenantsPage() {
     onError: (error) => {
       toast({
         title: "Erro ao atualizar plano",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  });
+  
+  // Mutação para obter detalhes da assinatura
+  const getSubscriptionDetailsMutation = useMutation({
+    mutationFn: async (tenantId: number) => {
+      const response = await apiRequest('GET', `/api/admin/tenants/${tenantId}/subscription`);
+      if (!response.ok) {
+        throw new Error('Erro ao obter detalhes da assinatura');
+      }
+      return response.json();
+    },
+    onSuccess: (data) => {
+      setSelectedTenant(data);
+      setOpenSubscriptionDialog(true);
+    },
+    onError: (error) => {
+      toast({
+        title: "Erro ao obter detalhes da assinatura",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  });
+  
+  // Mutação para renovar assinatura
+  const renewSubscriptionMutation = useMutation({
+    mutationFn: async ({ tenantId, paymentDate, durationMonths }: { tenantId: number, paymentDate?: string, durationMonths?: number }) => {
+      const response = await apiRequest('POST', `/api/admin/tenants/${tenantId}/renew-subscription`, {
+        paymentDate,
+        durationMonths: durationMonths || 1
+      });
+      if (!response.ok) {
+        throw new Error('Erro ao renovar assinatura');
+      }
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/tenants'] });
+      setOpenRenewDialog(false);
+      setSelectedTenant(null);
+      toast({
+        title: "Assinatura renovada",
+        description: "A assinatura foi renovada com sucesso",
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: "Erro ao renovar assinatura",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  });
+  
+  // Mutação para bloquear tenant
+  const blockTenantMutation = useMutation({
+    mutationFn: async (tenantId: number) => {
+      const response = await apiRequest('POST', `/api/admin/tenants/${tenantId}/block`);
+      if (!response.ok) {
+        throw new Error('Erro ao bloquear tenant');
+      }
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/tenants'] });
+      toast({
+        title: "Tenant bloqueado",
+        description: "O tenant foi bloqueado com sucesso",
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: "Erro ao bloquear tenant",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  });
+  
+  // Mutação para desbloquear tenant
+  const unblockTenantMutation = useMutation({
+    mutationFn: async (tenantId: number) => {
+      const response = await apiRequest('POST', `/api/admin/tenants/${tenantId}/unblock`);
+      if (!response.ok) {
+        throw new Error('Erro ao desbloquear tenant');
+      }
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/tenants'] });
+      toast({
+        title: "Tenant desbloqueado",
+        description: "O tenant foi desbloqueado com sucesso",
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: "Erro ao desbloquear tenant",
         description: error.message,
         variant: "destructive",
       });
