@@ -3456,7 +3456,14 @@ Em um ambiente de produção, este seria o conteúdo real do arquivo.`);
   // Renovar assinatura de tenant
   app.post("/api/admin/tenants/:id/renew-subscription", isAdmin, async (req, res, next) => {
     try {
-      const tenantId = Number(req.params.id);
+      // Garantir que o ID seja sempre um número válido
+      const idParam = req.params.id;
+      const tenantId = !isNaN(Number(idParam)) ? Number(idParam) : null;
+      
+      if (tenantId === null) {
+        return res.status(400).json({ message: "ID do tenant inválido" });
+      }
+      
       const tenant = await storage.getTenant(tenantId);
       
       if (!tenant) {

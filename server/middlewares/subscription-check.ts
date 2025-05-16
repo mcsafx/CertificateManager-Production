@@ -34,6 +34,20 @@ export async function checkSubscription(req: Request, res: Response, next: NextF
  */
 export async function updateSubscriptionStatus(tenantId: number, paymentDate: Date = new Date(), durationMonths: number = 1) {
   try {
+    // Verificações de segurança para os parâmetros
+    if (!tenantId || isNaN(tenantId) || tenantId <= 0) {
+      throw new Error(`ID do tenant inválido: ${tenantId}`);
+    }
+    
+    if (isNaN(durationMonths) || durationMonths <= 0) {
+      durationMonths = 1; // Valor padrão se inválido
+    }
+    
+    // Garantir que paymentDate seja uma data válida
+    if (!(paymentDate instanceof Date) || isNaN(paymentDate.getTime())) {
+      paymentDate = new Date(); // Usa a data atual se inválida
+    }
+    
     // Obtém o tenant
     const tenant = await storage.getTenant(tenantId);
     if (!tenant) {
