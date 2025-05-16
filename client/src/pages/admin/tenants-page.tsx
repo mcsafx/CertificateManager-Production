@@ -41,6 +41,24 @@ export default function TenantsPage() {
   const [openSubscriptionDialog, setOpenSubscriptionDialog] = useState(false);
   const [openRenewDialog, setOpenRenewDialog] = useState(false);
   const [selectedTenant, setSelectedTenant] = useState<any>(null);
+  
+  // Schema para o formulário de renovação
+  const renewalSchema = z.object({
+    paymentDate: z.string().min(1, "Data de pagamento é obrigatória"),
+    durationMonths: z.preprocess(
+      (val) => parseInt(val as string, 10),
+      z.number().min(1, "Duração deve ser pelo menos 1 mês")
+    )
+  });
+  
+  // Formulário de renovação
+  const renewalForm = useForm<z.infer<typeof renewalSchema>>({
+    resolver: zodResolver(renewalSchema),
+    defaultValues: {
+      paymentDate: new Date().toISOString().split('T')[0],
+      durationMonths: "1"
+    }
+  });
 
   // Buscar lista de planos disponíveis
   const { data: plans, isLoading: plansLoading } = useQuery({
