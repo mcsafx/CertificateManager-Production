@@ -1077,6 +1077,43 @@ Em um ambiente de produção, este seria o conteúdo real do arquivo.`);
       next(error);
     }
   });
+  
+  // Rota para tenant obter seu próprio status de assinatura
+  app.get("/api/tenants/self/subscription", isAuthenticatedWithSubscription, async (req, res, next) => {
+    try {
+      if (!req.user) return res.status(401).json({ message: "Unauthorized" });
+      
+      const tenant = await storage.getTenant(req.user.tenantId);
+      if (!tenant) {
+        return res.status(404).json({ message: "Tenant não encontrado" });
+      }
+      
+      const plan = await storage.getPlan(tenant.planId);
+      
+      // Verifica se o pagamento está próximo do vencimento
+      let daysToExpiration = null;
+      if (tenant.nextPaymentDate) {
+        const nextPayment = new Date(tenant.nextPaymentDate);
+        const today = new Date();
+        const diffTime = nextPayment.getTime() - today.getTime();
+        daysToExpiration = Math.ceil(diffTime / (1000 * 3600 * 24));
+      }
+      
+      res.json({
+        tenantId: tenant.id,
+        tenantName: tenant.name,
+        planId: tenant.planId,
+        planName: plan?.name || "Desconhecido",
+        lastPaymentDate: tenant.lastPaymentDate,
+        nextPaymentDate: tenant.nextPaymentDate,
+        paymentStatus: tenant.paymentStatus || "active",
+        daysToExpiration,
+        isActive: tenant.active
+      });
+    } catch (error) {
+      next(error);
+    }
+  });
 
   app.post("/api/tenants", isAdmin, async (req, res, next) => {
     try {
@@ -3382,6 +3419,130 @@ Em um ambiente de produção, este seria o conteúdo real do arquivo.`);
         return res.status(404).json({ message: "Tenant not found" });
       }
       res.status(204).end();
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // Rotas para gerenciamento de assinaturas de tenants
+  
+  // Obter status de assinatura de um tenant
+  app.get("/api/admin/tenants/:id/subscription", isAdmin, async (req, res, next) => {
+    try {
+      const tenant = await storage.getTenant(Number(req.params.id));
+      if (!tenant) {
+        return res.status(404).json({ message: "Tenant não encontrado" });
+      }
+
+      const plan = await storage.getPlan(tenant.planId);
+      
+      res.json({
+        tenantId: tenant.id,
+        tenantName: tenant.name,
+        planId: tenant.planId,
+        planName: plan?.name || "Desconhecido",
+        planStartDate: tenant.planStartDate,
+        planEndDate: tenant.planEndDate,
+        lastPaymentDate: tenant.lastPaymentDate,
+        nextPaymentDate: tenant.nextPaymentDate,
+        paymentStatus: tenant.paymentStatus || "active",
+        isActive: tenant.active
+      });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // Renovar assinatura de tenant
+  app.post("/api/admin/tenants/:id/renew-subscription", isAdmin, async (req, res, next) => {
+    try {
+      const tenantId = Number(req.params.id);
+      const tenant = await storage.getTenant(tenantId);
+      
+      if (!tenant) {
+        return res.status(404).json({ message: "Tenant não encontrado" });
+      }
+
+      // Validamos os dados enviados
+      const renewalSchema = z.object({
+        paymentDate: z.string().optional(), // Se não fornecido, usa data atual
+        durationMonths: z.number().min(1).default(1)
+      });
+
+      const { paymentDate, durationMonths } = renewalSchema.parse(req.body);
+      
+      // Se data de pagamento não for fornecida, usa a data atual
+      const paymentDateObj = paymentDate ? new Date(paymentDate) : new Date();
+      
+      // Atualiza o status da assinatura
+      const result = await updateSubscriptionStatus(tenantId, paymentDateObj, durationMonths);
+      
+      // Se o tenant estava inativo, reativa
+      if (!tenant.active) {
+        await storage.updateTenant(tenantId, { active: true });
+      }
+      
+      res.status(200).json({
+        message: "Assinatura renovada com sucesso",
+        ...result
+      });
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Dados inválidos", errors: error.errors });
+      }
+      next(error);
+    }
+  });
+
+  // Bloquear tenant (alterar status para overdue)
+  app.post("/api/admin/tenants/:id/block", isAdmin, async (req, res, next) => {
+    try {
+      const tenantId = Number(req.params.id);
+      const tenant = await storage.getTenant(tenantId);
+      
+      if (!tenant) {
+        return res.status(404).json({ message: "Tenant não encontrado" });
+      }
+      
+      // Atualiza para status bloqueado (overdue)
+      await storage.updateTenant(tenantId, { 
+        paymentStatus: "overdue",
+        active: false
+      });
+      
+      res.status(200).json({
+        message: "Tenant bloqueado com sucesso",
+        tenantId,
+        status: "overdue",
+        active: false
+      });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // Desbloquear tenant
+  app.post("/api/admin/tenants/:id/unblock", isAdmin, async (req, res, next) => {
+    try {
+      const tenantId = Number(req.params.id);
+      const tenant = await storage.getTenant(tenantId);
+      
+      if (!tenant) {
+        return res.status(404).json({ message: "Tenant não encontrado" });
+      }
+      
+      // Atualiza para status ativo
+      await storage.updateTenant(tenantId, { 
+        paymentStatus: "active",
+        active: true
+      });
+      
+      res.status(200).json({
+        message: "Tenant desbloqueado com sucesso",
+        tenantId,
+        status: "active",
+        active: true
+      });
     } catch (error) {
       next(error);
     }
