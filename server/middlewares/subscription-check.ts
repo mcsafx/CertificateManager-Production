@@ -59,11 +59,12 @@ export async function updateSubscriptionStatus(tenantId: number, paymentDate: Da
     nextPaymentDate.setMonth(nextPaymentDate.getMonth() + durationMonths);
     
     // Atualiza os dados do tenant
+    // Correção: Renovar assinatura não deve alterar a propriedade active
     const updatedTenant = await storage.updateTenant(tenantId, {
       paymentStatus: "active", // Define como ativo
       lastPaymentDate: paymentDate.toISOString(),
-      nextPaymentDate: nextPaymentDate.toISOString(),
-      active: true // Desbloqueia o tenant se estiver bloqueado
+      nextPaymentDate: nextPaymentDate.toISOString()
+      // active permanece inalterado
     });
     
     return {

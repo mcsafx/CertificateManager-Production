@@ -3511,17 +3511,18 @@ Em um ambiente de produção, este seria o conteúdo real do arquivo.`);
         return res.status(404).json({ message: "Tenant não encontrado" });
       }
       
-      // Atualiza para status bloqueado (overdue)
+      // Atualiza para status bloqueado (overdue), mas mantém tenant ativo
+      // Correção: Um tenant bloqueado apenas altera o paymentStatus, não a propriedade active
       await storage.updateTenant(tenantId, { 
-        paymentStatus: "overdue",
-        active: false
+        paymentStatus: "overdue"
+        // active permanece inalterado
       });
       
       res.status(200).json({
         message: "Tenant bloqueado com sucesso",
         tenantId,
         status: "overdue",
-        active: false
+        active: tenant.active // Mantém o valor original
       });
     } catch (error) {
       next(error);
@@ -3538,17 +3539,18 @@ Em um ambiente de produção, este seria o conteúdo real do arquivo.`);
         return res.status(404).json({ message: "Tenant não encontrado" });
       }
       
-      // Atualiza para status ativo
+      // Atualiza para status ativo, mas não altera a propriedade active
+      // Correção: Desbloquear apenas altera o paymentStatus para active
       await storage.updateTenant(tenantId, { 
-        paymentStatus: "active",
-        active: true
+        paymentStatus: "active"
+        // active permanece inalterado
       });
       
       res.status(200).json({
         message: "Tenant desbloqueado com sucesso",
         tenantId,
         status: "active",
-        active: true
+        active: tenant.active // Mantém o valor original
       });
     } catch (error) {
       next(error);
