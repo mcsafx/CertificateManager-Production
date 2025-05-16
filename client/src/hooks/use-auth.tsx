@@ -1,4 +1,4 @@
-import { createContext, ReactNode, useContext } from "react";
+import { createContext, ReactNode, useContext, useMemo } from "react";
 import {
   useQuery,
   useMutation,
@@ -9,13 +9,30 @@ import { getQueryFn, apiRequest, queryClient } from "../lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
 
+// Tipo para informações de status do tenant
+type TenantStatus = {
+  status: 'overdue' | 'pending' | 'active';
+  message: string;
+  contactInfo?: {
+    name: string;
+    phone: string;
+    address: string;
+  } | null;
+};
+
+// Extensão do tipo de usuário para incluir informações de status do tenant
+type UserWithTenantStatus = SelectUser & {
+  tenantStatus?: TenantStatus | null;
+};
+
 type AuthContextType = {
-  user: SelectUser | null;
+  user: UserWithTenantStatus | null;
   isLoading: boolean;
   error: Error | null;
-  loginMutation: UseMutationResult<SelectUser, Error, LoginData>;
+  loginMutation: UseMutationResult<UserWithTenantStatus, Error, LoginData>;
   logoutMutation: UseMutationResult<void, Error, void>;
-  registerMutation: UseMutationResult<SelectUser, Error, InsertUser>;
+  registerMutation: UseMutationResult<UserWithTenantStatus, Error, InsertUser>;
+  hasTenantIssue: boolean; // Nova propriedade para facilitar verificação
 };
 
 type LoginData = Pick<InsertUser, "username" | "password">;
@@ -29,7 +46,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     data: user,
     error,
     isLoading,
-  } = useQuery<SelectUser | undefined, Error>({
+  } = useQuery<UserWithTenantStatus | undefined, Error>({
     queryKey: ["/api/user"],
     queryFn: getQueryFn({ on401: "returnNull" }),
   });
@@ -39,12 +56,36 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const res = await apiRequest("POST", "/api/login", credentials);
       return await res.json();
     },
-    onSuccess: (user: SelectUser) => {
-      queryClient.setQueryData(["/api/user"], user);
+    onSuccess: (userData: UserWithTenantStatus) => {
+      queryClient.setQueryData(["/api/user"], userData);
+      
+      // Verificar status da assinatura e mostrar avisos quando necessário
+      if (userData.tenantStatus) {
+        if (userData.tenantStatus.status === 'overdue') {
+          // Mostrar alerta de assinatura vencida
+          toast({
+            title: "Assinatura Vencida",
+            description: userData.tenantStatus.message,
+            variant: "destructive",
+            duration: 10000, // 10 segundos
+          });
+        } else if (userData.tenantStatus.status === 'pending') {
+          // Mostrar aviso de assinatura prestes a vencer
+          toast({
+            title: "Aviso de Assinatura",
+            description: userData.tenantStatus.message,
+            variant: "default",
+            duration: 7000, // 7 segundos
+          });
+        }
+      }
+      
+      // Mensagem de boas-vindas
       toast({
         title: "Login bem-sucedido",
-        description: `Bem-vindo de volta, ${user.name}!`,
+        description: `Bem-vindo de volta, ${userData.name}!`,
       });
+      
       // Redirecionar para a página inicial após o login
       navigate("/");
     },
@@ -62,7 +103,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const res = await apiRequest("POST", "/api/register", credentials);
       return await res.json();
     },
-    onSuccess: (user: SelectUser) => {
+    onSuccess: (user: UserWithTenantStatus) => {
       queryClient.setQueryData(["/api/user"], user);
       toast({
         title: "Registro bem-sucedido",
@@ -101,6 +142,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       });
     },
   });
+  
+  // Verificar se há problemas com a assinatura do tenant
+  const hasTenantIssue = useMemo(() => {
+    if (!user || !user.tenantStatus) return false;
+    return user.tenantStatus.status === 'overdue' || user.tenantStatus.status === 'pending';
+  }, [user]);
 
   return (
     <AuthContext.Provider
@@ -111,6 +158,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         loginMutation,
         logoutMutation,
         registerMutation,
+        hasTenantIssue,
       }}
     >
       {children}
