@@ -64,6 +64,10 @@ export const tenants = pgTable("tenants", {
   storageUsed: integer("storage_used").notNull().default(0), // Em MB
   planStartDate: date("plan_start_date"),
   planEndDate: date("plan_end_date"),
+  // Campos de controle de recorrência
+  lastPaymentDate: date("last_payment_date"),
+  nextPaymentDate: date("next_payment_date"),
+  paymentStatus: text("payment_status").default("active"), // Status: active, pending, overdue
 });
 
 // Users (Usuários)
@@ -303,6 +307,9 @@ export const insertTenantSchema = createInsertSchema(tenants).pick({
   storageUsed: true,
   planStartDate: true,
   planEndDate: true,
+  lastPaymentDate: true,
+  nextPaymentDate: true,
+  paymentStatus: true,
 });
 
 // Novos schemas para inserção

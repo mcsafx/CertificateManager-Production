@@ -1,8 +1,9 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { setupAuth, isAuthenticated, isAdmin, isTenantMember } from "./auth";
+import { setupAuth, isAuthenticated, isAuthenticatedWithSubscription, isAdmin, isTenantMember } from "./auth";
 import { z } from "zod";
+import { updateSubscriptionStatus } from "./middlewares/subscription-check";
 import { 
   insertProductSchema, insertProductCharacteristicSchema, 
   insertSupplierSchema, insertManufacturerSchema, 
