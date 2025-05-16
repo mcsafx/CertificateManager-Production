@@ -88,6 +88,14 @@ export default function TenantsPage() {
     durationMonths: z.coerce.number().min(1, "O período mínimo é de 1 mês").default(1),
   });
 
+  // Configuração do formulário de renovação de assinatura
+  const renewalForm = useForm<z.infer<typeof renewalSchema>>({
+    resolver: zodResolver(renewalSchema),
+    defaultValues: {
+      durationMonths: 1,
+    }
+  });
+
   // Configuração do formulário de criação
   const form = useForm<z.infer<typeof tenantSchema>>({
     resolver: zodResolver(tenantSchema),
@@ -342,6 +350,42 @@ export default function TenantsPage() {
       deleteTenantMutation.mutate(tenantToDelete);
     }
   }
+  
+  // Função para abrir o diálogo de detalhes da assinatura
+  function handleViewSubscription(tenant: any) {
+    setSelectedTenant(tenant);
+    getSubscriptionDetailsMutation.mutate(tenant.id);
+  }
+  
+  // Função para abrir o diálogo de renovação de assinatura
+  function handleRenewSubscription(tenant: any) {
+    setSelectedTenant(tenant);
+    renewalForm.reset({
+      durationMonths: 1,
+      paymentDate: new Date().toISOString().split('T')[0]
+    });
+    setOpenRenewDialog(true);
+  }
+  
+  // Função para processar a renovação da assinatura
+  function onRenewSubmit(values: z.infer<typeof renewalSchema>) {
+    if (selectedTenant) {
+      renewSubscriptionMutation.mutate({
+        tenantId: selectedTenant.id,
+        ...values
+      });
+    }
+  }
+  
+  // Função para bloquear um tenant
+  function handleBlockTenant(tenantId: number) {
+    blockTenantMutation.mutate(tenantId);
+  }
+  
+  // Função para desbloquear um tenant
+  function handleUnblockTenant(tenantId: number) {
+    unblockTenantMutation.mutate(tenantId);
+  }
 
   return (
     <AdminLayout>
@@ -497,8 +541,9 @@ export default function TenantsPage() {
                       <TableHead>CNPJ</TableHead>
                       <TableHead>Plano</TableHead>
                       <TableHead>Status</TableHead>
+                      <TableHead>Status Assinatura</TableHead>
                       <TableHead>Uso de Armazenamento</TableHead>
-                      <TableHead>Data de Cadastro</TableHead>
+                      <TableHead>Próximo Pagamento</TableHead>
                       <TableHead className="text-right">Ações</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -529,13 +574,66 @@ export default function TenantsPage() {
                           </div>
                         </TableCell>
                         <TableCell>
+                          {tenant.paymentStatus && (
+                            <Badge variant={
+                              tenant.paymentStatus === "active" ? "default" :
+                              tenant.paymentStatus === "pending" ? "outline" : "destructive"
+                            }>
+                              {tenant.paymentStatus === "active" ? "Em dia" :
+                               tenant.paymentStatus === "pending" ? "Pendente" : "Atrasado"}
+                            </Badge>
+                          )}
+                        </TableCell>
+                        <TableCell>
                           {tenant.storageUsed} MB
                         </TableCell>
                         <TableCell>
-                          {tenant.createdAt ? formatDate(new Date(tenant.createdAt)) : "-"}
+                          {tenant.nextPaymentDate ? formatDate(new Date(tenant.nextPaymentDate)) : "-"}
                         </TableCell>
                         <TableCell className="text-right">
                           <div className="flex justify-end gap-1">
+                            {/* Botão para visualizar detalhes da assinatura */}
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handleViewSubscription(tenant)}
+                              title="Detalhes da assinatura"
+                            >
+                              <CreditCard className="h-4 w-4 text-gray-500" />
+                            </Button>
+                            
+                            {/* Botão para renovar assinatura */}
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handleRenewSubscription(tenant)}
+                              title="Renovar assinatura"
+                            >
+                              <RefreshCw className="h-4 w-4 text-green-500" />
+                            </Button>
+                            
+                            {/* Botão para bloquear/desbloquear tenant */}
+                            {tenant.paymentStatus !== "overdue" ? (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => handleBlockTenant(tenant.id)}
+                                title="Bloquear tenant"
+                              >
+                                <LockIcon className="h-4 w-4 text-orange-500" />
+                              </Button>
+                            ) : (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => handleUnblockTenant(tenant.id)}
+                                title="Desbloquear tenant"
+                              >
+                                <UnlockIcon className="h-4 w-4 text-green-500" />
+                              </Button>
+                            )}
+                            
+                            {/* Botão para editar plano */}
                             <Button
                               variant="ghost"
                               size="icon"
@@ -544,9 +642,12 @@ export default function TenantsPage() {
                                 planEditForm.setValue('planId', tenant.planId);
                                 setOpenEditPlanDialog(true);
                               }}
+                              title="Editar plano"
                             >
                               <Pencil className="h-4 w-4 text-blue-500" />
                             </Button>
+                            
+                            {/* Botão para excluir tenant */}
                             <Button
                               variant="ghost"
                               size="icon"
@@ -554,6 +655,7 @@ export default function TenantsPage() {
                                 setTenantToDelete(tenant.id);
                                 setOpenDeleteDialog(true);
                               }}
+                              title="Excluir tenant"
                             >
                               <Trash2 className="h-4 w-4 text-red-500" />
                             </Button>
@@ -666,6 +768,170 @@ export default function TenantsPage() {
               </DialogFooter>
             </form>
           </Form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Diálogo para visualizar detalhes da assinatura */}
+      <Dialog open={openSubscriptionDialog} onOpenChange={setOpenSubscriptionDialog}>
+        <DialogContent className="sm:max-w-[600px]">
+          <DialogHeader>
+            <DialogTitle>Detalhes da Assinatura</DialogTitle>
+            <DialogDescription>
+              Informações sobre a assinatura do tenant.
+            </DialogDescription>
+          </DialogHeader>
+          
+          {selectedTenant && (
+            <div className="space-y-4 py-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <h3 className="font-medium">Tenant</h3>
+                  <p className="text-sm text-muted-foreground">{selectedTenant.tenantName}</p>
+                </div>
+                <div>
+                  <h3 className="font-medium">Plano</h3>
+                  <p className="text-sm text-muted-foreground">{selectedTenant.planName}</p>
+                </div>
+                <div>
+                  <h3 className="font-medium">Status</h3>
+                  <Badge variant={
+                    selectedTenant.paymentStatus === "active" ? "default" :
+                    selectedTenant.paymentStatus === "pending" ? "outline" : "destructive"
+                  }>
+                    {selectedTenant.paymentStatus === "active" ? "Em dia" :
+                    selectedTenant.paymentStatus === "pending" ? "Pendente" : "Atrasado"}
+                  </Badge>
+                </div>
+                <div>
+                  <h3 className="font-medium">Ativo</h3>
+                  <Badge variant={selectedTenant.isActive ? "default" : "secondary"}>
+                    {selectedTenant.isActive ? "Sim" : "Não"}
+                  </Badge>
+                </div>
+                <div>
+                  <h3 className="font-medium">Último Pagamento</h3>
+                  <p className="text-sm text-muted-foreground">
+                    {selectedTenant.lastPaymentDate 
+                      ? formatDate(new Date(selectedTenant.lastPaymentDate))
+                      : "N/A"}
+                  </p>
+                </div>
+                <div>
+                  <h3 className="font-medium">Próximo Pagamento</h3>
+                  <p className="text-sm text-muted-foreground">
+                    {selectedTenant.nextPaymentDate 
+                      ? formatDate(new Date(selectedTenant.nextPaymentDate))
+                      : "N/A"}
+                  </p>
+                </div>
+                {selectedTenant.daysToExpiration !== null && (
+                  <div className="col-span-2">
+                    <h3 className="font-medium">Dias até o vencimento</h3>
+                    <Badge variant={
+                      selectedTenant.daysToExpiration > 10 ? "default" :
+                      selectedTenant.daysToExpiration > 5 ? "outline" : "destructive"
+                    }>
+                      {selectedTenant.daysToExpiration > 0 
+                        ? `${selectedTenant.daysToExpiration} dias` 
+                        : "Vencido"}
+                    </Badge>
+                  </div>
+                )}
+              </div>
+              <Separator />
+              <div className="flex justify-end gap-2">
+                <Button 
+                  onClick={() => {
+                    setOpenSubscriptionDialog(false);
+                    handleRenewSubscription(selectedTenant);
+                  }}
+                >
+                  <RefreshCw className="mr-2 h-4 w-4" />
+                  Renovar Assinatura
+                </Button>
+                <DialogTrigger asChild>
+                  <Button variant="outline">Fechar</Button>
+                </DialogTrigger>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Diálogo para renovar assinatura */}
+      <Dialog open={openRenewDialog} onOpenChange={setOpenRenewDialog}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>Renovar Assinatura</DialogTitle>
+            <DialogDescription>
+              Preencha os dados para renovar a assinatura do tenant.
+            </DialogDescription>
+          </DialogHeader>
+          
+          {selectedTenant && (
+            <Form {...renewalForm}>
+              <form onSubmit={renewalForm.handleSubmit(onRenewSubmit)} className="space-y-4">
+                <div className="space-y-2">
+                  <h3 className="text-sm font-medium">Tenant: {selectedTenant.name}</h3>
+                  <h3 className="text-sm font-medium">Plano: {plans?.find((p: any) => p.id === selectedTenant.planId)?.name || "Não definido"}</h3>
+                </div>
+                
+                <FormField
+                  control={renewalForm.control}
+                  name="paymentDate"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Data do Pagamento</FormLabel>
+                      <FormControl>
+                        <Input 
+                          type="date" 
+                          placeholder="Data do pagamento" 
+                          defaultValue={new Date().toISOString().split('T')[0]}
+                          {...field} 
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                
+                <FormField
+                  control={renewalForm.control}
+                  name="durationMonths"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Duração (meses)</FormLabel>
+                      <FormControl>
+                        <Input 
+                          type="number" 
+                          min={1}
+                          placeholder="Duração em meses" 
+                          {...field} 
+                        />
+                      </FormControl>
+                      <FormDescription>
+                        Número de meses a renovar a partir da data de pagamento
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                
+                <DialogFooter>
+                  <Button 
+                    type="submit" 
+                    disabled={renewSubscriptionMutation.isPending}
+                    className="w-full"
+                  >
+                    {renewSubscriptionMutation.isPending && (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    )}
+                    Renovar Assinatura
+                  </Button>
+                </DialogFooter>
+              </form>
+            </Form>
+          )}
         </DialogContent>
       </Dialog>
     </AdminLayout>
