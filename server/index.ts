@@ -2,13 +2,18 @@ import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import { subscriptionManager } from "./services/subscription-manager";
+import { setupAuth } from "./auth";
 import { checkSubscription } from "./middlewares/subscription-check";
 
 const app = express();
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: false, limit: '50mb' }));
 
+// Configuração de autenticação deve vir antes de qualquer middleware que dependa dela
+setupAuth(app);
+
 // Aplicar verificador de assinatura globalmente a todas as rotas da API
+// AGORA É SEGURO PORQUE A AUTENTICAÇÃO JÁ FOI CONFIGURADA
 app.use('/api', (req, res, next) => {
   // Ignorar as rotas de login e logout
   if (req.path === '/login' || req.path === '/logout' || req.path === '/user') {
