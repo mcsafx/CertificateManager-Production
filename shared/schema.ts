@@ -44,10 +44,6 @@ export const planModules = pgTable("plan_modules", {
   planId: integer("plan_id").notNull().references(() => plans.id),
   moduleId: integer("module_id").notNull().references(() => modules.id),
   createdAt: timestamp("created_at").notNull().defaultNow(),
-}, (table) => {
-  return {
-    planModuleUnique: primaryKey({ columns: [table.planId, table.moduleId] }),
-  }
 });
 
 // Tenants (Empresas)
