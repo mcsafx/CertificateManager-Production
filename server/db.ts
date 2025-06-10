@@ -1,10 +1,10 @@
-import { Pool, neonConfig } from '@neondatabase/serverless';
-import { drizzle } from 'drizzle-orm/neon-serverless';
-import ws from "ws";
+import { drizzle } from 'drizzle-orm/node-postgres';
+import pg from 'pg';
 import * as schema from "@shared/schema";
+import dotenv from 'dotenv';
 
-// Configuração para Neon Database (PostgreSQL serverless)
-neonConfig.webSocketConstructor = ws;
+// Carregar variáveis de ambiente
+dotenv.config();
 
 if (!process.env.DATABASE_URL) {
   throw new Error(
@@ -12,8 +12,10 @@ if (!process.env.DATABASE_URL) {
   );
 }
 
-// Criando pool de conexões
-export const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+// Criando pool de conexões para PostgreSQL local
+export const pool = new pg.Pool({
+  connectionString: process.env.DATABASE_URL,
+});
 
 // Criando instância do Drizzle ORM
-export const db = drizzle({ client: pool, schema });
+export const db = drizzle(pool, { schema });
