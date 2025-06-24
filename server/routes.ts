@@ -49,51 +49,47 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const fileId = Number(req.params.id);
       const fileType = req.query.type as string;
       
-      let file;
-      if (fileType === 'base') {
-        file = await storage.getProductBaseFile(fileId, user.tenantId);
-      } else {
-        file = await storage.getProductFile(fileId, user.tenantId);
-      }
-      
-      if (!file) {
+      // Buscar arquivo na tabela product_base_files primeiro
+      const productBaseFile = await storage.getProductBaseFile(fileId, user.tenantId);
+      if (!productBaseFile) {
         return res.status(404).json({ message: "Arquivo não encontrado" });
       }
       
-      // Em um ambiente de produção real, você anexaria o arquivo real aqui
-      // Para este exemplo, redirecionamos para o fileUrl (que em produção seria um URL válido)
-      if (file.fileUrl && file.fileUrl.startsWith('http')) {
-        return res.redirect(file.fileUrl);
+      // Buscar o arquivo físico na tabela files usando o fileName
+      const files = await storage.getFilesByTenant(user.tenantId);
+      const file = files.find(f => f.fileName === productBaseFile.fileName && f.fileCategory === productBaseFile.fileCategory);
+      
+      if (!file) {
+        return res.status(404).json({ message: "Arquivo físico não encontrado" });
       }
       
-      // Para arquivos em base64 ou caminhos relativos, exibimos uma página HTML simples
-      res.setHeader('Content-Type', 'text/html');
-      res.send(`
-        <!DOCTYPE html>
-        <html>
-        <head>
-          <title>${file.fileName}</title>
-          <style>
-            body { font-family: Arial, sans-serif; padding: 20px; text-align: center; }
-            .file-info { margin: 20px; padding: 20px; border: 1px solid #ddd; border-radius: 5px; }
-            .file-name { font-size: 18px; font-weight: bold; margin-bottom: 10px; }
-            .file-desc { color: #666; margin-bottom: 20px; }
-            .message { color: #333; background: #f5f5f5; padding: 15px; border-radius: 5px; }
-          </style>
-        </head>
-        <body>
-          <div class="file-info">
-            <div class="file-name">${file.fileName}</div>
-            <div class="file-desc">${file.description || 'Sem descrição'}</div>
-            <div class="message">
-              Este é um ambiente de demonstração.<br>
-              Em produção, o arquivo seria exibido aqui.
-            </div>
-          </div>
-        </body>
-        </html>
-      `);
+      // Verificar se o arquivo físico existe
+      const fs = await import('fs');
+      const path = await import('path');
+      
+      if (!fs.existsSync(file.filePath)) {
+        return res.status(404).json({ message: "Arquivo físico não encontrado" });
+      }
+      
+      // Definir content-type baseado no tipo do arquivo
+      let contentType = file.fileType;
+      if (file.fileType === 'application/pdf') {
+        contentType = 'application/pdf';
+      } else if (file.fileType.startsWith('image/')) {
+        contentType = file.fileType;
+      } else {
+        contentType = 'application/octet-stream';
+      }
+      
+      res.setHeader('Content-Type', contentType);
+      res.setHeader('Content-Disposition', `inline; filename="${file.fileName}"`);
+      
+      // Servir o arquivo
+      const fileBuffer = fs.readFileSync(file.filePath);
+      res.send(fileBuffer);
+      
     } catch (error) {
+      console.error('Erro ao visualizar arquivo:', error);
       next(error);
     }
   });
@@ -104,36 +100,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const fileId = Number(req.params.id);
       const fileType = req.query.type as string;
       
-      let file;
-      if (fileType === 'base') {
-        file = await storage.getProductBaseFile(fileId, user.tenantId);
-      } else {
-        file = await storage.getProductFile(fileId, user.tenantId);
-      }
-      
-      if (!file) {
+      // Buscar arquivo na tabela product_base_files primeiro  
+      const productBaseFile = await storage.getProductBaseFile(fileId, user.tenantId);
+      if (!productBaseFile) {
         return res.status(404).json({ message: "Arquivo não encontrado" });
       }
       
-      // Em um ambiente de produção real, você enviaria o arquivo real aqui
-      // Para este exemplo, enviamos um PDF ou texto de exemplo
-      res.setHeader('Content-Disposition', `attachment; filename="${file.fileName}"`);
+      // Buscar o arquivo físico na tabela files usando o fileName
+      const files = await storage.getFilesByTenant(user.tenantId);
+      const file = files.find(f => f.fileName === productBaseFile.fileName && f.fileCategory === productBaseFile.fileCategory);
       
-      if (file.fileType && file.fileType.includes('pdf')) {
-        res.setHeader('Content-Type', 'application/pdf');
-        // Enviamos um PDF de exemplo (texto que indica que é apenas um exemplo)
-        res.send(Buffer.from('%PDF-1.5\n1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n3 0 obj\n<< /Type /Page /Parent 2 0 R /Resources 4 0 R /MediaBox [0 0 500 800] /Contents 6 0 R >>\nendobj\n4 0 obj\n<< /Font << /F1 5 0 R >> >>\nendobj\n5 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>\nendobj\n6 0 obj\n<< /Length 68 >>\nstream\nBT\n/F1 24 Tf\n100 700 Td\n(ARQUIVO DE EXEMPLO - CERTQUALITY) Tj\nET\nendstream\nendobj\nxref\n0 7\n0000000000 65535 f\n0000000009 00000 n\n0000000058 00000 n\n0000000115 00000 n\n0000000216 00000 n\n0000000259 00000 n\n0000000326 00000 n\ntrailer\n<< /Size 7 /Root 1 0 R >>\nstartxref\n444\n%%EOF'));
-      } else {
-        res.setHeader('Content-Type', 'text/plain');
-        res.send(`Este é um arquivo de exemplo do CertQuality.
-        
-Nome do arquivo: ${file.fileName}
-Descrição: ${file.description || 'Sem descrição'}
-Tipo: ${file.fileType || 'Não especificado'}
-Tamanho: ${file.fileSize || 'Não especificado'}
-
-Em um ambiente de produção, este seria o conteúdo real do arquivo.`);
+      if (!file) {
+        return res.status(404).json({ message: "Arquivo físico não encontrado" });
       }
+      
+      // Verificar se o arquivo físico existe
+      const fs = await import('fs');
+      const path = await import('path');
+      
+      if (!fs.existsSync(file.filePath)) {
+        return res.status(404).json({ message: "Arquivo físico não encontrado" });
+      }
+      
+      // Definir headers para download
+      res.setHeader('Content-Type', file.fileType);
+      res.setHeader('Content-Disposition', `attachment; filename="${file.fileName}"`);
+      res.setHeader('Content-Length', file.fileSize.toString());
+      
+      // Servir o arquivo para download
+      const fileBuffer = fs.readFileSync(file.filePath);
+      res.send(fileBuffer);
     } catch (error) {
       next(error);
     }
@@ -1577,6 +1573,24 @@ Em um ambiente de produção, este seria o conteúdo real do arquivo.`);
       }
       
       res.status(204).end();
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  app.patch("/api/product-base-files/:id", isAuthenticated, async (req, res, next) => {
+    try {
+      const user = req.user!;
+      const fileId = Number(req.params.id);
+      const { description } = req.body;
+      
+      const updatedFile = await storage.updateProductBaseFile(fileId, user.tenantId, { description });
+      
+      if (!updatedFile) {
+        return res.status(404).json({ message: "Product base file not found" });
+      }
+      
+      res.json(updatedFile);
     } catch (error) {
       next(error);
     }
@@ -3212,7 +3226,20 @@ Em um ambiente de produção, este seria o conteúdo real do arquivo.`);
         
         res.status(201).json(newFile);
       } catch (error) {
-        console.error('Erro ao fazer upload de arquivo:', error);
+        console.error('Erro detalhado ao fazer upload de arquivo:', error);
+        console.error('Stack trace:', error instanceof Error ? error.stack : 'N/A');
+        console.error('Dados do request:', {
+          file: req.file ? {
+            filename: req.file.filename,
+            originalname: req.file.originalname,
+            size: req.file.size,
+            mimetype: req.file.mimetype,
+            path: req.file.path
+          } : 'Nenhum arquivo',
+          body: req.body,
+          user: req.user ? { id: req.user.id, tenantId: req.user.tenantId } : 'Não autenticado'
+        });
+        
         // Se houve erro, tentar limpar arquivo temporário
         if (req.file && req.file.path) {
           try {
@@ -3221,7 +3248,10 @@ Em um ambiente de produção, este seria o conteúdo real do arquivo.`);
             console.error('Erro ao remover arquivo temporário:', e);
           }
         }
-        res.status(500).json({ message: 'Erro ao processar upload de arquivo' });
+        res.status(500).json({ 
+          message: 'Erro ao processar upload de arquivo',
+          error: error instanceof Error ? error.message : 'Erro desconhecido'
+        });
       }
     }
   );
