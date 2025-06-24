@@ -1,0 +1,278 @@
+# =============================================================================
+# GitHub Pages Configuration - CertificateManager
+# =============================================================================
+# Configuração para gerar documentação web automática via GitHub Pages
+# URL: https://seu-usuario.github.io/CertificateManager/
+# =============================================================================
+
+# Informações básicas do site
+title: "CertificateManager - Documentação"
+description: "Sistema SaaS multi-tenant para gestão de certificados de qualidade - Distribuidores químicos"
+author: "CertificateManager Team"
+email: "contato@certificatemanager.com.br"
+baseurl: "/CertificateManager"  # Ajustar conforme nome do repositório
+url: "https://mcsafx.github.io"  # Ajustar conforme usuário GitHub
+
+# Configurações do Jekyll
+theme: minima
+markdown: kramdown
+highlighter: rouge
+kramdown:
+  input: GFM
+  syntax_highlighter: rouge
+
+# Plugins
+plugins:
+  - jekyll-feed
+  - jekyll-sitemap
+  - jekyll-seo-tag
+
+# Configurações de build
+safe: true
+incremental: false
+profile: false
+
+# Configurações de conteúdo
+excerpt_separator: "<!-- more -->"
+timezone: America/Sao_Paulo
+lang: pt-BR
+
+# Estrutura de navegação
+navigation:
+  - title: "Início"
+    url: /
+  - title: "Primeiros Passos"
+    url: /getting-started/
+    subitems:
+      - title: "Visão Geral"
+        url: /getting-started/overview/
+      - title: "Instalação"
+        url: /getting-started/installation/
+      - title: "Quick Start"
+        url: /getting-started/quick-start/
+  - title: "Desenvolvimento"
+    url: /development/
+    subitems:
+      - title: "Setup"
+        url: /development/setup/
+      - title: "Git Workflow"
+        url: /development/git-workflow/
+      - title: "Contribuindo"
+        url: /development/contributing/
+      - title: "Claude Code Config"
+        url: /development/claude-code-config/
+  - title: "Deploy"
+    url: /deployment/
+    subitems:
+      - title: "Instalação Local"
+        url: /deployment/local-installation/
+      - title: "Guia VirtualBox"
+        url: /deployment/virtualbox-guide/
+      - title: "Deploy VPS"
+        url: /deployment/vps-deployment/
+      - title: "Deploy AWS"
+        url: /deployment/aws-deployment/
+      - title: "Fluxo de Deploy"
+        url: /deployment/deployment-flow/
+  - title: "Funcionalidades"
+    url: /features/
+    subitems:
+      - title: "Sistema de Módulos"
+        url: /features/modules-system/
+      - title: "Sistema de Permissões"
+        url: /features/permissions-system/
+      - title: "Multi-tenancy"
+        url: /features/multi-tenant/
+  - title: "Banco de Dados"
+    url: /database/
+    subitems:
+      - title: "Schema"
+        url: /database/schema/
+      - title: "Migrações"
+        url: /database/migrations/
+  - title: "API"
+    url: /api/
+    subitems:
+      - title: "Endpoints"
+        url: /api/endpoints/
+
+# Configurações do tema
+minima:
+  skin: dark
+  social_links:
+    github: mcsafx/CertificateManager
+    linkedin: certificatemanager
+    email: contato@certificatemanager.com.br
+
+# Header personalizado
+header_pages:
+  - getting-started/overview.md
+  - development/setup.md
+  - deployment/local-installation.md
+  - features/modules-system.md
+
+# Configurações de SEO
+defaults:
+  - scope:
+      path: ""
+      type: "pages"
+    values:
+      layout: "page"
+      author: "CertificateManager Team"
+  - scope:
+      path: ""
+      type: "posts"
+    values:
+      layout: "post"
+      author: "CertificateManager Team"
+
+# Tags e categorias
+tag_archive:
+  type: liquid
+  path: /tags/
+category_archive:
+  type: liquid
+  path: /categories/
+
+# Configurações de pesquisa
+search_enabled: true
+search:
+  heading_level: 2
+  previews: 3
+  preview_words_before: 5
+  preview_words_after: 10
+  tokenizer_separator: /[\s\-/]+/
+  rel_url: true
+  button: false
+
+# Configurações de código
+highlight_theme: github-dark
+
+# Favicon e logos
+favicon: "/assets/images/favicon.ico"
+logo: "/assets/images/logo.png"
+
+# Footer personalizado
+footer_content: |
+  <p>CertificateManager - Sistema SaaS para gestão de certificados de qualidade</p>
+  <p>Desenvolvido com ❤️ para a indústria química brasileira</p>
+  <p><a href="https://github.com/mcsafx/CertificateManager">GitHub</a> | 
+     <a href="/docs/CONTRIBUTING.md">Contribuir</a> | 
+     <a href="/docs/CHANGELOG.md">Changelog</a></p>
+
+# Configurações de comentários (Disqus)
+# disqus:
+#   shortname: certificatemanager
+
+# Google Analytics
+# google_analytics: UA-XXXXXXXX-X
+
+# Configurações de compartilhamento social
+social:
+  name: CertificateManager
+  links:
+    - https://github.com/mcsafx/CertificateManager
+    - https://linkedin.com/company/certificatemanager
+
+# Configurações de feed RSS
+feed:
+  categories:
+    - documentation
+    - saas
+    - chemical-industry
+    - quality-management
+
+# Arquivos e diretórios a ignorar
+exclude:
+  - node_modules/
+  - .sass-cache/
+  - .jekyll-cache/
+  - gemfiles/
+  - Gemfile
+  - Gemfile.lock
+  - vendor/
+  - .env
+  - .env.*
+  - "*.log"
+  - package.json
+  - package-lock.json
+  - tsconfig.json
+  - vite.config.ts
+  - tailwind.config.ts
+  - postcss.config.js
+  - drizzle.config.ts
+  - scripts/
+  - server/
+  - client/
+  - shared/
+  - migrations/
+  - uploads/
+  - node_modules/
+  - dist/
+  - build/
+
+# Arquivos a incluir (mesmo se começarem com _)
+include:
+  - _pages
+  - _config.yml
+
+# Configurações de permalink
+permalink: /:categories/:title/
+
+# Configurações de paginação
+paginate: 10
+paginate_path: "/page:num/"
+
+# Configurações de data
+date_format: "%d/%m/%Y"
+
+# Configurações específicas para documentação técnica
+collections:
+  guides:
+    output: true
+    permalink: /:collection/:name/
+  tutorials:
+    output: true
+    permalink: /:collection/:name/
+  api_docs:
+    output: true
+    permalink: /:collection/:name/
+
+# Metadados adicionais
+repository: "mcsafx/CertificateManager"
+github_username: mcsafx
+project_version: "2.0.0"
+last_updated: "2024-12-24"
+
+# Configurações de build local para desenvolvimento
+development:
+  host: 127.0.0.1
+  port: 4000
+  livereload: true
+  incremental: true
+
+# =============================================================================
+# INSTRUÇÕES DE USO
+# =============================================================================
+# 
+# 1. Para habilitar GitHub Pages:
+#    - Vá em Settings > Pages no repositório GitHub
+#    - Selecione "Deploy from a branch"
+#    - Branch: main
+#    - Folder: /docs
+#    - Clique em Save
+#
+# 2. A documentação ficará disponível em:
+#    https://SEU_USUARIO.github.io/CertificateManager/
+#
+# 3. Para testar localmente:
+#    cd docs/
+#    bundle install
+#    bundle exec jekyll serve
+#
+# 4. Para personalizar:
+#    - Edite as configurações acima conforme necessário
+#    - Adicione seu próprio CSS em assets/css/style.scss
+#    - Substitua logos e favicon em assets/images/
+#
+# =============================================================================
