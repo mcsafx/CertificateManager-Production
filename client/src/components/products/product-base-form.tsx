@@ -209,25 +209,36 @@ export function ProductBaseForm({ productBaseId, defaultSubcategoryId, onSuccess
   // Função para fazer upload do arquivo após criar/atualizar o produto base
   const uploadFile = async (file: File, description: string, baseProductId: number, fileCategory: string) => {
     try {
-      // Criar um objeto FormData para o upload de arquivo
+      // 1. Fazer upload físico do arquivo usando a API real
       const formData = new FormData();
       formData.append('file', file);
+      formData.append('fileCategory', fileCategory);
+      formData.append('description', description);
+      formData.append('entityType', 'product_base');
+      formData.append('entityId', baseProductId.toString());
       
-      // Primeiro, faça upload do arquivo para obter o URL (esta parte seria simulada no nosso caso)
-      // Em um ambiente real, você teria um endpoint para fazer upload de arquivos
-      const fileUrl = `/uploads/${Date.now()}_${file.name}`;
-      const fileSize = Math.round(file.size / 1024); // Converter para KB
+      const uploadResponse = await fetch('/api/files/upload', {
+        method: 'POST',
+        body: formData,
+        credentials: 'include', // Para manter a sessão
+      });
       
-      // Depois, crie o registro do arquivo no banco de dados
+      if (!uploadResponse.ok) {
+        const errorData = await uploadResponse.json();
+        throw new Error(errorData.message || 'Erro no upload do arquivo');
+      }
+      
+      const uploadedFile = await uploadResponse.json();
+      
+      // 2. Criar registro na tabela específica de product_base_files
       const fileData = {
         baseProductId,
-        fileName: file.name,
-        fileUrl,
-        fileSize,
-        fileType: file.type,
+        fileName: uploadedFile.fileName,
+        fileUrl: uploadedFile.publicUrl,
+        fileSize: Math.round(uploadedFile.fileSize / 1024), // Converter para KB
+        fileType: uploadedFile.fileType,
         fileCategory,
         description,
-        tenantId: 1, // Será substituído pelo server com base no usuário autenticado
       };
       
       await apiRequest("POST", "/api/product-base-files", fileData);
@@ -235,7 +246,7 @@ export function ProductBaseForm({ productBaseId, defaultSubcategoryId, onSuccess
       return true;
     } catch (error) {
       console.error("Erro ao fazer upload do arquivo:", error);
-      return false;
+      throw error; // Re-throw para o componente tratar o erro
     }
   };
 
@@ -413,25 +424,37 @@ export function ProductBaseForm({ productBaseId, defaultSubcategoryId, onSuccess
                     </div>
                     <Button 
                       className="mt-4" 
-                      disabled={!fileUploads.fispq}
+                      disabled={!fileUploads.fispq || !productBaseId}
                       onClick={async () => {
                         if (fileUploads.fispq && productBaseId) {
-                          const success = await uploadFile(
-                            fileUploads.fispq, 
-                            fileDescriptions.fispq, 
-                            productBaseId,
-                            'fispq'
-                          );
-                          if (success) {
-                            toast({ title: "FISPQ enviada com sucesso!" });
+                          try {
+                            await uploadFile(
+                              fileUploads.fispq, 
+                              fileDescriptions.fispq, 
+                              productBaseId,
+                              'fispq'
+                            );
+                            
+                            toast({ 
+                              title: "FISPQ enviada com sucesso!",
+                              description: "O arquivo foi salvo e está disponível na lista de arquivos."
+                            });
+                            
+                            // Limpar o formulário e atualizar a lista
                             queryClient.invalidateQueries({ 
                               queryKey: [`/api/product-base/${productBaseId}/files`] 
                             });
                             setFileUploads(prev => ({ ...prev, fispq: null }));
                             setFileDescriptions(prev => ({ ...prev, fispq: "" }));
-                          } else {
+                            
+                            // Limpar o input de arquivo
+                            const fileInput = document.querySelector('input[type="file"][accept=".pdf,.doc,.docx"]') as HTMLInputElement;
+                            if (fileInput) fileInput.value = '';
+                            
+                          } catch (error: any) {
                             toast({ 
                               title: "Erro ao enviar FISPQ", 
+                              description: error.message || "Ocorreu um erro ao fazer upload do arquivo.",
                               variant: "destructive" 
                             });
                           }
@@ -499,25 +522,41 @@ export function ProductBaseForm({ productBaseId, defaultSubcategoryId, onSuccess
                     </div>
                     <Button 
                       className="mt-4" 
-                      disabled={!fileUploads.technicalSheet}
+                      disabled={!fileUploads.technicalSheet || !productBaseId}
                       onClick={async () => {
                         if (fileUploads.technicalSheet && productBaseId) {
-                          const success = await uploadFile(
-                            fileUploads.technicalSheet, 
-                            fileDescriptions.technicalSheet, 
-                            productBaseId,
-                            'technical_sheet'
-                          );
-                          if (success) {
-                            toast({ title: "Ficha Técnica enviada com sucesso!" });
+                          try {
+                            await uploadFile(
+                              fileUploads.technicalSheet, 
+                              fileDescriptions.technicalSheet, 
+                              productBaseId,
+                              'technical_sheet'
+                            );
+                            
+                            toast({ 
+                              title: "Ficha Técnica enviada com sucesso!",
+                              description: "O arquivo foi salvo e está disponível na lista de arquivos."
+                            });
+                            
+                            // Limpar o formulário e atualizar a lista
                             queryClient.invalidateQueries({ 
                               queryKey: [`/api/product-base/${productBaseId}/files`] 
                             });
                             setFileUploads(prev => ({ ...prev, technicalSheet: null }));
                             setFileDescriptions(prev => ({ ...prev, technicalSheet: "" }));
-                          } else {
+                            
+                            // Limpar o input de arquivo
+                            const fileInputs = document.querySelectorAll('input[type="file"]') as NodeListOf<HTMLInputElement>;
+                            fileInputs.forEach(input => {
+                              if (input.accept === '.pdf,.doc,.docx' && input !== document.querySelector('input[type="file"][accept=".pdf,.doc,.docx"]')) {
+                                input.value = '';
+                              }
+                            });
+                            
+                          } catch (error: any) {
                             toast({ 
                               title: "Erro ao enviar Ficha Técnica", 
+                              description: error.message || "Ocorreu um erro ao fazer upload do arquivo.",
                               variant: "destructive" 
                             });
                           }

@@ -104,6 +104,7 @@ export interface IStorage {
   createProductBaseFile(file: InsertProductBaseFile): Promise<ProductBaseFile>;
   getProductBaseFilesByBaseProduct(baseProductId: number, tenantId: number): Promise<ProductBaseFile[]>;
   getProductBaseFilesByCategory(baseProductId: number, category: string, tenantId: number): Promise<ProductBaseFile[]>;
+  updateProductBaseFile(id: number, tenantId: number, updates: Partial<ProductBaseFile>): Promise<ProductBaseFile | undefined>;
   deleteProductBaseFile(id: number, tenantId: number): Promise<boolean>;
 
   // Product Characteristics
@@ -603,6 +604,15 @@ export class MemStorage implements IStorage {
     );
   }
 
+  async updateProductBaseFile(id: number, tenantId: number, updates: Partial<ProductBaseFile>): Promise<ProductBaseFile | undefined> {
+    const file = await this.getProductBaseFile(id, tenantId);
+    if (!file) return undefined;
+    
+    const updatedFile = { ...file, ...updates };
+    this.productBaseFiles.set(id, updatedFile);
+    return updatedFile;
+  }
+
   async deleteProductBaseFile(id: number, tenantId: number): Promise<boolean> {
     const file = await this.getProductBaseFile(id, tenantId);
     if (!file) return false;
@@ -1076,8 +1086,11 @@ export class MemStorage implements IStorage {
         ? parseFloat(file.fileSizeMB) 
         : file.fileSizeMB;
       
+      // Converter para inteiro (arredondar para cima para garantir que o limite seja respeitado)
+      const fileSizeMBInt = Math.ceil(fileSizeMB);
+      
       await this.updateTenant(tenant.id, {
-        storageUsed: tenant.storageUsed + fileSizeMB
+        storageUsed: tenant.storageUsed + fileSizeMBInt
       });
     }
     
@@ -1587,7 +1600,7 @@ export class DatabaseStorage implements IStorage {
 
   async deleteUser(id: number): Promise<boolean> {
     const result = await db.delete(users).where(eq(users.id, id));
-    return result.rowCount > 0;
+    return (result.rowCount || 0) > 0;
   }
 
   // Tenant methods
@@ -1674,7 +1687,7 @@ export class DatabaseStorage implements IStorage {
         eq(productCategories.id, id),
         eq(productCategories.tenantId, tenantId)
       ));
-    return result.rowCount > 0;
+    return (result.rowCount || 0) > 0;
   }
 
   // Product Subcategory methods
@@ -1726,7 +1739,7 @@ export class DatabaseStorage implements IStorage {
         eq(productSubcategories.id, id),
         eq(productSubcategories.tenantId, tenantId)
       ));
-    return result.rowCount > 0;
+    return (result.rowCount || 0) > 0;
   }
 
   // Product Base methods
@@ -1782,7 +1795,7 @@ export class DatabaseStorage implements IStorage {
         eq(productBase.id, id),
         eq(productBase.tenantId, tenantId)
       ));
-    return result.rowCount > 0;
+    return (result.rowCount || 0) > 0;
   }
 
   // Product methods
@@ -1834,7 +1847,7 @@ export class DatabaseStorage implements IStorage {
         eq(products.id, id),
         eq(products.tenantId, tenantId)
       ));
-    return result.rowCount > 0;
+    return (result.rowCount || 0) > 0;
   }
 
   // Product Files methods
@@ -1866,7 +1879,7 @@ export class DatabaseStorage implements IStorage {
         eq(productFiles.id, id),
         eq(productFiles.tenantId, tenantId)
       ));
-    return result.rowCount > 0;
+    return (result.rowCount || 0) > 0;
   }
 
   // Product Base Files methods
@@ -1901,13 +1914,25 @@ export class DatabaseStorage implements IStorage {
       ));
   }
 
+  async updateProductBaseFile(id: number, tenantId: number, updates: Partial<ProductBaseFile>): Promise<ProductBaseFile | undefined> {
+    const result = await db.update(productBaseFiles)
+      .set(updates)
+      .where(and(
+        eq(productBaseFiles.id, id),
+        eq(productBaseFiles.tenantId, tenantId)
+      ))
+      .returning();
+    
+    return result[0] || undefined;
+  }
+
   async deleteProductBaseFile(id: number, tenantId: number): Promise<boolean> {
     const result = await db.delete(productBaseFiles)
       .where(and(
         eq(productBaseFiles.id, id),
         eq(productBaseFiles.tenantId, tenantId)
       ));
-    return result.rowCount > 0;
+    return (result.rowCount || 0) > 0;
   }
 
   // Product Characteristics methods
@@ -1950,7 +1975,7 @@ export class DatabaseStorage implements IStorage {
         eq(productCharacteristics.id, id),
         eq(productCharacteristics.tenantId, tenantId)
       ));
-    return result.rowCount > 0;
+    return (result.rowCount || 0) > 0;
   }
 
   // Suppliers methods
@@ -1990,7 +2015,7 @@ export class DatabaseStorage implements IStorage {
         eq(suppliers.id, id),
         eq(suppliers.tenantId, tenantId)
       ));
-    return result.rowCount > 0;
+    return (result.rowCount || 0) > 0;
   }
 
   // Manufacturers methods
@@ -2030,7 +2055,7 @@ export class DatabaseStorage implements IStorage {
         eq(manufacturers.id, id),
         eq(manufacturers.tenantId, tenantId)
       ));
-    return result.rowCount > 0;
+    return (result.rowCount || 0) > 0;
   }
 
   // Clients methods
@@ -2070,7 +2095,7 @@ export class DatabaseStorage implements IStorage {
         eq(clients.id, id),
         eq(clients.tenantId, tenantId)
       ));
-    return result.rowCount > 0;
+    return (result.rowCount || 0) > 0;
   }
 
   // Entry Certificates methods
@@ -2111,7 +2136,7 @@ export class DatabaseStorage implements IStorage {
         eq(entryCertificates.id, id),
         eq(entryCertificates.tenantId, tenantId)
       ));
-    return result.rowCount > 0;
+    return (result.rowCount || 0) > 0;
   }
 
   // Entry Certificate Results methods
@@ -2154,7 +2179,7 @@ export class DatabaseStorage implements IStorage {
         eq(entryCertificateResults.id, id),
         eq(entryCertificateResults.tenantId, tenantId)
       ));
-    return result.rowCount > 0;
+    return (result.rowCount || 0) > 0;
   }
 
   // Issued Certificates methods
@@ -2192,7 +2217,7 @@ export class DatabaseStorage implements IStorage {
         eq(issuedCertificates.id, id),
         eq(issuedCertificates.tenantId, tenantId)
       ));
-    return result.rowCount > 0;
+    return (result.rowCount || 0) > 0;
   }
 
   // Package Types methods
@@ -2232,7 +2257,7 @@ export class DatabaseStorage implements IStorage {
         eq(packageTypes.id, id),
         eq(packageTypes.tenantId, tenantId)
       ));
-    return result.rowCount > 0;
+    return (result.rowCount || 0) > 0;
   }
 
   // Files Management methods
@@ -2246,12 +2271,25 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createFile(file: InsertFile): Promise<File> {
+    // Converter fileSizeMB para string se necessário
+    const fileSizeMBStr = typeof file.fileSizeMB === 'string' 
+      ? file.fileSizeMB 
+      : file.fileSizeMB.toString();
+    
     // Inserir o arquivo no banco
     const [newFile] = await db.insert(files).values({
-      ...file,
-      description: file.description ?? null,
+      tenantId: file.tenantId,
+      fileName: file.fileName,
+      storedFileName: file.storedFileName,
+      fileSize: file.fileSize,
+      fileSizeMB: fileSizeMBStr,
+      fileType: file.fileType,
+      fileCategory: file.fileCategory,
       entityType: file.entityType ?? null,
       entityId: file.entityId ?? null,
+      filePath: file.filePath,
+      publicUrl: file.publicUrl,
+      description: file.description ?? null,
       uploadedAt: new Date()
     }).returning();
     
@@ -2262,8 +2300,11 @@ export class DatabaseStorage implements IStorage {
         ? parseFloat(file.fileSizeMB) 
         : file.fileSizeMB;
       
+      // Converter para inteiro (arredondar para cima para garantir que o limite seja respeitado)
+      const fileSizeMBInt = Math.ceil(fileSizeMB);
+      
       await this.updateTenant(tenant.id, {
-        storageUsed: tenant.storageUsed + fileSizeMB
+        storageUsed: tenant.storageUsed + fileSizeMBInt
       });
     }
     
@@ -2315,7 +2356,7 @@ export class DatabaseStorage implements IStorage {
         eq(files.tenantId, tenantId)
       ));
     
-    return result.rowCount > 0;
+    return (result.rowCount || 0) > 0;
   }
   
   // Plans & Modules methods
@@ -2445,7 +2486,7 @@ export class DatabaseStorage implements IStorage {
       console.log(`Removendo o tenant ID: ${id}`);
       const result = await db.delete(tenants).where(eq(tenants.id, id));
       
-      return result.rowCount > 0;
+      return (result.rowCount || 0) > 0;
     } catch (error) {
       console.error(`Erro ao excluir tenant ${id}:`, error);
       throw error;
@@ -2526,7 +2567,7 @@ export class DatabaseStorage implements IStorage {
       const result = await db.delete(plans)
         .where(eq(plans.id, id));
       
-      return result.rowCount > 0;
+      return (result.rowCount || 0) > 0;
     } catch (error) {
       console.error("Error deleting plan:", error);
       throw error;
@@ -2567,7 +2608,7 @@ export class DatabaseStorage implements IStorage {
       const result = await db.delete(modules)
         .where(eq(modules.id, id));
       
-      return result.rowCount > 0;
+      return (result.rowCount || 0) > 0;
     } catch (error) {
       console.error("Error deleting module:", error);
       throw error;
@@ -2668,7 +2709,7 @@ export class DatabaseStorage implements IStorage {
       const result = await db.delete(moduleFeatures)
         .where(eq(moduleFeatures.id, id));
       
-      return result.rowCount > 0;
+      return (result.rowCount || 0) > 0;
     } catch (error) {
       console.error("Error deleting module feature:", error);
       throw error;
