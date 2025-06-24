@@ -45,3 +45,21 @@ replit.nix
 # Temporary files
 *.tmp
 *.temp
+
+# Upload files (sensitive data)
+uploads/*
+!uploads/.gitkeep
+*.pdf
+*.doc
+*.docx
+*.xls
+*.xlsx
+
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+
+# Backup files
+backup*.sql
+*.backup
