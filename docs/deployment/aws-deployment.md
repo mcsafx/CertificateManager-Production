@@ -154,25 +154,24 @@ sudo usermod -aG sudo appuser
 # Mudar para o usuário
 sudo su - appuser
 
-# Clonar projeto
+# Clonar projeto (repositório atualizado)
 cd ~
-git clone https://github.com/mcsafx/CertificateManager.git
-cd CertificateManager
+git clone https://github.com/mcsafx/CertificateManager-Production.git
+cd CertificateManager-Production
 
-# Instalar dependências
+# Instalar dependências (já incluem pg e dotenv)
 npm install
-npm install dotenv pg
-npm install --save-dev @types/pg
 ```
 
 ### Passo 7: Configurar Aplicação
 
-#### 7.1 Modificar Arquivos
-Mesmas modificações dos guias anteriores:
-- server/db.ts (PostgreSQL local)
-- server/index.ts (adicionar dotenv)
+#### 7.1 Configurar .env a partir do template
+```bash
+# Copiar template de configuração
+cp .env.example .env
+```
 
-#### 7.2 Criar .env
+#### 7.2 Editar .env
 ```bash
 nano .env
 ```
@@ -184,6 +183,9 @@ NODE_ENV=production
 PORT=5000
 SESSION_SECRET="gere-uma-chave-de-64-caracteres-super-segura-para-producao"
 VITE_API_URL=http://SEU-IP-ELASTICO
+NODE_OPTIONS="--max-old-space-size=512"
+MAX_FILE_SIZE=10485760
+UPLOAD_DIR="uploads"
 ```
 
 **Para RDS (Opção B)**:
@@ -193,6 +195,9 @@ NODE_ENV=production
 PORT=5000
 SESSION_SECRET="gere-uma-chave-de-64-caracteres-super-segura-para-producao"
 VITE_API_URL=http://SEU-IP-ELASTICO
+NODE_OPTIONS="--max-old-space-size=512"
+MAX_FILE_SIZE=10485760
+UPLOAD_DIR="uploads"
 ```
 
 ### Passo 8: Preparar Banco e Build
@@ -201,7 +206,20 @@ VITE_API_URL=http://SEU-IP-ELASTICO
 # Executar migrações
 npm run db:push
 
-# Popular dados iniciais (conectar ao banco e executar SQLs dos guias anteriores)
+# Popular dados iniciais
+psql -h localhost -U appuser -d tenant_management_db << 'EOF'
+INSERT INTO plans (code, name, description, price, storage_limit, max_users) VALUES
+('A', 'Plano Básico', 'Funcionalidades essenciais', 99.90, 1000, 5),
+('B', 'Plano Intermediário', 'Funcionalidades avançadas', 199.90, 5000, 15),
+('C', 'Plano Completo', 'Todas as funcionalidades', 399.90, 20000, 50);
+
+INSERT INTO modules (code, name, description, is_core) VALUES
+('core', 'Módulo Core', 'Funcionalidades essenciais', true),
+('products', 'Módulo Produtos', 'Gestão de produtos', false),
+('certificates', 'Módulo Certificados', 'Emissão de certificados', false),
+('multi_user', 'Multi-usuário', 'Gestão de usuários', false);
+\q
+EOF
 
 # Build para produção
 npm run build
@@ -220,7 +238,7 @@ module.exports = {
     name: 'certificate-manager',
     script: 'npm',
     args: 'start',
-    cwd: '/home/appuser/CertificateManager',
+    cwd: '/home/appuser/CertificateManager-Production',
     instances: 1,
     autorestart: true,
     watch: false,
@@ -329,6 +347,12 @@ No console AWS → EC2 → Security Groups:
 # Instalar AWS CLI
 sudo apt install awscli
 
+# Configurar AWS CLI (use IAM user com permissões S3)
+aws configure
+
+# Criar bucket (substitua por nome único)
+aws s3 mb s3://certificatemanager-backup-SEU-NOME
+
 # Script de backup para S3
 nano ~/backup-to-s3.sh
 ```
@@ -336,9 +360,33 @@ nano ~/backup-to-s3.sh
 ```bash
 #!/bin/bash
 TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+BUCKET_NAME="certificatemanager-backup-SEU-NOME"
+
+# Backup do banco
 pg_dump -h localhost -U appuser tenant_management_db > /tmp/backup_$TIMESTAMP.sql
-aws s3 cp /tmp/backup_$TIMESTAMP.sql s3://seu-bucket/backups/
-rm /tmp/backup_$TIMESTAMP.sql
+
+# Backup dos uploads (se existir)
+if [ -d "/home/appuser/CertificateManager-Production/uploads" ]; then
+    tar -czf /tmp/uploads_$TIMESTAMP.tar.gz -C /home/appuser/CertificateManager-Production uploads/
+fi
+
+# Enviar para S3
+aws s3 cp /tmp/backup_$TIMESTAMP.sql s3://$BUCKET_NAME/database/
+[ -f /tmp/uploads_$TIMESTAMP.tar.gz ] && aws s3 cp /tmp/uploads_$TIMESTAMP.tar.gz s3://$BUCKET_NAME/uploads/
+
+# Limpar arquivos temporários
+rm -f /tmp/backup_$TIMESTAMP.sql /tmp/uploads_$TIMESTAMP.tar.gz
+
+echo "Backup concluído: $TIMESTAMP"
+```
+
+```bash
+# Tornar executável
+chmod +x ~/backup-to-s3.sh
+
+# Agendar backup diário (opcional)
+crontab -e
+# Adicionar linha: 0 2 * * * /home/ubuntu/backup-to-s3.sh
 ```
 
 ## 📊 Monitoramento
@@ -389,12 +437,19 @@ top      # Processos
 
 - [ ] EC2 rodando com IP Elástico
 - [ ] PostgreSQL acessível (local ou RDS)
+- [ ] Projeto clonado do repositório CertificateManager-Production
+- [ ] .env configurado a partir do .env.example
+- [ ] Dependências instaladas
+- [ ] Migrações executadas e dados iniciais inseridos
+- [ ] Build de produção executado
 - [ ] Aplicação rodando no PM2
 - [ ] Nginx configurado como proxy
-- [ ] Security Groups configurados
-- [ ] Swap habilitado
-- [ ] Alertas configurados
+- [ ] Security Groups configurados (22, 80, 443)
+- [ ] Swap habilitado (1GB)
+- [ ] Alertas de billing configurados
+- [ ] Pasta uploads/ criada automaticamente
 - [ ] Acesso via: http://SEU-IP-ELASTICO
+- [ ] Login admin/admin123 funcionando
 
 ## 🆘 Troubleshooting AWS
 
@@ -421,6 +476,18 @@ top      # Processos
 
 ---
 
-**Tempo estimado**: 45-60 minutos
-**Custo**: $0 (dentro do Free Tier)
-**Dificuldade**: Intermediária-Avançada
+## 🎯 **Resumo Executivo**
+
+**✅ Este guia está atualizado com as últimas mudanças de segurança do projeto!**
+
+- **Repositório**: CertificateManager-Production (atualizado)
+- **Template .env**: Configuração segura via .env.example
+- **Dependências**: Todas incluídas (pg, dotenv)
+- **Dados iniciais**: Script SQL completo
+- **Backup avançado**: S3 com uploads e banco
+- **Tempo estimado**: 45-60 minutos
+- **Custo**: $0 (dentro do Free Tier)
+- **Dificuldade**: Intermediária-Avançada
+
+**🔗 Acesso após deploy**: http://SEU-IP-ELASTICO
+**👤 Login inicial**: admin / admin123
