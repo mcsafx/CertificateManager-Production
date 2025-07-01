@@ -3352,7 +3352,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           name: tenant.name,
           storageUsed,
           fileCount: tenantFiles.length,
-          maxStorage: plan?.maxStorage || 0,
+          maxStorage: plan?.storageLimit || 0,
           planName: plan?.name || 'Desconhecido'
         });
       }
@@ -3403,7 +3403,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           ...tenant,
           storageUsed,
           fileCount: tenantFiles.length,
-          maxStorage: plan?.maxStorage || 0,
+          maxStorage: plan?.storageLimit || 0,
           planName: plan?.name || 'Desconhecido'
         });
       }
@@ -3913,7 +3913,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           name: tenant.name,
           storageUsed,
           fileCount: tenantFiles.length,
-          maxStorage: plan?.maxStorage || 0,
+          maxStorage: plan?.storageLimit || 0,
           planName: plan?.name || 'Desconhecido'
         });
       }
