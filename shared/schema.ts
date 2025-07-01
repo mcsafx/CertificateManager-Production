@@ -174,10 +174,17 @@ export const productCharacteristics = pgTable("product_characteristics", {
 export const suppliers = pgTable("suppliers", {
   id: serial("id").primaryKey(),
   name: text("name").notNull(),
-  cnpj: text("cnpj").notNull(),
+  cnpj: text("cnpj"), // Agora opcional para compatibilidade
   phone: text("phone"),
   address: text("address"),
   internalCode: text("internal_code"),
+  // Novos campos para identificação fiscal universal
+  isNational: boolean("is_national").notNull().default(true), // Brasil = true, Estrangeiro = false
+  country: text("country"), // País da empresa (ex: "Brasil", "Estados Unidos", "Alemanha")
+  taxIdentifier: text("tax_identifier"), // Número de identificação fiscal genérico
+  taxIdentifierType: text("tax_identifier_type"), // Tipo (ex: "CNPJ", "VAT", "EIN", "TIN")
+  // E-mail do setor de qualidade
+  qualityEmail: text("quality_email"), // E-mail específico do setor de qualidade
   tenantId: integer("tenant_id").notNull().references(() => tenants.id),
 });
 
@@ -191,10 +198,17 @@ export const manufacturers = pgTable("manufacturers", {
 export const clients = pgTable("clients", {
   id: serial("id").primaryKey(),
   name: text("name").notNull(),
-  cnpj: text("cnpj").notNull(),
+  cnpj: text("cnpj"), // Agora opcional para compatibilidade
   phone: text("phone"),
   address: text("address"),
   internalCode: text("internal_code"),
+  // Novos campos para identificação fiscal universal
+  isNational: boolean("is_national").notNull().default(true), // Brasil = true, Estrangeiro = false
+  country: text("country"), // País da empresa (ex: "Brasil", "Estados Unidos", "Alemanha")
+  taxIdentifier: text("tax_identifier"), // Número de identificação fiscal genérico
+  taxIdentifierType: text("tax_identifier_type"), // Tipo (ex: "CNPJ", "VAT", "EIN", "TIN")
+  // E-mail do setor de qualidade
+  qualityEmail: text("quality_email"), // E-mail específico do setor de qualidade
   tenantId: integer("tenant_id").notNull().references(() => tenants.id),
 });
 
@@ -403,7 +417,62 @@ export const insertSupplierSchema = createInsertSchema(suppliers).pick({
   phone: true,
   address: true,
   internalCode: true,
+  isNational: true,
+  country: true,
+  taxIdentifier: true,
+  taxIdentifierType: true,
+  qualityEmail: true,
   tenantId: true,
+}).extend({
+  // Validação condicional: CNPJ obrigatório para nacionais, taxIdentifier para estrangeiros
+  cnpj: z.string().optional(),
+  country: z.string().optional(),
+  taxIdentifier: z.string().optional(),
+  taxIdentifierType: z.string().optional(),
+  qualityEmail: z.string().email("E-mail inválido").optional().or(z.literal("")),
+}).refine((data) => {
+  if (data.isNational) {
+    // Para empresas nacionais, CNPJ é obrigatório
+    return data.cnpj && data.cnpj.length > 0;
+  } else {
+    // Para empresas estrangeiras, taxIdentifier e país são obrigatórios
+    return data.taxIdentifier && data.taxIdentifier.length > 0 && 
+           data.country && data.country.length > 0;
+  }
+}, {
+  message: "Para empresas nacionais, CNPJ é obrigatório. Para empresas estrangeiras, número de identificação fiscal e país são obrigatórios.",
+});
+
+// Schema para frontend (sem tenantId)
+export const frontendSupplierSchema = createInsertSchema(suppliers).pick({
+  name: true,
+  cnpj: true,
+  phone: true,
+  address: true,
+  internalCode: true,
+  isNational: true,
+  country: true,
+  taxIdentifier: true,
+  taxIdentifierType: true,
+  qualityEmail: true,
+}).extend({
+  // Validação condicional: CNPJ obrigatório para nacionais, taxIdentifier para estrangeiros
+  cnpj: z.string().optional(),
+  country: z.string().optional(),
+  taxIdentifier: z.string().optional(),
+  taxIdentifierType: z.string().optional(),
+  qualityEmail: z.string().email("E-mail inválido").optional().or(z.literal("")),
+}).refine((data) => {
+  if (data.isNational) {
+    // Para empresas nacionais, CNPJ é obrigatório
+    return data.cnpj && data.cnpj.length > 0;
+  } else {
+    // Para empresas estrangeiras, taxIdentifier e país são obrigatórios
+    return data.taxIdentifier && data.taxIdentifier.length > 0 && 
+           data.country && data.country.length > 0;
+  }
+}, {
+  message: "Para empresas nacionais, CNPJ é obrigatório. Para empresas estrangeiras, número de identificação fiscal e país são obrigatórios.",
 });
 
 export const insertManufacturerSchema = createInsertSchema(manufacturers).pick({
@@ -418,7 +487,62 @@ export const insertClientSchema = createInsertSchema(clients).pick({
   phone: true,
   address: true,
   internalCode: true,
+  isNational: true,
+  country: true,
+  taxIdentifier: true,
+  taxIdentifierType: true,
+  qualityEmail: true,
   tenantId: true,
+}).extend({
+  // Validação condicional: CNPJ obrigatório para nacionais, taxIdentifier para estrangeiros
+  cnpj: z.string().optional(),
+  country: z.string().optional(),
+  taxIdentifier: z.string().optional(),
+  taxIdentifierType: z.string().optional(),
+  qualityEmail: z.string().email("E-mail inválido").optional().or(z.literal("")),
+}).refine((data) => {
+  if (data.isNational) {
+    // Para empresas nacionais, CNPJ é obrigatório
+    return data.cnpj && data.cnpj.length > 0;
+  } else {
+    // Para empresas estrangeiras, taxIdentifier e país são obrigatórios
+    return data.taxIdentifier && data.taxIdentifier.length > 0 && 
+           data.country && data.country.length > 0;
+  }
+}, {
+  message: "Para empresas nacionais, CNPJ é obrigatório. Para empresas estrangeiras, número de identificação fiscal e país são obrigatórios.",
+});
+
+// Schema para frontend (sem tenantId)
+export const frontendClientSchema = createInsertSchema(clients).pick({
+  name: true,
+  cnpj: true,
+  phone: true,
+  address: true,
+  internalCode: true,
+  isNational: true,
+  country: true,
+  taxIdentifier: true,
+  taxIdentifierType: true,
+  qualityEmail: true,
+}).extend({
+  // Validação condicional: CNPJ obrigatório para nacionais, taxIdentifier para estrangeiros
+  cnpj: z.string().optional(),
+  country: z.string().optional(),
+  taxIdentifier: z.string().optional(),
+  taxIdentifierType: z.string().optional(),
+  qualityEmail: z.string().email("E-mail inválido").optional().or(z.literal("")),
+}).refine((data) => {
+  if (data.isNational) {
+    // Para empresas nacionais, CNPJ é obrigatório
+    return data.cnpj && data.cnpj.length > 0;
+  } else {
+    // Para empresas estrangeiras, taxIdentifier e país são obrigatórios
+    return data.taxIdentifier && data.taxIdentifier.length > 0 && 
+           data.country && data.country.length > 0;
+  }
+}, {
+  message: "Para empresas nacionais, CNPJ é obrigatório. Para empresas estrangeiras, número de identificação fiscal e país são obrigatórios.",
 });
 
 export const insertEntryCertificateSchema = createInsertSchema(entryCertificates)

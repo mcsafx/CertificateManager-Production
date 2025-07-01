@@ -5,11 +5,14 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Loader2, Building2, Pencil, Search, Trash2, Plus } from "lucide-react";
-import { insertSupplierSchema, Supplier } from "@shared/schema";
+import { frontendSupplierSchema, Supplier } from "@shared/schema";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
@@ -29,32 +32,48 @@ export default function SuppliersPage() {
   const filteredSuppliers = suppliers
     ? suppliers.filter(supplier => 
         supplier.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        supplier.cnpj.includes(searchQuery) ||
+        (supplier.cnpj && supplier.cnpj.includes(searchQuery)) ||
+        (supplier.taxIdentifier && supplier.taxIdentifier.includes(searchQuery)) ||
+        (supplier.country && supplier.country.toLowerCase().includes(searchQuery.toLowerCase())) ||
+        (supplier.qualityEmail && supplier.qualityEmail.toLowerCase().includes(searchQuery.toLowerCase())) ||
         (supplier.internalCode && supplier.internalCode.toLowerCase().includes(searchQuery.toLowerCase()))
       )
     : [];
   
   // Form for adding/editing suppliers
   const form = useForm<Omit<Supplier, "id" | "tenantId">>({
-    resolver: zodResolver(insertSupplierSchema.omit({ tenantId: true })),
+    resolver: zodResolver(frontendSupplierSchema),
     defaultValues: {
       name: "",
       cnpj: "",
       phone: "",
       address: "",
       internalCode: "",
+      isNational: true,
+      country: "",
+      taxIdentifier: "",
+      taxIdentifierType: "",
+      qualityEmail: "",
     },
   });
+
+  // Watch isNational field to conditionally show fields
+  const isNational = form.watch("isNational");
   
   // Set form values when editing
   const handleEdit = (supplier: Supplier) => {
     setEditingSupplier(supplier);
     form.reset({
       name: supplier.name,
-      cnpj: supplier.cnpj,
+      cnpj: supplier.cnpj || "",
       phone: supplier.phone || "",
       address: supplier.address || "",
       internalCode: supplier.internalCode || "",
+      isNational: supplier.isNational ?? true,
+      country: supplier.country || "",
+      taxIdentifier: supplier.taxIdentifier || "",
+      taxIdentifierType: supplier.taxIdentifierType || "",
+      qualityEmail: supplier.qualityEmail || "",
     });
     setIsDialogOpen(true);
   };
@@ -68,6 +87,11 @@ export default function SuppliersPage() {
       phone: "",
       address: "",
       internalCode: "",
+      isNational: true,
+      country: "",
+      taxIdentifier: "",
+      taxIdentifierType: "",
+      qualityEmail: "",
     });
     setIsDialogOpen(true);
   };
@@ -152,7 +176,7 @@ export default function SuppliersPage() {
             <div className="relative">
               <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
               <Input 
-                placeholder="Buscar por nome, CNPJ ou código interno..."
+                placeholder="Buscar por nome, CNPJ, identificação fiscal, país, e-mail ou código interno..."
                 className="pl-10"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
@@ -173,8 +197,10 @@ export default function SuppliersPage() {
                   <TableHeader>
                     <TableRow>
                       <TableHead className="w-[200px]">Nome</TableHead>
-                      <TableHead>CNPJ</TableHead>
+                      <TableHead>Identificação Fiscal</TableHead>
+                      <TableHead>País</TableHead>
                       <TableHead>Telefone</TableHead>
+                      <TableHead>E-mail Qualidade</TableHead>
                       <TableHead>Endereço</TableHead>
                       <TableHead>Código Interno</TableHead>
                       <TableHead className="text-right">Ações</TableHead>
@@ -183,7 +209,7 @@ export default function SuppliersPage() {
                   <TableBody>
                     {filteredSuppliers.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={6} className="text-center py-8 text-gray-500">
+                        <TableCell colSpan={8} className="text-center py-8 text-gray-500">
                           <Building2 className="h-12 w-12 mx-auto mb-2 text-gray-300" />
                           {searchQuery 
                             ? "Nenhum fornecedor encontrado com os critérios de busca"
@@ -191,33 +217,44 @@ export default function SuppliersPage() {
                         </TableCell>
                       </TableRow>
                     ) : (
-                      filteredSuppliers.map((supplier) => (
-                        <TableRow key={supplier.id}>
-                          <TableCell className="font-medium">{supplier.name}</TableCell>
-                          <TableCell>{supplier.cnpj}</TableCell>
-                          <TableCell>{supplier.phone || "-"}</TableCell>
-                          <TableCell>{supplier.address || "-"}</TableCell>
-                          <TableCell>{supplier.internalCode || "-"}</TableCell>
-                          <TableCell className="text-right">
-                            <Button 
-                              variant="ghost" 
-                              size="icon" 
-                              onClick={() => handleEdit(supplier)}
-                              disabled={supplierMutation.isPending}
-                            >
-                              <Pencil className="h-4 w-4" />
-                            </Button>
-                            <Button 
-                              variant="ghost" 
-                              size="icon"
-                              onClick={() => handleDelete(supplier.id)}
-                              disabled={deleteMutation.isPending}
-                            >
-                              <Trash2 className="h-4 w-4 text-red-500" />
-                            </Button>
-                          </TableCell>
-                        </TableRow>
-                      ))
+                      filteredSuppliers.map((supplier) => {
+                        const taxDisplay = supplier.isNational 
+                          ? supplier.cnpj || "-" 
+                          : supplier.taxIdentifier 
+                            ? `${supplier.taxIdentifierType || ""} ${supplier.taxIdentifier}`.trim()
+                            : "-";
+                        const countryDisplay = supplier.isNational ? "Brasil" : supplier.country || "-";
+                        
+                        return (
+                          <TableRow key={supplier.id}>
+                            <TableCell className="font-medium">{supplier.name}</TableCell>
+                            <TableCell>{taxDisplay}</TableCell>
+                            <TableCell>{countryDisplay}</TableCell>
+                            <TableCell>{supplier.phone || "-"}</TableCell>
+                            <TableCell>{supplier.qualityEmail || "-"}</TableCell>
+                            <TableCell>{supplier.address || "-"}</TableCell>
+                            <TableCell>{supplier.internalCode || "-"}</TableCell>
+                            <TableCell className="text-right">
+                              <Button 
+                                variant="ghost" 
+                                size="icon" 
+                                onClick={() => handleEdit(supplier)}
+                                disabled={supplierMutation.isPending}
+                              >
+                                <Pencil className="h-4 w-4" />
+                              </Button>
+                              <Button 
+                                variant="ghost" 
+                                size="icon"
+                                onClick={() => handleDelete(supplier.id)}
+                                disabled={deleteMutation.isPending}
+                              >
+                                <Trash2 className="h-4 w-4 text-red-500" />
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })
                     )}
                   </TableBody>
                 </Table>
@@ -251,19 +288,105 @@ export default function SuppliersPage() {
                 )}
               />
               
+              {/* Toggle Nacional/Estrangeiro */}
               <FormField
                 control={form.control}
-                name="cnpj"
+                name="isNational"
                 render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>CNPJ *</FormLabel>
+                  <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                    <div className="space-y-0.5">
+                      <FormLabel className="text-base font-medium">
+                        Empresa Nacional
+                      </FormLabel>
+                      <div className="text-sm text-muted-foreground">
+                        {field.value ? "Empresa brasileira com CNPJ" : "Empresa estrangeira com identificação fiscal internacional"}
+                      </div>
+                    </div>
                     <FormControl>
-                      <Input placeholder="00.000.000/0000-00" {...field} />
+                      <Switch
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                      />
                     </FormControl>
-                    <FormMessage />
                   </FormItem>
                 )}
               />
+
+              {/* Campos condicionais para identificação fiscal */}
+              {isNational ? (
+                <FormField
+                  control={form.control}
+                  name="cnpj"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>CNPJ *</FormLabel>
+                      <FormControl>
+                        <Input placeholder="00.000.000/0000-00" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              ) : (
+                <div className="space-y-4">
+                  <FormField
+                    control={form.control}
+                    name="country"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>País *</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Ex: Estados Unidos, Alemanha, França..." {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <FormField
+                      control={form.control}
+                      name="taxIdentifierType"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Tipo de Identificação</FormLabel>
+                          <Select onValueChange={field.onChange} value={field.value}>
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Selecione o tipo" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              <SelectItem value="VAT">VAT Number (Europa)</SelectItem>
+                              <SelectItem value="EIN">EIN (Estados Unidos)</SelectItem>
+                              <SelectItem value="TIN">TIN (Estados Unidos)</SelectItem>
+                              <SelectItem value="Business Number">Business Number (Canadá)</SelectItem>
+                              <SelectItem value="Company Number">Company Number (Reino Unido)</SelectItem>
+                              <SelectItem value="Tax ID">Tax ID (Genérico)</SelectItem>
+                              <SelectItem value="Other">Outro</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    
+                    <FormField
+                      control={form.control}
+                      name="taxIdentifier"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Número de Identificação *</FormLabel>
+                          <FormControl>
+                            <Input placeholder="Ex: DE123456789, 12-3456789..." {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                </div>
+              )}
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <FormField
@@ -295,6 +418,24 @@ export default function SuppliersPage() {
                 />
               </div>
               
+              <FormField
+                control={form.control}
+                name="qualityEmail"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>E-mail do Setor de Qualidade</FormLabel>
+                    <FormControl>
+                      <Input 
+                        type="email" 
+                        placeholder="qualidade@empresa.com" 
+                        {...field} 
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
               <FormField
                 control={form.control}
                 name="address"
