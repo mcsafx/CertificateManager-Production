@@ -63,3 +63,7 @@ uploads/*
 # Backup files
 backup*.sql
 *.backup
+
+# Sensitive assets and materials
+attached_assets/
+@attached_assets/
