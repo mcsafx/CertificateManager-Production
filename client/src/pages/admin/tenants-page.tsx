@@ -71,7 +71,7 @@ export default function TenantsPage() {
   // Schema para validação do formulário
   const tenantSchema = z.object({
     name: z.string().min(3, "Nome deve ter pelo menos 3 caracteres"),
-    cnpj: z.string().min(14, "CNPJ deve ter 14 dígitos"),
+    cnpj: z.string().optional(),
     address: z.string().optional(),
     planId: z.coerce.number().min(1, "Selecione um plano"),
     active: z.boolean().default(true),
@@ -442,9 +442,9 @@ export default function TenantsPage() {
                     name="cnpj"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>CNPJ</FormLabel>
+                        <FormLabel>Identificador Fiscal</FormLabel>
                         <FormControl>
-                          <Input placeholder="CNPJ (apenas números)" {...field} />
+                          <Input placeholder="CNPJ, VAT, EIN, TIN ou outro identificador (opcional)" {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -549,7 +549,7 @@ export default function TenantsPage() {
                   <TableHeader>
                     <TableRow>
                       <TableHead>Nome</TableHead>
-                      <TableHead>CNPJ</TableHead>
+                      <TableHead>Identificador Fiscal</TableHead>
                       <TableHead>Plano</TableHead>
                       <TableHead>Status</TableHead>
                       <TableHead>Status Assinatura</TableHead>
@@ -562,7 +562,7 @@ export default function TenantsPage() {
                     {tenants?.map((tenant: any) => (
                       <TableRow key={tenant.id}>
                         <TableCell className="font-medium">{tenant.name}</TableCell>
-                        <TableCell>{tenant.cnpj}</TableCell>
+                        <TableCell>{tenant.cnpj || "-"}</TableCell>
                         <TableCell>
                           {plans?.find((p: any) => p.id === tenant.planId)?.name || "-"}
                         </TableCell>
