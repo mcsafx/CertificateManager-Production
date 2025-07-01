@@ -46,7 +46,7 @@ export default function StoragePage() {
   const queryClient = useQueryClient();
 
   // Buscar lista de tenants com informações de armazenamento
-  const { data: storageData, isLoading } = useQuery({
+  const { data: storageData, isLoading, refetch } = useQuery({
     queryKey: ['/api/admin/storage'],
     queryFn: async () => {
       const response = await apiRequest('GET', '/api/admin/storage');
@@ -102,7 +102,10 @@ export default function StoragePage() {
             </p>
           </div>
           <Button
-            onClick={() => queryClient.invalidateQueries({ queryKey: ['/api/admin/storage'] })}
+            onClick={() => {
+              queryClient.invalidateQueries({ queryKey: ['/api/admin/storage'] });
+              refetch();
+            }}
             variant="outline"
           >
             <RefreshCw className="mr-2 h-4 w-4" />
