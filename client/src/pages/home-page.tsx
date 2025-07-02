@@ -266,32 +266,32 @@ export default function HomePage() {
                   <CardTitle>Ações Rápidas</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                     <Link href="/certificates">
-                      <a className="bg-primary text-white p-4 rounded-lg text-center hover:bg-primary-dark">
-                        <FileCheck className="h-6 w-6 mx-auto mb-2" />
-                        <span>Novo Boletim de Entrada</span>
+                      <a className="bg-primary text-white p-6 rounded-lg text-center hover:bg-primary-dark transition-colors duration-200 flex flex-col items-center justify-center min-h-[120px]">
+                        <FileCheck className="h-8 w-8 mx-auto mb-3" />
+                        <span className="text-sm font-medium leading-tight">Novo Boletim de Entrada</span>
                       </a>
                     </Link>
                     
                     <Link href="/issued-certificates">
-                      <a className="bg-green-600 text-white p-4 rounded-lg text-center hover:bg-green-700">
-                        <FileOutput className="h-6 w-6 mx-auto mb-2" />
-                        <span>Emitir Boletim</span>
+                      <a className="bg-green-600 text-white p-6 rounded-lg text-center hover:bg-green-700 transition-colors duration-200 flex flex-col items-center justify-center min-h-[120px]">
+                        <FileOutput className="h-8 w-8 mx-auto mb-3" />
+                        <span className="text-sm font-medium leading-tight">Emitir Boletim</span>
                       </a>
                     </Link>
                     
                     <Link href="/products">
-                      <a className="bg-purple-600 text-white p-4 rounded-lg text-center hover:bg-purple-700">
-                        <Package className="h-6 w-6 mx-auto mb-2" />
-                        <span>Cadastrar Produto</span>
+                      <a className="bg-purple-600 text-white p-6 rounded-lg text-center hover:bg-purple-700 transition-colors duration-200 flex flex-col items-center justify-center min-h-[120px]">
+                        <Package className="h-8 w-8 mx-auto mb-3" />
+                        <span className="text-sm font-medium leading-tight">Cadastrar Produto</span>
                       </a>
                     </Link>
                     
                     <Link href="/traceability">
-                      <a className="bg-amber-600 text-white p-4 rounded-lg text-center hover:bg-amber-700">
-                        <ListChecks className="h-6 w-6 mx-auto mb-2" />
-                        <span>Consultar Rastreabilidade</span>
+                      <a className="bg-amber-600 text-white p-6 rounded-lg text-center hover:bg-amber-700 transition-colors duration-200 flex flex-col items-center justify-center min-h-[120px]">
+                        <ListChecks className="h-8 w-8 mx-auto mb-3" />
+                        <span className="text-sm font-medium leading-tight">Consultar Rastreabilidade</span>
                       </a>
                     </Link>
                   </div>
