@@ -80,7 +80,7 @@ const userEditSchema = z.object({
 const newUserSchema = z.object({
   username: z.string().min(3, "Nome de usuário deve ter pelo menos 3 caracteres"),
   name: z.string().min(3, "Nome deve ter pelo menos 3 caracteres"),
-  email: z.string().email("Email inválido").optional().nullable(),
+  email: z.string().email("Email inválido").min(1, "Email é obrigatório"),
   password: z.string().min(6, "Senha deve ter pelo menos 6 caracteres"),
   confirmPassword: z.string().min(6, "Confirme a senha"),
   role: z.enum(["admin", "tenant_admin", "user"]),
@@ -568,7 +568,7 @@ export default function AdminUsersPage() {
         setOpenNewUserDialog(open);
         if (!open) newUserForm.reset();
       }}>
-        <DialogContent className="sm:max-w-[600px]">
+        <DialogContent className="sm:max-w-[800px]">
           <DialogHeader>
             <DialogTitle>Adicionar Novo Usuário</DialogTitle>
             <DialogDescription>
@@ -578,36 +578,38 @@ export default function AdminUsersPage() {
           
           <Form {...newUserForm}>
             <form onSubmit={newUserForm.handleSubmit(onSubmitNewUser)} className="space-y-4">
-              <FormField
-                control={newUserForm.control}
-                name="username"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Nome de Usuário</FormLabel>
-                    <FormControl>
-                      <Input {...field} />
-                    </FormControl>
-                    <FormDescription>
-                      Nome de usuário para login no sistema
-                    </FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              
-              <FormField
-                control={newUserForm.control}
-                name="name"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Nome Completo</FormLabel>
-                    <FormControl>
-                      <Input {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+              <div className="grid grid-cols-2 gap-4">
+                <FormField
+                  control={newUserForm.control}
+                  name="username"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Nome de Usuário</FormLabel>
+                      <FormControl>
+                        <Input {...field} />
+                      </FormControl>
+                      <FormDescription className="text-xs">
+                        Nome de usuário para login no sistema
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                
+                <FormField
+                  control={newUserForm.control}
+                  name="name"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Nome Completo</FormLabel>
+                      <FormControl>
+                        <Input {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
               
               <FormField
                 control={newUserForm.control}
@@ -616,7 +618,7 @@ export default function AdminUsersPage() {
                   <FormItem>
                     <FormLabel>Email</FormLabel>
                     <FormControl>
-                      <Input type="email" {...field} value={field.value || ''} />
+                      <Input type="email" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -653,71 +655,73 @@ export default function AdminUsersPage() {
                 />
               </div>
               
-              <FormField
-                control={newUserForm.control}
-                name="tenantId"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Tenant</FormLabel>
-                    <Select 
-                      value={field.value}
-                      onValueChange={field.onChange}
-                    >
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Selecione um tenant" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {isLoadingTenants ? (
-                          <div className="flex items-center justify-center p-2">
-                            <Loader2 className="h-4 w-4 animate-spin text-primary" />
-                          </div>
-                        ) : (
-                          tenants?.map((tenant: any) => (
-                            <SelectItem key={tenant.id} value={tenant.id.toString()}>
-                              {tenant.name}
-                            </SelectItem>
-                          ))
-                        )}
-                      </SelectContent>
-                    </Select>
-                    <FormDescription>
-                      O tenant ao qual o usuário pertence
-                    </FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              
-              <FormField
-                control={newUserForm.control}
-                name="role"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Função</FormLabel>
-                    <Select 
-                      value={field.value}
-                      onValueChange={field.onChange}
-                    >
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Selecione uma função" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="admin">Administrador do Sistema</SelectItem>
-                        <SelectItem value="tenant_admin">Administrador do Tenant</SelectItem>
-                        <SelectItem value="user">Usuário Regular</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <FormDescription>
-                      A função determina as permissões do usuário no sistema
-                    </FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+              <div className="grid grid-cols-2 gap-4">
+                <FormField
+                  control={newUserForm.control}
+                  name="tenantId"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Tenant</FormLabel>
+                      <Select 
+                        value={field.value}
+                        onValueChange={field.onChange}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Selecione um tenant" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {isLoadingTenants ? (
+                            <div className="flex items-center justify-center p-2">
+                              <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                            </div>
+                          ) : (
+                            tenants?.map((tenant: any) => (
+                              <SelectItem key={tenant.id} value={tenant.id.toString()}>
+                                {tenant.name}
+                              </SelectItem>
+                            ))
+                          )}
+                        </SelectContent>
+                      </Select>
+                      <FormDescription className="text-xs">
+                        O tenant ao qual o usuário pertence
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                
+                <FormField
+                  control={newUserForm.control}
+                  name="role"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Função</FormLabel>
+                      <Select 
+                        value={field.value}
+                        onValueChange={field.onChange}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Selecione uma função" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="admin">Administrador do Sistema</SelectItem>
+                          <SelectItem value="tenant_admin">Administrador do Tenant</SelectItem>
+                          <SelectItem value="user">Usuário Regular</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormDescription className="text-xs">
+                        A função determina as permissões do usuário no sistema
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
               
               <FormField
                 control={newUserForm.control}

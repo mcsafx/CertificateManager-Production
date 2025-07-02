@@ -4027,7 +4027,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Criar novo usuário (admin)
   app.post("/api/admin/users", isAdmin, async (req, res, next) => {
     try {
-      const { username, name, password, role, tenantId, active } = req.body;
+      const { username, name, email, password, role, tenantId, active } = req.body;
       
       // Verificar se o tenant existe
       const tenant = await storage.getTenant(Number(tenantId));
@@ -4041,6 +4041,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Nome de usuário já existe" });
       }
       
+      // Verificar se o email já existe
+      const existingEmailUser = await storage.getUserByEmail(email);
+      if (existingEmailUser) {
+        return res.status(400).json({ message: "Email já está em uso" });
+      }
+      
       // Hash da senha antes de criar o usuário
       const { hashPassword } = await import('./auth');
       const hashedPassword = await hashPassword(password);
@@ -4049,6 +4055,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const newUser = await storage.createUser({
         username,
         name,
+        email,
         password: hashedPassword,
         role: role || 'user',
         tenantId: Number(tenantId),
