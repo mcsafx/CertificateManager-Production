@@ -17,6 +17,7 @@ O **CertificateManager** é uma plataforma SaaS multi-tenant completa, desenvolv
 - **🏢 Multi-tenancy Completo**: Isolamento total entre empresas
 - **📊 Sistema de Módulos**: Funcionalidades organizadas por planos de assinatura
 - **🔐 Controle Granular**: Permissões por funcionalidade específica
+- **📄 Importação NFe Automática**: Geração de certificados a partir de XML NFe
 - **📱 Interface Moderna**: React + TypeScript + shadcn/ui
 - **⚡ API Robusta**: Node.js + Express + PostgreSQL + Drizzle ORM
 - **🚀 Deploy Flexível**: VPS, AWS, Docker ou local
@@ -26,6 +27,7 @@ O **CertificateManager** é uma plataforma SaaS multi-tenant completa, desenvolv
 ### 🧪 Distribuidores Químicos
 - Gestão de FISPQ (Fichas de Segurança)
 - Controle de certificados de análise
+- **Importação automática de NFe** para geração de certificados
 - Rastreabilidade de produtos químicos
 - Compliance regulatório automático
 
@@ -63,6 +65,7 @@ O **CertificateManager** é uma plataforma SaaS multi-tenant completa, desenvolv
 ### ⚙️ [Funcionalidades](features/)
 - [Sistema de Módulos](features/modules-system.md)
 - [Sistema de Permissões](features/permissions-system.md)
+- [Importação NFe](features/nfe-import-system.md)
 - [Arquitetura Multi-tenant](features/multi-tenant.md)
 
 ## 🏗️ Arquitetura
@@ -128,6 +131,7 @@ O **CertificateManager** é uma plataforma SaaS multi-tenant completa, desenvolv
 - ✅ **Feature Gates** - Implementado
 - ✅ **Interface Administrativa** - Funcional
 - ✅ **Sistema de Planos** - Operacional
+- ✅ **Importação NFe** - Implementado e funcional
 - ✅ **API REST** - Documentada
 - ✅ **Deploy Automatizado** - Scripts prontos
 

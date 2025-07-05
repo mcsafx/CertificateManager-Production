@@ -28,6 +28,7 @@ Sistema de Gestão de Certificados de Qualidade para Distribuidores Químicos - 
 ### ⚙️ Funcionalidades
 - [**Sistema de Módulos**](features/modules-system.md) - Como funcionam os módulos do sistema
 - [**Sistema de Permissões**](features/permissions-system.md) - Controle de acesso e permissões
+- [**Importação NFe**](features/nfe-import-system.md) - Sistema automático de importação de NFe
 - [**Multi-tenancy**](features/multi-tenant.md) - Arquitetura multi-tenant
 - [**Planos de Assinatura**](features/subscription-plans.md) - Sistema de planos e cobrança
 
@@ -62,6 +63,7 @@ O **CertificateManager** é um sistema SaaS multi-tenant para gestão de certifi
 - ✅ **Multi-tenancy completo** com isolamento entre empresas
 - ✅ **Sistema de módulos flexível** baseado em planos de assinatura
 - ✅ **Controle granular de permissões** por funcionalidade
+- ✅ **Importação automática de NFe** com geração automática de certificados
 - ✅ **Interface moderna** com React + TypeScript
 - ✅ **API robusta** com Node.js + Express + PostgreSQL
 - ✅ **Deploy flexível** em VPS, AWS ou local

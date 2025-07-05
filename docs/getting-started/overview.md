@@ -53,6 +53,7 @@ Um sistema completo de gestão multi-tenant com controle granular de permissões
 
 #### Módulo Certificados (`certificates`)
 - Emissão de certificados básicos
+- **Importação automática de NFe** com geração de certificados
 - Templates de certificados
 - Gestão de certificados emitidos
 - Validação de certificados
@@ -326,12 +327,14 @@ MIT License - veja arquivo LICENSE para detalhes.
 - ✅ Interface administrativa
 - ✅ Sistema de planos e assinaturas
 - ✅ Controle granular de permissões
+- ✅ **Sistema de importação NFe** com geração automática de certificados
 - ✅ Dashboard responsivo
 - ✅ Gestão de usuários e produtos
 - ✅ Sistema de upload de arquivos
 - ✅ Verificação automática de assinaturas
 
 ### Próximas Funcionalidades
+- 🔄 Importação em lote de múltiplas NFes
 - 🔄 Sistema de notificações
 - 🔄 Webhooks para integrações
 - 🔄 Relatórios avançados
