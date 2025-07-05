@@ -263,6 +263,37 @@ export const issuedCertificates = pgTable("issued_certificates", {
   observations: text("observations").default(''),
 });
 
+// NFe Import Tables
+export const nfeImports = pgTable("nfe_imports", {
+  id: serial("id").primaryKey(),
+  tenantId: integer("tenant_id").notNull().references(() => tenants.id),
+  nfeNumber: varchar("nfe_number", { length: 50 }).notNull(),
+  nfeSeries: varchar("nfe_series", { length: 10 }).notNull(),
+  issueDate: date("issue_date").notNull(),
+  clientId: integer("client_id").references(() => clients.id),
+  originalXmlFileUrl: text("original_xml_file_url"),
+  importStatus: varchar("import_status", { length: 20 }).notNull().default('pending'), // 'pending', 'completed', 'failed'
+  itemsCount: integer("items_count").notNull().default(0),
+  processedItemsCount: integer("processed_items_count").notNull().default(0),
+  errorMessage: text("error_message"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  createdBy: integer("created_by").notNull().references(() => users.id),
+  processedAt: timestamp("processed_at"),
+});
+
+export const nfeProductMappings = pgTable("nfe_product_mappings", {
+  id: serial("id").primaryKey(),
+  tenantId: integer("tenant_id").notNull().references(() => tenants.id),
+  nfeProductCode: varchar("nfe_product_code", { length: 100 }).notNull(),
+  nfeProductName: varchar("nfe_product_name", { length: 255 }).notNull(),
+  systemProductId: integer("system_product_id").notNull().references(() => products.id),
+  mappingConfidence: numeric("mapping_confidence", { precision: 3, scale: 2 }).notNull().default('1.00'),
+  isManualMapping: boolean("is_manual_mapping").notNull().default(false),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  createdBy: integer("created_by").notNull().references(() => users.id),
+});
+
 // Insert Schemas
 export const insertUserSchema = createInsertSchema(users).pick({
   username: true,
@@ -613,6 +644,34 @@ export const insertIssuedCertificateSchema = createInsertSchema(issuedCertificat
     observations: z.string().default(''),
   });
 
+// NFe Import Schemas
+export const insertNfeImportSchema = createInsertSchema(nfeImports).pick({
+  tenantId: true,
+  nfeNumber: true,
+  nfeSeries: true,
+  issueDate: true,
+  clientId: true,
+  originalXmlFileUrl: true,
+  importStatus: true,
+  itemsCount: true,
+  processedItemsCount: true,
+  errorMessage: true,
+  createdBy: true,
+  processedAt: true,
+});
+
+export const insertNfeProductMappingSchema = createInsertSchema(nfeProductMappings).pick({
+  tenantId: true,
+  nfeProductCode: true,
+  nfeProductName: true,
+  systemProductId: true,
+  mappingConfidence: true,
+  isManualMapping: true,
+  createdBy: true,
+}).extend({
+  mappingConfidence: z.union([z.string(), z.number()]).default(1.00),
+});
+
 // Tabela genérica para arquivos do sistema
 export const files = pgTable("files", {
   id: serial("id").primaryKey(),
@@ -898,6 +957,37 @@ export const batchRevalidationsRelations = relations(batchRevalidations, ({ one 
   }),
 }));
 
+// NFe Import Relations
+export const nfeImportsRelations = relations(nfeImports, ({ one }) => ({
+  tenant: one(tenants, {
+    fields: [nfeImports.tenantId],
+    references: [tenants.id],
+  }),
+  client: one(clients, {
+    fields: [nfeImports.clientId],
+    references: [clients.id],
+  }),
+  createdByUser: one(users, {
+    fields: [nfeImports.createdBy],
+    references: [users.id],
+  }),
+}));
+
+export const nfeProductMappingsRelations = relations(nfeProductMappings, ({ one }) => ({
+  tenant: one(tenants, {
+    fields: [nfeProductMappings.tenantId],
+    references: [tenants.id],
+  }),
+  systemProduct: one(products, {
+    fields: [nfeProductMappings.systemProductId],
+    references: [products.id],
+  }),
+  createdByUser: one(users, {
+    fields: [nfeProductMappings.createdBy],
+    references: [users.id],
+  }),
+}));
+
 // Type exports para os novos módulos
 export type Plan = typeof plans.$inferSelect;
 export type InsertPlan = z.infer<typeof insertPlanSchema>;
@@ -940,6 +1030,13 @@ export type EntryCertificateResult = typeof entryCertificateResults.$inferSelect
 export type InsertEntryCertificateResult = z.infer<typeof insertEntryCertificateResultSchema>;
 export type IssuedCertificate = typeof issuedCertificates.$inferSelect;
 export type InsertIssuedCertificate = z.infer<typeof insertIssuedCertificateSchema>;
+
+// NFe Import Types
+export type NfeImport = typeof nfeImports.$inferSelect;
+export type InsertNfeImport = z.infer<typeof insertNfeImportSchema>;
+export type NfeProductMapping = typeof nfeProductMappings.$inferSelect;
+export type InsertNfeProductMapping = z.infer<typeof insertNfeProductMappingSchema>;
+
 // Schema de inserção para arquivos
 export const insertFileSchema = createInsertSchema(files).pick({
   fileName: true,

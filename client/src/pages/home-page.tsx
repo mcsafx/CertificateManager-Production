@@ -8,6 +8,8 @@ import { Link } from "wouter";
 import { ExpiringProductsChart } from "@/components/analytics/expiring-products-chart";
 import { InventoryTurnoverChart } from "@/components/analytics/inventory-turnover-chart";
 import { CategoryVolumeChart } from "@/components/analytics/category-volume-chart";
+import { SubcategoryVolumeChart } from "@/components/analytics/subcategory-volume-chart";
+import { ProductBaseVolumeChart } from "@/components/analytics/product-base-volume-chart";
 
 export default function HomePage() {
   const { user } = useAuth();
@@ -268,10 +270,20 @@ export default function HomePage() {
               <ExpiringProductsChart />
             </div>
 
-            {/* Seção de Analytics - Grid com 2 gráficos */}
+            {/* Seção de Analytics - Análise de Volume e Categorias */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
               <InventoryTurnoverChart />
               <CategoryVolumeChart />
+            </div>
+
+            {/* Seção de Analytics - Análise de Estoque por Subcategoria */}
+            <div className="mb-6">
+              <SubcategoryVolumeChart />
+            </div>
+
+            {/* Seção de Analytics - Saldos Detalhados por Produto Base */}
+            <div className="mb-6">
+              <ProductBaseVolumeChart />
             </div>
             
             <div className="grid grid-cols-1 mb-6">

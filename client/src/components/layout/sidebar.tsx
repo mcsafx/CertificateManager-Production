@@ -12,7 +12,8 @@ import {
   Home,
   FolderTree,
   LayoutList,
-  Shield
+  Shield,
+  Upload
 } from "lucide-react";
 import { Link, useLocation } from "wouter";
 
@@ -83,6 +84,10 @@ export function Sidebar({ isMobile = false }: SidebarProps) {
         
         <SidebarItem href="/issued-certificates" icon={FileText} active={location === "/issued-certificates"}>
           Boletins Emitidos
+        </SidebarItem>
+        
+        <SidebarItem href="/nfe-import" icon={Upload} active={location === "/nfe-import"}>
+          Importar NFe
         </SidebarItem>
         
         <div className="py-2">

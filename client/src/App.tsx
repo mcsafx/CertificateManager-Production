@@ -15,6 +15,7 @@ import ClientsPage from "@/pages/clients-page";
 import CertificatesPage from "@/pages/certificates-page";
 import IssuedCertificatesPage from "@/pages/issued-certificates-page";
 import IssuedCertificateDetailPage from "@/pages/issued-certificate-detail-page";
+import NFeImportPage from "@/pages/nfe-import-page";
 import TraceabilityPage from "@/pages/traceability-page";
 import SettingsPage from "@/pages/settings-page";
 // Páginas de Administração
@@ -38,6 +39,7 @@ function Router() {
       <ProtectedRoute path="/certificates" component={CertificatesPage} />
       <ProtectedRoute path="/issued-certificates" component={IssuedCertificatesPage} />
       <ProtectedRoute path="/issued-certificates/:id" component={IssuedCertificateDetailPage} />
+      <ProtectedRoute path="/nfe-import" component={NFeImportPage} />
       
       {/* Produtos - Hierarquia */}
       <ProtectedRoute path="/product-categories" component={ProductCategoriesPage} />
