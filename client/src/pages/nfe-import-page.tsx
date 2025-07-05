@@ -133,7 +133,7 @@ export default function NFeImportPage() {
   };
 
   return (
-    <FeatureGate featurePath="certificates/create">
+    <FeatureGate featurePath="/api/nfe/*">
       <Layout>
         <div className="container mx-auto py-6 space-y-6">
           {/* Header */}

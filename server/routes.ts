@@ -5293,7 +5293,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/nfe/upload", 
     isAuthenticated,
-    checkFeatureAccess('certificates/create'),
+    checkFeatureAccess('/api/nfe/*'),
     tempUpload.single('nfeFile'),
     async (req, res, next) => {
       try {
@@ -5345,7 +5345,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/nfe/import", 
     isAuthenticated,
-    checkFeatureAccess('certificates/create'),
+    checkFeatureAccess('/api/nfe/*'),
     async (req, res, next) => {
       try {
         const { tenantId, id: userId } = req.user!;
