@@ -79,7 +79,23 @@ interface NFeImportData {
 }
 
 interface NFeImportReviewProps {
-  importData: NFeImportData;
+  importData: {
+    nfeData: NFeImportData;
+    clientResolution?: {
+      action: 'found' | 'create' | 'conflict';
+      client?: any;
+      conflicts?: any[];
+      suggestedData?: any;
+    };
+    productMatches?: Array<{
+      nfeItem: any;
+      matches: any[];
+      hasExactMatch: boolean;
+      bestMatch?: any;
+      suggestions: any;
+    }>;
+    stats?: any;
+  };
   onConfirm?: (processedData: any) => void;
   onCancel?: () => void;
 }
@@ -155,7 +171,7 @@ export function NFeImportReview({ importData, onConfirm, onCancel }: NFeImportRe
       return;
     }
 
-    const unmappedItems = importData.itens.filter((_, index) => 
+    const unmappedItems = importData.nfeData.itens.filter((_, index) => 
       !productMappings[index.toString()]
     );
 
@@ -172,7 +188,7 @@ export function NFeImportReview({ importData, onConfirm, onCancel }: NFeImportRe
 
     try {
       const processedData = {
-        nfeData: importData,
+        nfeData: importData.nfeData,
         clientId: selectedClientId,
         newClientData,
         productMappings,
@@ -251,24 +267,24 @@ export function NFeImportReview({ importData, onConfirm, onCancel }: NFeImportRe
             <div>
               <Label className="text-sm font-medium text-gray-600">NFe</Label>
               <div className="font-medium">
-                {importData.invoice.numero}/{importData.invoice.serie}
+                {importData.nfeData.invoice.numero}/{importData.nfeData.invoice.serie}
               </div>
               <div className="text-sm text-gray-600">
-                {importData.invoice.dataEmissao}
+                {importData.nfeData.invoice.dataEmissao}
               </div>
             </div>
             <div>
               <Label className="text-sm font-medium text-gray-600">Destinatário</Label>
-              <div className="font-medium">{importData.destinatario.razaoSocial}</div>
+              <div className="font-medium">{importData.nfeData.destinatario.nome}</div>
               <div className="text-sm text-gray-600">
-                {importData.destinatario.cnpj ? formatCNPJ(importData.destinatario.cnpj) : importData.destinatario.cpf}
+                {importData.nfeData.destinatario.cnpj ? formatCNPJ(importData.nfeData.destinatario.cnpj) : importData.nfeData.destinatario.cpf}
               </div>
             </div>
             <div>
               <Label className="text-sm font-medium text-gray-600">Itens</Label>
-              <div className="font-medium">{importData.itens.length} produtos</div>
+              <div className="font-medium">{importData.nfeData.itens.length} produtos</div>
               <div className="text-sm text-gray-600">
-                {formatCurrency(importData.itens.reduce((sum, item) => sum + item.valorTotal, 0))}
+                {formatCurrency(importData.nfeData.itens.reduce((sum, item) => sum + item.valorTotal, 0))}
               </div>
             </div>
           </div>
@@ -503,7 +519,7 @@ export function NFeImportReview({ importData, onConfirm, onCancel }: NFeImportRe
                 <div className="space-y-2">
                   <Label className="text-sm font-medium">Status dos Produtos</Label>
                   <div className="flex items-center gap-2">
-                    {Object.keys(productMappings).length === importData.itens.length ? (
+                    {Object.keys(productMappings).length === importData.nfeData.itens.length ? (
                       <>
                         <CheckCircle className="w-4 h-4 text-green-500" />
                         <span className="text-sm">Todos os produtos mapeados</span>
@@ -512,7 +528,7 @@ export function NFeImportReview({ importData, onConfirm, onCancel }: NFeImportRe
                       <>
                         <AlertCircle className="w-4 h-4 text-yellow-500" />
                         <span className="text-sm">
-                          {Object.keys(productMappings).length} de {importData.itens.length} produtos mapeados
+                          {Object.keys(productMappings).length} de {importData.nfeData.itens.length} produtos mapeados
                         </span>
                       </>
                     )}
@@ -530,7 +546,7 @@ export function NFeImportReview({ importData, onConfirm, onCancel }: NFeImportRe
                 
                 <Button
                   onClick={handleConfirmImport}
-                  disabled={isProcessing || (!selectedClientId && !newClientData) || Object.keys(productMappings).length !== importData.itens.length}
+                  disabled={isProcessing || (!selectedClientId && !newClientData) || Object.keys(productMappings).length !== importData.nfeData.itens.length}
                   className="min-w-[150px]"
                 >
                   {isProcessing ? (
