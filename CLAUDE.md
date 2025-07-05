@@ -71,6 +71,13 @@ This is a comprehensive multi-tenant SaaS platform for quality certificate manag
 - `reports` - Custom reporting
 - `integrations` - APIs and webhooks
 
+**NFe Import System Access:**
+- **Available for**: All plan tiers (A, B, C)
+- **Module**: `certificates` (basic certificates module)
+- **Feature Path**: `/api/nfe/*`
+- **Functionality**: Complete NFe XML import with automatic certificate generation
+- **Decision Rationale**: NFe import provides core value for all users, encouraging platform adoption
+
 #### Security & Middleware
 - Authentication middleware setup in `server/auth.ts`
 - Subscription checking middleware at `server/middlewares/subscription-check.ts`
