@@ -6,19 +6,13 @@ const parseStringAsync = promisify(parseString);
 export interface NFeClientData {
   cnpj?: string;
   cpf?: string;
-  razaoSocial: string;
+  nome: string;           // Nome (razão social)
+  codigoInterno?: string; // Código Interno (não disponível no XML)
+  emailQualidade?: string; // E-mail do setor de Qualidade
+  telefone?: string;      // Telefone
+  endereco: string;       // Endereço (concatenado da tag enderDest)
+  // Campos auxiliares para compatibilidade
   nomeFantasia?: string;
-  endereco: {
-    logradouro: string;
-    numero: string;
-    complemento?: string;
-    bairro: string;
-    cidade: string;
-    uf: string;
-    cep: string;
-  };
-  email?: string;
-  telefone?: string;
 }
 
 export interface NFeItemData {
@@ -98,19 +92,32 @@ export class NFeXmlParser {
       return xmlObject.nfeproc.nfe;
     }
     
+    if (xmlObject.nfeProc && xmlObject.nfeProc.NFe) {
+      return xmlObject.nfeProc.NFe;
+    }
+    
     if (xmlObject.nfe) {
       return xmlObject.nfe;
     }
 
-    // Handle namespaced elements
+    if (xmlObject.NFe) {
+      return xmlObject.NFe;
+    }
+
+    // Handle namespaced elements (for xmlns structures)
     const keys = Object.keys(xmlObject);
     for (const key of keys) {
-      if (key.includes('nfe') || key.includes('NFe')) {
-        if (xmlObject[key].nfe) {
-          return xmlObject[key].nfe;
+      const lowerKey = key.toLowerCase();
+      if (lowerKey.includes('nfeproc')) {
+        const nfeProc = xmlObject[key];
+        if (nfeProc.nfe || nfeProc.NFe) {
+          return nfeProc.nfe || nfeProc.NFe;
         }
-        if (xmlObject[key].infnfe) {
-          return xmlObject[key];
+      }
+      if (lowerKey === 'nfe' || lowerKey.includes('nfe')) {
+        const nfeElement = xmlObject[key];
+        if (nfeElement.infnfe || nfeElement.infNFe) {
+          return nfeElement;
         }
       }
     }
@@ -127,47 +134,96 @@ export class NFeXmlParser {
       throw new Error('Elemento ide não encontrado');
     }
 
+    // Extract access key from Id attribute (case variations due to normalizeTags)
+    const chaveAcesso = infNFe.Id?.replace('NFe', '') || infNFe.id?.replace('NFe', '') || '';
+
     return {
-      numero: ide.nnf?.toString() || '',
+      numero: ide.nNF?.toString() || ide.nnf?.toString() || '',
       serie: ide.serie?.toString() || '',
-      dataEmissao: this.parseDate(ide.dhemi || ide.demi),
+      dataEmissao: this.parseDate(ide.dhEmi || ide.dhemi || ide.demi),
       dataVencimento: ide.dtvenc ? this.parseDate(ide.dtvenc) : undefined,
-      tipoOperacao: ide.tpnf === '1' ? 'SAIDA' : 'ENTRADA',
-      naturezaOperacao: ide.natop || '',
-      chaveAcesso: infNFe.id?.replace('NFe', '') || infNFe.chave || '',
-      observacoes: infNFe.infadfisco?.trim() || undefined
+      tipoOperacao: ide.tpNF === '1' || ide.tpnf === '1' ? 'SAIDA' : 'ENTRADA',
+      naturezaOperacao: ide.natOp || ide.natop || '',
+      chaveAcesso: chaveAcesso,
+      observacoes: infNFe.infAdic?.infCpl?.trim() || infNFe.infadic?.infcpl?.trim() || undefined
     };
   }
 
   /**
    * Extract client data (emitente or destinatario)
+   * Maps NFe <dest> tag fields to Cliente Nacional fields:
+   * - CNPJ/CPF → cnpj/cpf (CNPJ ou CPF)
+   * - xNome → nome (Nome - razão social)
+   * - enderDest group → endereco (Endereço concatenado)
+   * - email → emailQualidade (E-mail do setor de Qualidade)
+   * - fone → telefone (Telefone)
+   * - Código Interno: não disponível no XML NFe
    */
   private static extractClientData(clientElement: any): NFeClientData {
     if (!clientElement) {
       throw new Error('Dados do cliente não encontrados');
     }
 
-    const endereco = clientElement.endereco;
+    // Handle different address field names for emit/dest with case variations
+    // Note: normalizeTags: true converts all tags to lowercase
+    const endereco = clientElement.enderEmit || clientElement.enderemit || 
+                     clientElement.enderDest || clientElement.enderdest;
+    
     if (!endereco) {
       throw new Error('Endereço do cliente não encontrado');
     }
 
+    // Consolidate enderDest group into single address string for "Endereço" field
+    // Format: Logradouro, Número, Complemento, Bairro, Cidade - UF, CEP
+    // Note: normalizeTags: true converts all XML tags to lowercase
+    const addressParts = [];
+    
+    // Logradouro + Número
+    const logradouro = endereco.xLgr || endereco.xlgr || '';
+    const numero = endereco.nro || '';
+    if (logradouro) {
+      addressParts.push(numero ? `${logradouro}, ${numero}` : logradouro);
+    }
+    
+    // Complemento
+    const complemento = endereco.xCpl || endereco.xcpl || '';
+    if (complemento) {
+      addressParts.push(complemento);
+    }
+    
+    // Bairro
+    const bairro = endereco.xBairro || endereco.xbairro || '';
+    if (bairro) {
+      addressParts.push(bairro);
+    }
+    
+    // Cidade - UF
+    const cidade = endereco.xMun || endereco.xmun || '';
+    const uf = endereco.UF || endereco.uf || '';
+    if (cidade && uf) {
+      addressParts.push(`${cidade} - ${uf}`);
+    } else if (cidade) {
+      addressParts.push(cidade);
+    }
+    
+    // CEP
+    const cep = endereco.CEP || endereco.cep || '';
+    if (cep) {
+      addressParts.push(`CEP: ${cep}`);
+    }
+    
+    const enderecoCompleto = addressParts.join(', ');
+
     return {
-      cnpj: clientElement.cnpj,
-      cpf: clientElement.cpf,
-      razaoSocial: clientElement.xnome || clientElement.xfant || '',
-      nomeFantasia: clientElement.xfant,
-      endereco: {
-        logradouro: endereco.xlgr || '',
-        numero: endereco.nro || '',
-        complemento: endereco.xcpl,
-        bairro: endereco.xbairro || '',
-        cidade: endereco.xmun || '',
-        uf: endereco.uf || '',
-        cep: endereco.cep || ''
-      },
-      email: clientElement.email,
-      telefone: clientElement.fone
+      cnpj: clientElement.CNPJ || clientElement.cnpj,
+      cpf: clientElement.CPF || clientElement.cpf,
+      nome: clientElement.xNome || clientElement.xnome || '',        // Nome (razão social)
+      codigoInterno: undefined,                                      // Código Interno (não disponível no XML)
+      emailQualidade: clientElement.email,                           // E-mail do setor de Qualidade
+      telefone: clientElement.fone,                                  // Telefone
+      endereco: enderecoCompleto,                                    // Endereço consolidado
+      // Campos auxiliares para compatibilidade
+      nomeFantasia: clientElement.xFant || clientElement.xfant
     };
   }
 
@@ -189,15 +245,15 @@ export class NFeXmlParser {
       }
 
       return {
-        codigo: prod.cprod || '',
-        descricao: prod.xprod || '',
-        quantidade: parseFloat(prod.qcom || '0'),
-        unidade: prod.ucom || '',
-        valorUnitario: parseFloat(prod.vuncom || '0'),
-        valorTotal: parseFloat(prod.vtotaltrib || prod.vprod || '0'),
-        ncm: prod.ncm,
-        cfop: prod.cfop,
-        observacao: prod.infadprod?.trim()
+        codigo: prod.cProd || prod.cprod || '',
+        descricao: prod.xProd || prod.xprod || '',
+        quantidade: parseFloat(prod.qCom || prod.qcom || '0'),
+        unidade: prod.uCom || prod.ucom || '',
+        valorUnitario: parseFloat(prod.vUnCom || prod.vuncom || '0'),
+        valorTotal: parseFloat(prod.vProd || prod.vprod || '0'),
+        ncm: prod.NCM || prod.ncm,
+        cfop: prod.CFOP || prod.cfop,
+        observacao: det.infAdProd?.trim() || det.infadprod?.trim()
       };
     });
   }
@@ -279,7 +335,7 @@ export class NFeXmlParser {
         numeroNFe: nfeData.invoice.numero,
         serie: nfeData.invoice.serie,
         dataEmissao: nfeData.invoice.dataEmissao.toLocaleDateString('pt-BR'),
-        destinatario: nfeData.destinatario.razaoSocial,
+        destinatario: nfeData.destinatario.nome,
         cnpjDestinatario: nfeData.destinatario.cnpj || nfeData.destinatario.cpf || '',
         totalItens: nfeData.itens.length,
         valorTotal
