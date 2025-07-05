@@ -5,9 +5,17 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { useQuery } from "@tanstack/react-query";
 import { Plus, FileText } from "lucide-react";
 import { EntryCertificate } from "@shared/schema";
+
+type EnhancedEntryCertificate = EntryCertificate & {
+  productName?: string;
+  supplierName?: string;
+  manufacturerName?: string;
+  results?: any[];
+};
 import { CertificateTable } from "@/components/certificates/certificate-table";
 import { CertificateFilter, CertificateFilters } from "@/components/certificates/certificate-filter";
 import { CertificateForm } from "@/components/certificates/certificate-form";
+import { BatchRevalidationModal } from "@/components/certificates/batch-revalidation-modal";
 import { useToast } from "@/hooks/use-toast";
 
 export default function CertificatesPage() {
@@ -15,12 +23,14 @@ export default function CertificatesPage() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editCertificateId, setEditCertificateId] = useState<number | null>(null);
   const [filters, setFilters] = useState<CertificateFilters>({});
+  const [isRevalidationModalOpen, setIsRevalidationModalOpen] = useState(false);
+  const [selectedCertificateForRevalidation, setSelectedCertificateForRevalidation] = useState<EnhancedEntryCertificate | null>(null);
   
   const {
     data: certificates,
     isLoading,
     refetch,
-  } = useQuery<EntryCertificate[]>({
+  } = useQuery<EnhancedEntryCertificate[]>({
     queryKey: ["/api/entry-certificates", filters],
     queryFn: async ({ queryKey }) => {
       const [_, filterParams] = queryKey;
@@ -75,6 +85,24 @@ export default function CertificatesPage() {
     refetch();
   };
 
+  const handleRevalidate = (certificate: EnhancedEntryCertificate) => {
+    setSelectedCertificateForRevalidation(certificate);
+    setIsRevalidationModalOpen(true);
+  };
+
+  const handleRevalidationSuccess = () => {
+    refetch();
+    toast({
+      title: "Lote revalidado com sucesso",
+      description: "O novo lote foi criado e está disponível na lista.",
+    });
+  };
+
+  const handleRevalidationModalClose = () => {
+    setIsRevalidationModalOpen(false);
+    setSelectedCertificateForRevalidation(null);
+  };
+
   return (
     <Layout>
       <div className="p-6">
@@ -111,6 +139,7 @@ export default function CertificatesPage() {
             onView={handleView}
             onEdit={handleEdit}
             onDownload={handleDownload}
+            onRevalidate={handleRevalidate}
           />
         )}
       </div>
@@ -128,6 +157,13 @@ export default function CertificatesPage() {
           />
         </DialogContent>
       </Dialog>
+
+      <BatchRevalidationModal
+        isOpen={isRevalidationModalOpen}
+        onClose={handleRevalidationModalClose}
+        certificate={selectedCertificateForRevalidation}
+        onSuccess={handleRevalidationSuccess}
+      />
     </Layout>
   );
 }

@@ -8,6 +8,13 @@ import {
   TableRow 
 } from "@/components/ui/table";
 import { EntryCertificate } from "@shared/schema";
+
+type EnhancedEntryCertificate = EntryCertificate & {
+  productName?: string;
+  supplierName?: string;
+  manufacturerName?: string;
+  results?: any[];
+};
 import { 
   Eye, 
   FileEdit, 
@@ -15,17 +22,19 @@ import {
   AlertCircle,
   ChevronLeft,
   ChevronRight,
-  FileText 
+  FileText,
+  RefreshCw
 } from "lucide-react";
 import { formatDate } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 
 interface CertificateTableProps {
-  certificates: EntryCertificate[] | undefined;
+  certificates: EnhancedEntryCertificate[] | undefined;
   loading: boolean;
   onView: (id: number) => void;
   onEdit: (id: number) => void;
   onDownload: (id: number) => void;
+  onRevalidate: (certificate: EnhancedEntryCertificate) => void;
 }
 
 export function CertificateTable({ 
@@ -33,7 +42,8 @@ export function CertificateTable({
   loading, 
   onView, 
   onEdit, 
-  onDownload 
+  onDownload,
+  onRevalidate
 }: CertificateTableProps) {
   // Format date strings
   const formatDateStr = (dateStr: string | Date) => {
@@ -46,9 +56,16 @@ export function CertificateTable({
       return <Badge className="bg-green-100 text-green-800 hover:bg-green-100">Aprovado</Badge>;
     } else if (status === 'Reprovado') {
       return <Badge className="bg-red-100 text-red-800 hover:bg-red-100">Reprovado</Badge>;
+    } else if (status === 'Revalidado') {
+      return <Badge className="bg-blue-100 text-blue-800 hover:bg-blue-100">Revalidado</Badge>;
     } else {
       return <Badge className="bg-yellow-100 text-yellow-800 hover:bg-yellow-100">{status}</Badge>;
     }
+  };
+
+  // Check if certificate can be revalidated
+  const canRevalidate = (certificate: EnhancedEntryCertificate) => {
+    return certificate.status === 'Aprovado' && new Date(certificate.expirationDate) > new Date();
   };
 
   if (loading) {
@@ -110,6 +127,17 @@ export function CertificateTable({
                     <Button variant="ghost" size="icon" onClick={() => onDownload(certificate.id)}>
                       <Download className="h-4 w-4 text-primary" />
                     </Button>
+                    {canRevalidate(certificate) && (
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        onClick={() => onRevalidate(certificate)}
+                        title="Revalidar Lote"
+                        className="text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                      >
+                        <RefreshCw className="h-4 w-4" />
+                      </Button>
+                    )}
                   </div>
                 </TableCell>
               </TableRow>

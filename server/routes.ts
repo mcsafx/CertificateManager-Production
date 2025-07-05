@@ -12,11 +12,15 @@ import {
   insertTenantSchema, insertPackageTypeSchema,
   insertProductCategorySchema, insertProductSubcategorySchema,
   insertProductBaseSchema, insertProductFileSchema, insertProductBaseFileSchema,
-  insertFileSchema
+  insertFileSchema, insertBatchRevalidationSchema,
+  entryCertificates, issuedCertificates, products, suppliers, clients,
+  productCategories, productSubcategories, batchRevalidations
 } from "@shared/schema";
 import { tempUpload, moveFileToFinalStorage, getFileSizeInMB, removeFile, getFileUrl } from "./services/file-upload";
 import { checkStorageLimits, updateStorageUsed } from "./middlewares/storage-limits";
 import { checkFeatureAccess } from "./middlewares/feature-access";
+import { db } from "./db";
+import { eq, and, desc, sql, gte, lte, inArray } from "drizzle-orm";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Função para formatar números com 4 casas decimais
@@ -4070,6 +4074,550 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (error instanceof z.ZodError) {
         return res.status(400).json({ message: error.errors });
       }
+      next(error);
+    }
+  });
+
+  // Analytics endpoints
+  
+  // Produtos próximos ao vencimento
+  app.get("/api/analytics/expiring-products", isAuthenticated, async (req, res, next) => {
+    try {
+      const user = req.user!;
+      const days = parseInt(req.query.days as string) || 90; // Default 3 meses
+      
+      // Calcular data limite
+      const limitDate = new Date();
+      limitDate.setDate(limitDate.getDate() + days);
+      const limitDateStr = limitDate.toISOString().split('T')[0];
+      
+      // Buscar certificados de entrada com produtos próximos ao vencimento
+      const expiringProducts = await db.select({
+        id: entryCertificates.id,
+        productId: entryCertificates.productId,
+        expirationDate: entryCertificates.expirationDate,
+        supplierLot: entryCertificates.supplierLot,
+        receivedQuantity: entryCertificates.receivedQuantity,
+        measureUnit: entryCertificates.measureUnit,
+        status: entryCertificates.status,
+        productName: products.technicalName,
+        commercialName: products.commercialName,
+        supplierName: suppliers.name,
+      })
+      .from(entryCertificates)
+      .leftJoin(products, eq(entryCertificates.productId, products.id))
+      .leftJoin(suppliers, eq(entryCertificates.supplierId, suppliers.id))
+      .where(and(
+        eq(entryCertificates.tenantId, user.tenantId),
+        eq(entryCertificates.status, 'Aprovado'),
+        lte(entryCertificates.expirationDate, limitDateStr)
+      ))
+      .orderBy(entryCertificates.expirationDate);
+
+      // Categorizar por urgência
+      const now = new Date();
+      const categorized = expiringProducts.map(product => {
+        const expirationDate = new Date(product.expirationDate);
+        const daysUntilExpiration = Math.ceil((expirationDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+        
+        let category = 'safe';
+        let urgencyLevel = 0;
+        
+        if (daysUntilExpiration < 0) {
+          category = 'expired';
+          urgencyLevel = 4;
+        } else if (daysUntilExpiration <= 30) {
+          category = 'critical';
+          urgencyLevel = 3;
+        } else if (daysUntilExpiration <= 90) {
+          category = 'warning';
+          urgencyLevel = 2;
+        } else {
+          category = 'safe';
+          urgencyLevel = 1;
+        }
+
+        return {
+          ...product,
+          daysUntilExpiration,
+          category,
+          urgencyLevel
+        };
+      });
+
+      // Agrupar por categoria para o gráfico
+      const summary = {
+        expired: categorized.filter(p => p.category === 'expired').length,
+        critical: categorized.filter(p => p.category === 'critical').length,
+        warning: categorized.filter(p => p.category === 'warning').length,
+        safe: categorized.filter(p => p.category === 'safe').length,
+      };
+
+      res.json({
+        summary,
+        products: categorized,
+        total: categorized.length
+      });
+    } catch (error) {
+      console.error('Erro ao buscar produtos próximos ao vencimento:', error);
+      next(error);
+    }
+  });
+
+  // Análise de rotatividade de estoque
+  app.get("/api/analytics/inventory-turnover", isAuthenticated, async (req, res, next) => {
+    try {
+      const user = req.user!;
+      
+      // Buscar certificados de entrada com suas respectivas vendas
+      const inventoryData = await db.select({
+        entryId: entryCertificates.id,
+        entryDate: entryCertificates.entryDate,
+        receivedQuantity: entryCertificates.receivedQuantity,
+        productName: products.technicalName,
+        commercialName: products.commercialName,
+        supplierName: suppliers.name,
+        issueDate: issuedCertificates.issueDate,
+        soldQuantity: issuedCertificates.soldQuantity,
+      })
+      .from(entryCertificates)
+      .leftJoin(products, eq(entryCertificates.productId, products.id))
+      .leftJoin(suppliers, eq(entryCertificates.supplierId, suppliers.id))
+      .leftJoin(issuedCertificates, eq(entryCertificates.id, issuedCertificates.entryCertificateId))
+      .where(and(
+        eq(entryCertificates.tenantId, user.tenantId),
+        eq(entryCertificates.status, 'Aprovado')
+      ));
+
+      // Processar dados para análise de rotatividade
+      const processedData = inventoryData.reduce((acc, item) => {
+        const entryId = item.entryId;
+        
+        if (!acc[entryId]) {
+          acc[entryId] = {
+            entryId,
+            entryDate: item.entryDate,
+            productName: item.productName || item.commercialName,
+            supplierName: item.supplierName,
+            receivedQuantity: parseFloat(item.receivedQuantity),
+            totalSold: 0,
+            soldTransactions: 0,
+            firstSaleDate: null,
+            lastSaleDate: null,
+          };
+        }
+
+        if (item.issueDate && item.soldQuantity) {
+          acc[entryId].totalSold += parseFloat(item.soldQuantity);
+          acc[entryId].soldTransactions += 1;
+          
+          const saleDate = new Date(item.issueDate);
+          if (!acc[entryId].firstSaleDate || saleDate < acc[entryId].firstSaleDate) {
+            acc[entryId].firstSaleDate = saleDate;
+          }
+          if (!acc[entryId].lastSaleDate || saleDate > acc[entryId].lastSaleDate) {
+            acc[entryId].lastSaleDate = saleDate;
+          }
+        }
+
+        return acc;
+      }, {} as any);
+
+      // Calcular métricas de rotatividade
+      const turnoverMetrics = Object.values(processedData).map((item: any) => {
+        const entryDate = new Date(item.entryDate);
+        const now = new Date();
+        
+        // Calcular dias no estoque
+        let daysInStock = 0;
+        if (item.firstSaleDate) {
+          daysInStock = Math.ceil((item.firstSaleDate.getTime() - entryDate.getTime()) / (1000 * 60 * 60 * 24));
+        } else {
+          // Se ainda não foi vendido, usar data atual
+          daysInStock = Math.ceil((now.getTime() - entryDate.getTime()) / (1000 * 60 * 60 * 24));
+        }
+
+        // Percentual vendido
+        const sellThroughRate = item.receivedQuantity > 0 ? (item.totalSold / item.receivedQuantity) * 100 : 0;
+        
+        // Velocidade de venda (quantidade por dia)
+        const salesVelocity = daysInStock > 0 ? item.totalSold / daysInStock : 0;
+
+        return {
+          ...item,
+          daysInStock: Math.max(0, daysInStock),
+          sellThroughRate: Math.round(sellThroughRate * 100) / 100,
+          salesVelocity: Math.round(salesVelocity * 1000) / 1000,
+          remainingQuantity: Math.max(0, item.receivedQuantity - item.totalSold),
+        };
+      });
+
+      // Filtrar apenas itens com dados válidos para o gráfico
+      const chartData = turnoverMetrics.filter(item => 
+        item.daysInStock > 0 && item.daysInStock < 1000 // Filtrar outliers
+      );
+
+      res.json({
+        data: chartData,
+        summary: {
+          totalProducts: chartData.length,
+          averageDaysInStock: chartData.length > 0 
+            ? Math.round(chartData.reduce((sum, item) => sum + item.daysInStock, 0) / chartData.length)
+            : 0,
+          averageSellThroughRate: chartData.length > 0
+            ? Math.round(chartData.reduce((sum, item) => sum + item.sellThroughRate, 0) / chartData.length * 100) / 100
+            : 0,
+        }
+      });
+    } catch (error) {
+      console.error('Erro ao buscar dados de rotatividade:', error);
+      next(error);
+    }
+  });
+
+  // Volume de certificação por categoria de produto
+  app.get("/api/analytics/category-volume", isAuthenticated, async (req, res, next) => {
+    try {
+      const user = req.user!;
+      const period = req.query.period as string || '30d'; // 30d, 90d, 1y
+      
+      // Calcular data de início baseada no período
+      let startDate = new Date();
+      switch (period) {
+        case '90d':
+          startDate.setDate(startDate.getDate() - 90);
+          break;
+        case '1y':
+          startDate.setFullYear(startDate.getFullYear() - 1);
+          break;
+        default: // 30d
+          startDate.setDate(startDate.getDate() - 30);
+      }
+      const startDateStr = startDate.toISOString().split('T')[0];
+
+      // Buscar dados básicos de certificação primeiro (sem JOIN complexo)
+      const entryCerts = await db.select({
+        id: entryCertificates.id,
+        productId: entryCertificates.productId,
+        receivedQuantity: entryCertificates.receivedQuantity,
+        entryDate: entryCertificates.entryDate,
+      })
+      .from(entryCertificates)
+      .where(and(
+        eq(entryCertificates.tenantId, user.tenantId),
+        eq(entryCertificates.status, 'Aprovado'),
+        gte(entryCertificates.entryDate, startDateStr)
+      ));
+
+      // Se não há dados, retornar resultado vazio
+      if (entryCerts.length === 0) {
+        return res.json({
+          categories: [],
+          summary: {
+            totalCategories: 0,
+            totalVolume: 0,
+            totalCertificates: 0,
+            totalProducts: 0,
+            period,
+          }
+        });
+      }
+
+      // Buscar dados dos produtos e categorias separadamente
+      const productIds = [...new Set(entryCerts.map(cert => cert.productId))];
+      
+      const productData = await db.select({
+        productId: products.id,
+        subcategoryId: products.subcategoryId,
+        productName: products.technicalName,
+        commercialName: products.commercialName,
+      })
+      .from(products)
+      .where(inArray(products.id, productIds));
+
+      const subcategoryIds = [...new Set(productData.map(p => p.subcategoryId).filter(Boolean))];
+      
+      let subcategoryData: any[] = [];
+      let categoryData: any[] = [];
+
+      if (subcategoryIds.length > 0) {
+        subcategoryData = await db.select({
+          subcategoryId: productSubcategories.id,
+          subcategoryName: productSubcategories.name,
+          categoryId: productSubcategories.categoryId,
+        })
+        .from(productSubcategories)
+        .where(inArray(productSubcategories.id, subcategoryIds));
+
+        const categoryIds = [...new Set(subcategoryData.map(s => s.categoryId).filter(Boolean))];
+        
+        if (categoryIds.length > 0) {
+          categoryData = await db.select({
+            categoryId: productCategories.id,
+            categoryName: productCategories.name,
+          })
+          .from(productCategories)
+          .where(inArray(productCategories.id, categoryIds));
+        }
+      }
+
+      // Combinar dados manualmente
+      const combinedData = entryCerts.map(cert => {
+        const product = productData.find(p => p.productId === cert.productId);
+        const subcategory = product ? subcategoryData.find(s => s.subcategoryId === product.subcategoryId) : null;
+        const category = subcategory ? categoryData.find(c => c.categoryId === subcategory.categoryId) : null;
+
+        return {
+          ...cert,
+          productName: product?.productName || 'Produto não encontrado',
+          commercialName: product?.commercialName,
+          subcategoryId: subcategory?.subcategoryId,
+          subcategoryName: subcategory?.subcategoryName || 'Sem subcategoria',
+          categoryId: category?.categoryId,
+          categoryName: category?.categoryName || 'Sem categoria',
+        };
+      });
+
+      // Processar dados por categoria
+      const categoryStats = combinedData.reduce((acc, item) => {
+        const categoryId = item.categoryId || 'sem-categoria';
+        const categoryName = item.categoryName || 'Sem Categoria';
+        const subcategoryId = item.subcategoryId || 'sem-subcategoria';
+        const subcategoryName = item.subcategoryName || 'Sem Subcategoria';
+
+        // Inicializar categoria se não existir
+        if (!acc[categoryId]) {
+          acc[categoryId] = {
+            categoryId,
+            categoryName,
+            totalEntryVolume: 0,
+            totalIssuedVolume: 0,
+            certificatesCount: 0,
+            productsCount: new Set(),
+            subcategories: {},
+          };
+        }
+
+        // Adicionar volumes
+        if (item.receivedQuantity) {
+          acc[categoryId].totalEntryVolume += parseFloat(item.receivedQuantity);
+          acc[categoryId].certificatesCount += 1;
+        }
+
+        // Contar produtos únicos
+        if (item.productId) {
+          acc[categoryId].productsCount.add(item.productId);
+        }
+
+        // Processar subcategorias
+        if (!acc[categoryId].subcategories[subcategoryId]) {
+          acc[categoryId].subcategories[subcategoryId] = {
+            subcategoryId,
+            subcategoryName,
+            entryVolume: 0,
+            issuedVolume: 0,
+            certificatesCount: 0,
+          };
+        }
+
+        if (item.receivedQuantity) {
+          acc[categoryId].subcategories[subcategoryId].entryVolume += parseFloat(item.receivedQuantity);
+          acc[categoryId].subcategories[subcategoryId].certificatesCount += 1;
+        }
+
+        return acc;
+      }, {} as any);
+
+      // Formatar dados para o gráfico
+      const formattedData = Object.values(categoryStats).map((category: any) => ({
+        ...category,
+        productsCount: category.productsCount.size,
+        subcategories: Object.values(category.subcategories),
+        // Calcular percentual do total
+        percentage: 0, // Será calculado abaixo
+      }));
+
+      // Calcular percentuais
+      const totalVolume = formattedData.reduce((sum, cat) => sum + cat.totalEntryVolume, 0);
+      formattedData.forEach(category => {
+        category.percentage = totalVolume > 0 
+          ? Math.round((category.totalEntryVolume / totalVolume) * 100 * 100) / 100 
+          : 0;
+      });
+
+      // Ordenar por volume (maior para menor)
+      formattedData.sort((a, b) => b.totalEntryVolume - a.totalEntryVolume);
+
+      res.json({
+        categories: formattedData,
+        summary: {
+          totalCategories: formattedData.length,
+          totalVolume: Math.round(totalVolume * 100) / 100,
+          totalCertificates: formattedData.reduce((sum, cat) => sum + cat.certificatesCount, 0),
+          totalProducts: formattedData.reduce((sum, cat) => sum + cat.productsCount, 0),
+          period,
+        }
+      });
+    } catch (error) {
+      console.error('Erro ao buscar dados de volume por categoria:', error);
+      next(error);
+    }
+  });
+
+  // Batch Revalidation routes
+  app.post("/api/batch-revalidations", isAuthenticated, async (req, res, next) => {
+    try {
+      const user = req.user!;
+      const { 
+        originalBatchId, 
+        newInternalLot, 
+        newExpirationDate, 
+        revalidationReason,
+        labCertificateUrl,
+        labCertificateFileName
+      } = req.body;
+
+      // Validar se o lote original existe e pertence ao tenant
+      const originalBatch = await storage.getEntryCertificate(originalBatchId, user.tenantId);
+      if (!originalBatch) {
+        return res.status(404).json({ message: "Lote original não encontrado" });
+      }
+
+      // Validar se o lote ainda tem quantidade disponível
+      const issuedCertificates = await storage.getIssuedCertificatesByEntryCertificate(originalBatchId, user.tenantId);
+      const totalSold = issuedCertificates.reduce((sum, cert) => sum + parseFloat(cert.soldQuantity), 0);
+      const remainingQuantity = parseFloat(originalBatch.receivedQuantity) - totalSold;
+
+      if (remainingQuantity <= 0) {
+        return res.status(400).json({ 
+          message: "Não é possível revalidar um lote que já foi totalmente vendido" 
+        });
+      }
+
+      // Criar o novo lote (cópia do original com nova validade)
+      const newBatchData = {
+        ...originalBatch,
+        internalLot: newInternalLot,
+        expirationDate: newExpirationDate,
+        entryDate: new Date().toISOString().split('T')[0], // Data atual
+        enteredAt: new Date(),
+        tenantId: user.tenantId
+      };
+
+      // Remover campos que não devem ser copiados
+      delete newBatchData.id;
+      delete newBatchData.createdAt;
+      delete newBatchData.updatedAt;
+
+      const newBatch = await storage.createEntryCertificate(newBatchData);
+
+      // Copiar os resultados do lote original para o novo lote
+      const originalResults = await storage.getResultsByEntryCertificate(originalBatchId, user.tenantId);
+      if (originalResults.length > 0) {
+        const newResultsPromises = originalResults.map(result => {
+          const newResult = {
+            ...result,
+            entryCertificateId: newBatch.id,
+            tenantId: user.tenantId
+          };
+          
+          // Remover campos que não devem ser copiados
+          delete newResult.id;
+          delete newResult.createdAt;
+          delete newResult.updatedAt;
+          
+          return storage.createEntryCertificateResult(newResult);
+        });
+        
+        await Promise.all(newResultsPromises);
+      }
+
+      // Criar o registro de revalidação
+      const revalidationData = {
+        originalBatchId,
+        newBatchId: newBatch.id,
+        revalidationDate: new Date().toISOString().split('T')[0],
+        revalidationReason,
+        originalExpirationDate: originalBatch.expirationDate,
+        newExpirationDate,
+        labCertificateUrl: labCertificateUrl || null,
+        labCertificateFileName: labCertificateFileName || null,
+        revalidatedBy: user.id,
+        tenantId: user.tenantId
+      };
+
+      const revalidation = await storage.createBatchRevalidation(revalidationData);
+
+      // Atualizar o lote original como "Revalidado"
+      await storage.updateEntryCertificate(originalBatchId, user.tenantId, {
+        status: 'Revalidado'
+      });
+
+      res.status(201).json({
+        revalidation,
+        newBatch,
+        message: 'Lote revalidado com sucesso'
+      });
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: error.errors });
+      }
+      next(error);
+    }
+  });
+
+  app.get("/api/batch-revalidations", isAuthenticated, async (req, res, next) => {
+    try {
+      const user = req.user!;
+      const revalidations = await storage.getBatchRevalidationsByTenant(user.tenantId);
+      
+      // Enriquecer com dados relacionados
+      const enrichedRevalidations = await Promise.all(revalidations.map(async (revalidation) => {
+        const [originalBatch, newBatch, revalidatedBy] = await Promise.all([
+          storage.getEntryCertificate(revalidation.originalBatchId, user.tenantId),
+          storage.getEntryCertificate(revalidation.newBatchId, user.tenantId),
+          storage.getUser(revalidation.revalidatedBy, user.tenantId)
+        ]);
+
+        return {
+          ...revalidation,
+          originalBatch,
+          newBatch,
+          revalidatedBy: revalidatedBy ? { id: revalidatedBy.id, name: revalidatedBy.name } : null
+        };
+      }));
+
+      res.json(enrichedRevalidations);
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  app.get("/api/batch-revalidations/batch/:batchId", isAuthenticated, async (req, res, next) => {
+    try {
+      const user = req.user!;
+      const batchId = Number(req.params.batchId);
+      
+      const revalidations = await storage.getBatchRevalidationsByBatch(batchId, user.tenantId);
+      
+      // Enriquecer com dados relacionados
+      const enrichedRevalidations = await Promise.all(revalidations.map(async (revalidation) => {
+        const [originalBatch, newBatch, revalidatedBy] = await Promise.all([
+          storage.getEntryCertificate(revalidation.originalBatchId, user.tenantId),
+          storage.getEntryCertificate(revalidation.newBatchId, user.tenantId),
+          storage.getUser(revalidation.revalidatedBy, user.tenantId)
+        ]);
+
+        return {
+          ...revalidation,
+          originalBatch,
+          newBatch,
+          revalidatedBy: revalidatedBy ? { id: revalidatedBy.id, name: revalidatedBy.name } : null
+        };
+      }));
+
+      res.json(enrichedRevalidations);
+    } catch (error) {
       next(error);
     }
   });

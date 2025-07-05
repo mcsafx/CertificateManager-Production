@@ -5,6 +5,9 @@ import { useQuery } from "@tanstack/react-query";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { Loader2, ListChecks, FileCheck, Users, Factory, Package, Building2, FileOutput } from "lucide-react";
 import { Link } from "wouter";
+import { ExpiringProductsChart } from "@/components/analytics/expiring-products-chart";
+import { InventoryTurnoverChart } from "@/components/analytics/inventory-turnover-chart";
+import { CategoryVolumeChart } from "@/components/analytics/category-volume-chart";
 
 export default function HomePage() {
   const { user } = useAuth();
@@ -87,8 +90,8 @@ export default function HomePage() {
     
     // Vamos garantir que temos dados para abril
     monthlyCounts['Abr'] = { 
-      entrada: entryCertificates.length, 
-      emitidos: issuedCertificates.length 
+      entrada: Array.isArray(entryCertificates) ? entryCertificates.length : 0, 
+      emitidos: Array.isArray(issuedCertificates) ? issuedCertificates.length : 0 
     };
     
     // Registrar para depuração
@@ -128,7 +131,7 @@ export default function HomePage() {
                     </div>
                     <div>
                       <p className="text-sm text-gray-500">Boletins de Entrada</p>
-                      <h3 className="text-2xl font-bold">{entryCertificates.length}</h3>
+                      <h3 className="text-2xl font-bold">{Array.isArray(entryCertificates) ? entryCertificates.length : 0}</h3>
                     </div>
                   </div>
                 </CardContent>
@@ -142,7 +145,7 @@ export default function HomePage() {
                     </div>
                     <div>
                       <p className="text-sm text-gray-500">Boletins Emitidos</p>
-                      <h3 className="text-2xl font-bold">{issuedCertificates.length}</h3>
+                      <h3 className="text-2xl font-bold">{Array.isArray(issuedCertificates) ? issuedCertificates.length : 0}</h3>
                     </div>
                   </div>
                 </CardContent>
@@ -258,6 +261,17 @@ export default function HomePage() {
                   </div>
                 </CardContent>
               </Card>
+            </div>
+
+            {/* Seção de Analytics - Produtos próximos ao vencimento (destaque) */}
+            <div className="mb-6">
+              <ExpiringProductsChart />
+            </div>
+
+            {/* Seção de Analytics - Grid com 2 gráficos */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+              <InventoryTurnoverChart />
+              <CategoryVolumeChart />
             </div>
             
             <div className="grid grid-cols-1 mb-6">

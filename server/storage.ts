@@ -14,10 +14,11 @@ import { User, InsertUser, Tenant, InsertTenant,
          File, InsertFile,
          Module, InsertModule,
          ModuleFeature, insertModuleFeatureSchema,
+         BatchRevalidation, InsertBatchRevalidation,
          plans, modules, moduleFeatures, planModules, files,
          users, tenants, productCategories, productSubcategories, productBase, products,
          productFiles, productBaseFiles, productCharacteristics, suppliers, manufacturers,
-         clients, entryCertificates, entryCertificateResults, issuedCertificates, packageTypes } from "@shared/schema";
+         clients, entryCertificates, entryCertificateResults, issuedCertificates, packageTypes, batchRevalidations } from "@shared/schema";
 import { z } from "zod";
 import session from "express-session";
 import createMemoryStore from "memorystore";
@@ -31,7 +32,7 @@ const MemoryStore = createMemoryStore(session);
 
 export interface IStorage {
   // Auth & Users
-  getUser(id: number): Promise<User | undefined>;
+  getUser(id: number, tenantId?: number): Promise<User | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
   getUserByEmail(email: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
@@ -139,7 +140,6 @@ export interface IStorage {
   // Entry Certificates
   getEntryCertificate(id: number, tenantId: number): Promise<EntryCertificate | undefined>;
   createEntryCertificate(certificate: InsertEntryCertificate): Promise<EntryCertificate>;
-  updateEntryCertificate(id: number, tenantId: number, certificate: Partial<EntryCertificate>): Promise<EntryCertificate | undefined>;
   getEntryCertificatesByTenant(tenantId: number, filters?: Record<string, any>): Promise<EntryCertificate[]>;
   deleteEntryCertificate(id: number, tenantId: number): Promise<boolean>;
 
@@ -198,6 +198,13 @@ export interface IStorage {
   getFilesByEntity(entityType: string, entityId: number, tenantId: number): Promise<File[]>;
   deleteFile(id: number, tenantId: number): Promise<boolean>;
   
+  // Batch Revalidations
+  createBatchRevalidation(revalidation: InsertBatchRevalidation): Promise<BatchRevalidation>;
+  getBatchRevalidationsByTenant(tenantId: number): Promise<BatchRevalidation[]>;
+  getBatchRevalidationsByBatch(batchId: number, tenantId: number): Promise<BatchRevalidation[]>;
+  getIssuedCertificatesByEntryCertificate(entryCertificateId: number, tenantId: number): Promise<IssuedCertificate[]>;
+  updateEntryCertificate(id: number, tenantId: number, updates: Partial<EntryCertificate>): Promise<EntryCertificate | undefined>;
+  
   // Session Store
   sessionStore: session.Store;
 }
@@ -222,6 +229,7 @@ export class MemStorage implements IStorage {
   private entryCertificateResults: Map<number, EntryCertificateResult>;
   private issuedCertificates: Map<number, IssuedCertificate>;
   private packageTypes: Map<number, PackageType>;
+  private batchRevalidations: Map<number, BatchRevalidation>;
   
   // Arquivos gerais
   private files: Map<number, File>;
@@ -242,6 +250,7 @@ export class MemStorage implements IStorage {
   private resultIdCounter: number;
   private issuedCertificateIdCounter: number;
   private packageTypeIdCounter: number;
+  private batchRevalidationIdCounter: number;
   private fileIdCounter: number;
   
   sessionStore: session.Store;
@@ -266,6 +275,7 @@ export class MemStorage implements IStorage {
     this.entryCertificateResults = new Map();
     this.issuedCertificates = new Map();
     this.packageTypes = new Map();
+    this.batchRevalidations = new Map();
     
     // Inicialização da estrutura de arquivos gerais
     this.files = new Map();
@@ -286,6 +296,7 @@ export class MemStorage implements IStorage {
     this.resultIdCounter = 1;
     this.issuedCertificateIdCounter = 1;
     this.packageTypeIdCounter = 1;
+    this.batchRevalidationIdCounter = 1;
     this.fileIdCounter = 1;
     
     this.sessionStore = new MemoryStore({
@@ -314,8 +325,11 @@ export class MemStorage implements IStorage {
   }
 
   // User methods
-  async getUser(id: number): Promise<User | undefined> {
-    return this.users.get(id);
+  async getUser(id: number, tenantId?: number): Promise<User | undefined> {
+    const user = this.users.get(id);
+    if (!user) return undefined;
+    if (tenantId !== undefined && user.tenantId !== tenantId) return undefined;
+    return user;
   }
 
   async getUserByUsername(username: string): Promise<User | undefined> {
@@ -1553,6 +1567,46 @@ export class MemStorage implements IStorage {
     
     return { filesRemoved, spaceSaved };
   }
+
+  // Batch Revalidation methods
+  async createBatchRevalidation(revalidation: InsertBatchRevalidation): Promise<BatchRevalidation> {
+    const id = this.batchRevalidationIdCounter++;
+    const newRevalidation: BatchRevalidation = {
+      id,
+      ...revalidation,
+      createdAt: new Date()
+    };
+    this.batchRevalidations.set(id, newRevalidation);
+    return newRevalidation;
+  }
+
+  async getBatchRevalidationsByTenant(tenantId: number): Promise<BatchRevalidation[]> {
+    return Array.from(this.batchRevalidations.values())
+      .filter(r => r.tenantId === tenantId)
+      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+  }
+
+  async getBatchRevalidationsByBatch(batchId: number, tenantId: number): Promise<BatchRevalidation[]> {
+    return Array.from(this.batchRevalidations.values())
+      .filter(r => r.tenantId === tenantId && (r.originalBatchId === batchId || r.newBatchId === batchId))
+      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+  }
+
+  async getIssuedCertificatesByEntryCertificate(entryCertificateId: number, tenantId: number): Promise<IssuedCertificate[]> {
+    return Array.from(this.issuedCertificates.values())
+      .filter(cert => cert.entryCertificateId === entryCertificateId && cert.tenantId === tenantId);
+  }
+
+  async updateEntryCertificate(id: number, tenantId: number, updates: Partial<EntryCertificate>): Promise<EntryCertificate | undefined> {
+    const certificate = this.entryCertificates.get(id);
+    if (!certificate || certificate.tenantId !== tenantId) {
+      return undefined;
+    }
+
+    const updatedCertificate = { ...certificate, ...updates };
+    this.entryCertificates.set(id, updatedCertificate);
+    return updatedCertificate;
+  }
 }
 
 // Classe DatabaseStorage que implementa a interface IStorage
@@ -1568,8 +1622,13 @@ export class DatabaseStorage implements IStorage {
   }
 
   // User methods
-  async getUser(id: number): Promise<User | undefined> {
-    const [user] = await db.select().from(users).where(eq(users.id, id));
+  async getUser(id: number, tenantId?: number): Promise<User | undefined> {
+    const conditions = [eq(users.id, id)];
+    if (tenantId !== undefined) {
+      conditions.push(eq(users.tenantId, tenantId));
+    }
+    
+    const [user] = await db.select().from(users).where(and(...conditions));
     return user;
   }
 
@@ -2119,16 +2178,6 @@ export class DatabaseStorage implements IStorage {
     return newCertificate;
   }
 
-  async updateEntryCertificate(id: number, tenantId: number, certificateData: Partial<EntryCertificate>): Promise<EntryCertificate | undefined> {
-    const [certificate] = await db.update(entryCertificates)
-      .set(certificateData)
-      .where(and(
-        eq(entryCertificates.id, id),
-        eq(entryCertificates.tenantId, tenantId)
-      ))
-      .returning();
-    return certificate;
-  }
 
   async getEntryCertificatesByTenant(tenantId: number, filters?: Record<string, any>): Promise<EntryCertificate[]> {
     // Implementação básica sem filtros por enquanto
@@ -2836,6 +2885,31 @@ export class DatabaseStorage implements IStorage {
     
     return { filesRemoved, spaceSaved };
   }
+
+  // Batch Revalidation methods
+  async createBatchRevalidation(revalidation: InsertBatchRevalidation): Promise<BatchRevalidation> {
+    const [newRevalidation] = await db.insert(batchRevalidations)
+      .values(revalidation)
+      .returning();
+    return newRevalidation;
+  }
+
+  async getBatchRevalidationsByTenant(tenantId: number): Promise<BatchRevalidation[]> {
+    return await db.select()
+      .from(batchRevalidations)
+      .where(eq(batchRevalidations.tenantId, tenantId))
+      .orderBy(desc(batchRevalidations.createdAt));
+  }
+
+  async getBatchRevalidationsByBatch(batchId: number, tenantId: number): Promise<BatchRevalidation[]> {
+    return await db.select()
+      .from(batchRevalidations)
+      .where(and(
+        eq(batchRevalidations.tenantId, tenantId),
+        sql`(${batchRevalidations.originalBatchId} = ${batchId} OR ${batchRevalidations.newBatchId} = ${batchId})`
+      ))
+      .orderBy(desc(batchRevalidations.createdAt));
+  }
 }
 
 // Primeiro verificamos se temos um banco de dados configurado
@@ -2906,6 +2980,7 @@ if (isDatabaseConfigured) {
             username: "admin",
             password: hashedPassword,
             name: "System Administrator",
+            email: "admin@system.local",
             role: "admin",
             tenantId: adminTenant.id,
             active: true

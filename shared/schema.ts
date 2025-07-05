@@ -639,10 +639,39 @@ export const packageTypes = pgTable("package_types", {
   active: boolean("active").notNull().default(true),
 });
 
+// Batch Revalidations - Histórico de revalidações de lotes
+export const batchRevalidations = pgTable("batch_revalidations", {
+  id: serial("id").primaryKey(),
+  originalBatchId: integer("original_batch_id").notNull().references(() => entryCertificates.id),
+  newBatchId: integer("new_batch_id").notNull().references(() => entryCertificates.id),
+  revalidationDate: date("revalidation_date").notNull(),
+  revalidationReason: text("revalidation_reason").notNull(),
+  originalExpirationDate: date("original_expiration_date").notNull(),
+  newExpirationDate: date("new_expiration_date").notNull(),
+  labCertificateUrl: text("lab_certificate_url"),
+  labCertificateFileName: text("lab_certificate_file_name"),
+  revalidatedBy: integer("revalidated_by").notNull().references(() => users.id),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  tenantId: integer("tenant_id").notNull().references(() => tenants.id),
+});
+
 export const insertPackageTypeSchema = createInsertSchema(packageTypes).pick({
   name: true,
   tenantId: true,
   active: true,
+});
+
+export const insertBatchRevalidationSchema = createInsertSchema(batchRevalidations).pick({
+  originalBatchId: true,
+  newBatchId: true,
+  revalidationDate: true,
+  revalidationReason: true,
+  originalExpirationDate: true,
+  newExpirationDate: true,
+  labCertificateUrl: true,
+  labCertificateFileName: true,
+  revalidatedBy: true,
+  tenantId: true,
 });
 
 // Relações para os novos módulos
@@ -850,6 +879,25 @@ export const packageTypesRelations = relations(packageTypes, ({ one }) => ({
   }),
 }));
 
+export const batchRevalidationsRelations = relations(batchRevalidations, ({ one }) => ({
+  tenant: one(tenants, {
+    fields: [batchRevalidations.tenantId],
+    references: [tenants.id],
+  }),
+  originalBatch: one(entryCertificates, {
+    fields: [batchRevalidations.originalBatchId],
+    references: [entryCertificates.id],
+  }),
+  newBatch: one(entryCertificates, {
+    fields: [batchRevalidations.newBatchId],
+    references: [entryCertificates.id],
+  }),
+  revalidatedByUser: one(users, {
+    fields: [batchRevalidations.revalidatedBy],
+    references: [users.id],
+  }),
+}));
+
 // Type exports para os novos módulos
 export type Plan = typeof plans.$inferSelect;
 export type InsertPlan = z.infer<typeof insertPlanSchema>;
@@ -916,3 +964,5 @@ export type File = typeof files.$inferSelect;
 export type InsertFile = z.infer<typeof insertFileSchema>;
 export type ModuleFeature = typeof moduleFeatures.$inferSelect;
 export type InsertModuleFeature = z.infer<typeof insertModuleFeatureSchema>;
+export type BatchRevalidation = typeof batchRevalidations.$inferSelect;
+export type InsertBatchRevalidation = z.infer<typeof insertBatchRevalidationSchema>;
