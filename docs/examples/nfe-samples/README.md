@@ -1,16 +1,20 @@
 # Exemplos de NFe para Teste
 
-Este diretório contém arquivos XML de NFe (Nota Fiscal Eletrônica) que podem ser utilizados para testar o sistema de importação automática de certificados.
+Este diretório contém arquivos XML de NFe (Nota Fiscal Eletrônica) fictícios que podem ser utilizados para testar o sistema de importação automática de certificados.
 
 ## Arquivos Disponíveis
 
-### NFe-7410.xml
-- **Número**: 7410/1
-- **Emitente**: BIOCOL - IMPORTADORA E DISTRIBUIDORA S/A
-- **Destinatário**: EMANUEL COLAGENS INDUSTRIAIS EIRELI - 424
-- **Produto**: OE 0019 (25 KG)
-- **Valor**: R$ 4.146,00
-- **Data**: 04/07/2025
+### NFe-EXEMPLO-001.xml
+- **Número**: 1/1
+- **Emitente**: COCA-COLA FEMSA BRASIL LTDA
+- **Destinatário**: CARREFOUR COMERCIO E INDUSTRIA LTDA
+- **Produtos**: 
+  - COCA-COLA 350ML LATA (240 unidades)
+  - FANTA LARANJA 350ML LATA (120 unidades)
+- **Valor Total**: R$ 876,00
+- **Data**: 15/01/2025
+
+**Observação**: Este é um exemplo fictício criado apenas para demonstração e teste do sistema.
 
 ## Como Usar
 
