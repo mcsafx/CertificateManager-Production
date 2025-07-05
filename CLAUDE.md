@@ -63,7 +63,7 @@ This is a comprehensive multi-tenant SaaS platform for quality certificate manag
 **Available Modules:**
 - `core` - Dashboard, users, basic settings (essential module)
 - `products` - Product and category management
-- `certificates` - Basic certificate issuance
+- `certificates` - Basic certificate issuance and **NFe XML import**
 - `certificates_advanced` - Digital signature certificates
 - `multi_user` - Advanced user management
 - `traceability` - End-to-end tracking
@@ -89,6 +89,7 @@ This is a comprehensive multi-tenant SaaS platform for quality certificate manag
 - `entryCertificates` - Quality certificates from suppliers
 - `entryCertificateResults` - Test results and quality metrics
 - `issuedCertificates` - Certificates issued to clients
+- **NFe import system** - Automatic certificate generation from NFe XML
 - PDF generation using `pdfGenerator.ts` and `html2pdfGenerator.ts`
 
 #### File Management
@@ -119,6 +120,7 @@ This is a comprehensive multi-tenant SaaS platform for quality certificate manag
 - All domain entities include `tenantId` for isolation
 - `plans` define subscription tiers with storage and user limits
 - Module system allows fine-grained feature control
+- **NFe import system** with tracking and product mapping preferences
 - Comprehensive audit trail via timestamps and status fields
 
 ### Development Patterns
