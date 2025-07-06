@@ -72,7 +72,10 @@ const fileFilter = (req: Request, file: Express.Multer.File, cb: multer.FileFilt
     'image/png',
     'image/webp',
     'text/csv',
-    'text/plain'
+    'text/plain',
+    'text/xml',           // Para arquivos NFe XML
+    'application/xml',    // Para arquivos NFe XML
+    'application/zip'     // Para arquivos ZIP com NFe
   ];
   
   // Validar tipo de arquivo

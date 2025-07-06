@@ -155,7 +155,7 @@ export class ClientAutoResolver {
     const conflicts: ClientResolutionResult['conflicts'] = [];
 
     // Search by similar company name
-    const nameSearchTerms = this.extractSearchTerms(nfeClientData.razaoSocial);
+    const nameSearchTerms = this.extractSearchTerms(nfeClientData.nome);
     
     if (nameSearchTerms.length > 0) {
       const nameMatches = await db.query.clients.findMany({
@@ -174,7 +174,7 @@ export class ClientAutoResolver {
       });
 
       for (const match of nameMatches) {
-        const similarity = this.calculateNameSimilarity(nfeClientData.razaoSocial, match.name);
+        const similarity = this.calculateNameSimilarity(nfeClientData.nome, match.name);
         if (similarity > 0.6) { // 60% similarity threshold
           conflicts.push({
             id: match.id,
@@ -230,38 +230,32 @@ export class ClientAutoResolver {
 
   /**
    * Prepare suggested data for client creation
+   * Maps NFe destinatario data to Client National fields:
+   * - nome → name (Nome)
+   * - cnpj/cpf → cnpj/taxIdentifier (CNPJ)
+   * - endereco → address (Endereço - already consolidated)
+   * - emailQualidade → qualityEmail (E-mail do setor de Qualidade)
+   * - telefone → phone (Telefone)
+   * - Auto-generated → internalCode (Código Interno)
    */
   private static prepareSuggestedData(
     nfeClientData: NFeClientData, 
     tenantId: number
   ): ClientAutoCreationData {
-    const formatAddress = (endereco: NFeClientData['endereco']) => {
-      const parts = [
-        endereco.logradouro,
-        endereco.numero,
-        endereco.complemento,
-        endereco.bairro,
-        endereco.cidade,
-        endereco.uf,
-        endereco.cep
-      ].filter(Boolean);
-      
-      return parts.join(', ');
-    };
-
     return {
-      name: nfeClientData.razaoSocial,
+      name: nfeClientData.nome,              // Nome
       cnpj: nfeClientData.cnpj ? this.cleanDocument(nfeClientData.cnpj) : undefined,
       cpf: nfeClientData.cpf ? this.cleanDocument(nfeClientData.cpf) : undefined,
       taxIdentifier: nfeClientData.cnpj ? 
         this.cleanDocument(nfeClientData.cnpj) : 
         (nfeClientData.cpf ? this.cleanDocument(nfeClientData.cpf) : undefined),
       taxIdentifierType: nfeClientData.cnpj ? 'CNPJ' : (nfeClientData.cpf ? 'CPF' : undefined),
-      address: formatAddress(nfeClientData.endereco),
-      phone: nfeClientData.telefone,
-      qualityEmail: nfeClientData.email,
-      isNational: true, // NFe is always national
+      address: nfeClientData.endereco,              // Endereço (consolidated from enderDest)
+      phone: nfeClientData.telefone,                // Telefone
+      qualityEmail: nfeClientData.emailQualidade,  // E-mail do setor de Qualidade
+      isNational: true,                             // NFe is always national
       country: 'Brasil',
+      // internalCode will be auto-generated      // Código Interno (auto-generated)
       tenantId
     };
   }

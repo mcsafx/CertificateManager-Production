@@ -3,6 +3,7 @@ import { Link, useLocation } from "wouter";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { SubscriptionAlert } from "@/components/subscription-alert";
+import { Separator } from "@/components/ui/separator";
 import {
   Building,
   HardDrive,
@@ -10,7 +11,12 @@ import {
   Layers,
   Users,
   Settings,
-  Puzzle
+  Puzzle,
+  CreditCard,
+  Monitor,
+  ShieldCheck,
+  BarChart3,
+  Package
 } from "lucide-react";
 
 interface AdminLayoutProps {
@@ -60,53 +66,103 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
           <p className="text-sm text-muted-foreground">Gerenciamento do Sistema</p>
         </div>
         
-        <div className="space-y-2">
-          <div className="text-sm font-medium text-muted-foreground mb-2 px-2">
+        <div className="space-y-1">
+          {/* Dashboard Principal */}
+          <div className="text-xs font-semibold text-muted-foreground mb-2 px-2 uppercase tracking-wide">
             Dashboard
           </div>
           <SidebarItem
             href="/admin"
-            icon={<HomeIcon className="h-5 w-5" />}
+            icon={<HomeIcon className="h-4 w-4" />}
             title="Visão Geral"
             isActive={location === "/admin"}
           />
+          <SidebarItem
+            href="/admin/analytics"
+            icon={<BarChart3 className="h-4 w-4" />}
+            title="Analytics"
+            isActive={location === "/admin/analytics"}
+          />
           
-          <div className="text-sm font-medium text-muted-foreground mt-4 mb-2 px-2">
-            Planos e Módulos
+          <Separator className="my-3" />
+          
+          {/* Gestão de Negócio */}
+          <div className="text-xs font-semibold text-muted-foreground mb-2 px-2 uppercase tracking-wide">
+            Gestão de Negócio
           </div>
           <SidebarItem
-            href="/admin/plans"
-            icon={<Layers className="h-5 w-5" />}
-            title="Planos e Módulos"
-            isActive={location === "/admin/plans"}
-          />
-          <SidebarItem
-            href="/admin/module-features"
-            icon={<Puzzle className="h-5 w-5" />}
-            title="Funcionalidades"
-            isActive={location === "/admin/module-features"}
-          />
-          <SidebarItem
             href="/admin/tenants"
-            icon={<Building className="h-5 w-5" />}
+            icon={<Building className="h-4 w-4" />}
             title="Tenants"
             isActive={location === "/admin/tenants"}
           />
+          <SidebarItem
+            href="/admin/plans"
+            icon={<CreditCard className="h-4 w-4" />}
+            title="Planos & Preços"
+            isActive={location === "/admin/plans"}
+          />
+          <SidebarItem
+            href="/admin/subscriptions"
+            icon={<Monitor className="h-4 w-4" />}
+            title="Assinaturas"
+            isActive={location === "/admin/subscriptions"}
+          />
           
-          <div className="text-sm font-medium text-muted-foreground mt-4 mb-2 px-2">
-            Gestão de Sistema
+          <Separator className="my-3" />
+          
+          {/* Sistema de Módulos */}
+          <div className="text-xs font-semibold text-muted-foreground mb-2 px-2 uppercase tracking-wide">
+            Sistema de Módulos
           </div>
           <SidebarItem
+            href="/admin/modules"
+            icon={<Package className="h-4 w-4" />}
+            title="Módulos"
+            isActive={location === "/admin/modules"}
+          />
+          <SidebarItem
+            href="/admin/features"
+            icon={<Puzzle className="h-4 w-4" />}
+            title="Funcionalidades"
+            isActive={location === "/admin/features"}
+          />
+          <SidebarItem
+            href="/admin/module-plans"
+            icon={<Layers className="h-4 w-4" />}
+            title="Associações"
+            isActive={location === "/admin/module-plans"}
+          />
+          
+          <Separator className="my-3" />
+          
+          {/* Controle de Sistema */}
+          <div className="text-xs font-semibold text-muted-foreground mb-2 px-2 uppercase tracking-wide">
+            Controle de Sistema
+          </div>
+          <SidebarItem
+            href="/admin/users"
+            icon={<Users className="h-4 w-4" />}
+            title="Usuários"
+            isActive={location === "/admin/users"}
+          />
+          <SidebarItem
             href="/admin/storage"
-            icon={<HardDrive className="h-5 w-5" />}
+            icon={<HardDrive className="h-4 w-4" />}
             title="Armazenamento"
             isActive={location === "/admin/storage"}
           />
           <SidebarItem
-            href="/admin/users"
-            icon={<Users className="h-5 w-5" />}
-            title="Usuários"
-            isActive={location === "/admin/users"}
+            href="/admin/security"
+            icon={<ShieldCheck className="h-4 w-4" />}
+            title="Segurança"
+            isActive={location === "/admin/security"}
+          />
+          <SidebarItem
+            href="/admin/settings"
+            icon={<Settings className="h-4 w-4" />}
+            title="Configurações"
+            isActive={location === "/admin/settings"}
           />
         </div>
         

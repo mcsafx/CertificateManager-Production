@@ -63,20 +63,25 @@ This is a comprehensive multi-tenant SaaS platform for quality certificate manag
 **Available Modules:**
 - `core` - Dashboard, users, basic settings (essential module)
 - `products` - Product and category management
-- `certificates` - Basic certificate issuance and **NFe XML import**
+- `certificates` - Basic certificate issuance
 - `certificates_advanced` - Digital signature certificates
 - `multi_user` - Advanced user management
+- `nfe_import` - **NFe XML import system** (independent module)
 - `traceability` - End-to-end tracking
 - `settings` - Advanced configurations
 - `reports` - Custom reporting
 - `integrations` - APIs and webhooks
 
 **NFe Import System Access:**
-- **Available for**: All plan tiers (A, B, C)
-- **Module**: `certificates` (basic certificates module)
+- **Available for**: Premium plan tiers (B, C only)
+- **Module**: `nfe_import` (independent module)
 - **Feature Path**: `/api/nfe/*`
 - **Functionality**: Complete NFe XML import with automatic certificate generation
-- **Decision Rationale**: NFe import provides core value for all users, encouraging platform adoption
+- **Plan Distribution**:
+  - **Plano A (Básico)**: ❌ Sem acesso (incentiva upgrade)
+  - **Plano B (Intermediário)**: ✅ Acesso completo
+  - **Plano C (Completo)**: ✅ Acesso completo
+- **Decision Rationale**: NFe import as premium feature to drive plan upgrades while providing significant value
 
 #### Security & Middleware
 - Authentication middleware setup in `server/auth.ts`

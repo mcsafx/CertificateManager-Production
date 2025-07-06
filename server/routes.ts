@@ -5256,7 +5256,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // NFe Import Routes
   app.post("/api/nfe/validate", isAuthenticated, async (req, res, next) => {
     try {
-      const { NFeXmlParser } = await import('./services/nfe-xml-parser.js');
+      const { NFeXmlParser } = await import('./services/nfe-xml-parser');
       const { xmlContent } = req.body;
 
       if (!xmlContent) {
@@ -5308,15 +5308,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const xmlContent = fs.readFileSync(req.file.path, 'utf-8');
         
         // Parse NFe XML
-        const { NFeXmlParser } = await import('./services/nfe-xml-parser.js');
+        const { NFeXmlParser } = await import('./services/nfe-xml-parser');
         const nfeData = await NFeXmlParser.parseNFeXml(xmlContent);
         
         // Resolve client
-        const { ClientAutoResolver } = await import('./services/client-auto-resolver.js');
+        const { ClientAutoResolver } = await import('./services/client-auto-resolver');
         const clientResolution = await ClientAutoResolver.resolveClient(nfeData.destinatario, tenantId);
         
         // Match products
-        const { ProductItemMatcher } = await import('./services/product-item-matcher.js');
+        const { ProductItemMatcher } = await import('./services/product-item-matcher');
         const productMatches = await ProductItemMatcher.bulkMatch(nfeData.itens, tenantId);
         
         // Clean up temp file
@@ -5358,7 +5358,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Handle client creation/selection
         let finalClientId = clientId;
         if (newClientData && !clientId) {
-          const { ClientAutoResolver } = await import('./services/client-auto-resolver.js');
+          const { ClientAutoResolver } = await import('./services/client-auto-resolver');
           const newClient = await ClientAutoResolver.autoCreateClient({
             ...newClientData,
             tenantId

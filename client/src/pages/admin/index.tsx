@@ -195,49 +195,90 @@ export default function AdminDashboardPage() {
               </Card>
             </div>
 
-            {/* Ações rápidas */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Ações Rápidas</CardTitle>
-                <CardDescription>
-                  Acesse rapidamente as principais funcionalidades do painel administrativo.
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+            {/* Ações rápidas por categoria */}
+            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+              
+              {/* Gestão de Negócio */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Building className="h-5 w-5" />
+                    Gestão de Negócio
+                  </CardTitle>
+                  <CardDescription>
+                    Gerencie tenants, planos e assinaturas
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-2">
                   <Link href="/admin/tenants">
-                    <Button variant="outline" className="w-full h-24 flex flex-col">
-                      <Building className="h-6 w-6 mb-2" />
-                      <span>Gerenciar Tenants</span>
+                    <Button variant="outline" className="w-full justify-start">
+                      <Building className="h-4 w-4 mr-2" />
+                      Tenants
                     </Button>
                   </Link>
                   <Link href="/admin/plans">
-                    <Button variant="outline" className="w-full h-24 flex flex-col">
-                      <Building className="h-6 w-6 mb-2" />
-                      <span>Gerenciar Planos</span>
+                    <Button variant="outline" className="w-full justify-start">
+                      <FileBox className="h-4 w-4 mr-2" />
+                      Planos & Preços
                     </Button>
                   </Link>
-                  <Link href="/admin/module-features">
-                    <Button variant="outline" className="w-full h-24 flex flex-col">
-                      <FileBox className="h-6 w-6 mb-2" />
-                      <span>Funcionalidades</span>
+                </CardContent>
+              </Card>
+
+              {/* Sistema de Módulos */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <FileBox className="h-5 w-5" />
+                    Sistema de Módulos
+                  </CardTitle>
+                  <CardDescription>
+                    Configure módulos e funcionalidades
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-2">
+                  <Link href="/admin/modules">
+                    <Button variant="outline" className="w-full justify-start">
+                      <FileBox className="h-4 w-4 mr-2" />
+                      Módulos
+                    </Button>
+                  </Link>
+                  <Link href="/admin/features">
+                    <Button variant="outline" className="w-full justify-start">
+                      <FileBox className="h-4 w-4 mr-2" />
+                      Funcionalidades
+                    </Button>
+                  </Link>
+                </CardContent>
+              </Card>
+
+              {/* Controle de Sistema */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Users className="h-5 w-5" />
+                    Controle de Sistema
+                  </CardTitle>
+                  <CardDescription>
+                    Usuários, armazenamento e configurações
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-2">
+                  <Link href="/admin/users">
+                    <Button variant="outline" className="w-full justify-start">
+                      <Users className="h-4 w-4 mr-2" />
+                      Usuários
                     </Button>
                   </Link>
                   <Link href="/admin/storage">
-                    <Button variant="outline" className="w-full h-24 flex flex-col">
-                      <FileBox className="h-6 w-6 mb-2" />
-                      <span>Monitorar Armazenamento</span>
+                    <Button variant="outline" className="w-full justify-start">
+                      <FileBox className="h-4 w-4 mr-2" />
+                      Armazenamento
                     </Button>
                   </Link>
-                  <Link href="/admin/users">
-                    <Button variant="outline" className="w-full h-24 flex flex-col">
-                      <Users className="h-6 w-6 mb-2" />
-                      <span>Gerenciar Usuários</span>
-                    </Button>
-                  </Link>
-                </div>
-              </CardContent>
-            </Card>
+                </CardContent>
+              </Card>
+            </div>
           </>
         )}
       </div>
