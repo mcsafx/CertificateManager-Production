@@ -72,10 +72,10 @@ export default function HomePage() {
     // Se os dados ainda não foram carregados, retornar um array vazio
     if (isLoading) return [];
     
-    // Como estamos em abril de 2025, vamos fixar este mês para testes
-    // Em produção, isso deve usar a data atual
-    const currentYear = 2025;
-    const currentMonth = 3; // Abril (0-indexado)
+    // Usar data atual
+    const now = new Date();
+    const currentYear = now.getFullYear();
+    const currentMonth = now.getMonth();
     
     // Criar um objeto para armazenar contagens por mês
     const monthlyCounts: { [key: string]: { entrada: number; emitidos: number } } = {};
@@ -90,11 +90,33 @@ export default function HomePage() {
       monthlyCounts[month] = { entrada: 0, emitidos: 0 };
     });
     
-    // Vamos garantir que temos dados para abril
-    monthlyCounts['Abr'] = { 
-      entrada: Array.isArray(entryCertificates) ? entryCertificates.length : 0, 
-      emitidos: Array.isArray(issuedCertificates) ? issuedCertificates.length : 0 
-    };
+    // Processar certificados de entrada para contagem por mês
+    if (Array.isArray(entryCertificates)) {
+      entryCertificates.forEach(cert => {
+        const date = new Date(cert.issueDate || cert.createdAt);
+        if (date.getFullYear() === currentYear) {
+          const monthIndex = date.getMonth();
+          const monthName = months[monthIndex];
+          if (monthlyCounts[monthName]) {
+            monthlyCounts[monthName].entrada++;
+          }
+        }
+      });
+    }
+
+    // Processar certificados emitidos para contagem por mês
+    if (Array.isArray(issuedCertificates)) {
+      issuedCertificates.forEach(cert => {
+        const date = new Date(cert.issueDate || cert.createdAt);
+        if (date.getFullYear() === currentYear) {
+          const monthIndex = date.getMonth();
+          const monthName = months[monthIndex];
+          if (monthlyCounts[monthName]) {
+            monthlyCounts[monthName].emitidos++;
+          }
+        }
+      });
+    }
     
     // Registrar para depuração
     console.log("Certificados de Entrada:", entryCertificates);

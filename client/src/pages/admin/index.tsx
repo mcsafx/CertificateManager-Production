@@ -8,10 +8,14 @@ import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { SmartDashboard } from "@/components/admin/smart-dashboard";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useState } from "react";
 
 // Página principal do painel administrativo
 export default function AdminDashboardPage() {
   const { toast } = useToast();
+  const [activeTab, setActiveTab] = useState("smart");
 
   // Buscar resumo do sistema
   const { data: dashboardData, isLoading } = useQuery({
@@ -37,24 +41,35 @@ export default function AdminDashboardPage() {
           </div>
         </div>
 
-        {isLoading ? (
-          <div className="flex justify-center py-20">
-            <Loader2 className="h-12 w-12 animate-spin text-primary" />
-          </div>
-        ) : (
-          <>
-            {/* Alertas do sistema */}
-            {dashboardData?.alerts?.length > 0 && (
-              <div className="space-y-4 mb-8">
-                {dashboardData.alerts.map((alert: any, index: number) => (
-                  <Alert key={index} variant={alert.level === 'error' ? 'destructive' : 'default'}>
-                    <AlertTriangle className="h-4 w-4" />
-                    <AlertTitle>{alert.title}</AlertTitle>
-                    <AlertDescription>{alert.message}</AlertDescription>
-                  </Alert>
-                ))}
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+          <TabsList>
+            <TabsTrigger value="smart">Dashboard Inteligente</TabsTrigger>
+            <TabsTrigger value="classic">Visão Clássica</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="smart">
+            <SmartDashboard />
+          </TabsContent>
+
+          <TabsContent value="classic">
+            {isLoading ? (
+              <div className="flex justify-center py-20">
+                <Loader2 className="h-12 w-12 animate-spin text-primary" />
               </div>
-            )}
+            ) : (
+              <>
+                {/* Alertas do sistema */}
+                {dashboardData?.alerts?.length > 0 && (
+                  <div className="space-y-4 mb-8">
+                    {dashboardData.alerts.map((alert: any, index: number) => (
+                      <Alert key={index} variant={alert.level === 'error' ? 'destructive' : 'default'}>
+                        <AlertTriangle className="h-4 w-4" />
+                        <AlertTitle>{alert.title}</AlertTitle>
+                        <AlertDescription>{alert.message}</AlertDescription>
+                      </Alert>
+                    ))}
+                  </div>
+                )}
 
             {/* Estatísticas rápidas */}
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 mb-8">
@@ -279,8 +294,10 @@ export default function AdminDashboardPage() {
                 </CardContent>
               </Card>
             </div>
-          </>
-        )}
+              </>
+            )}
+          </TabsContent>
+        </Tabs>
       </div>
     </AdminLayout>
   );

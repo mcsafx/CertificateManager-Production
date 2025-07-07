@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { setupAuth, isAuthenticated, isAuthenticatedWithSubscription, isAdmin, isTenantMember } from "./auth";
+import { setupAuth, isAuthenticated, isAuthenticatedWithSubscription, isAdmin, isTenantMember, isTenantAdmin } from "./auth";
 import { z } from "zod";
 import { updateSubscriptionStatus } from "./middlewares/subscription-check";
 import { 
@@ -3663,14 +3663,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Extrair dados do corpo da requisição
-      const { price, maxStorage, maxFileSize, description } = req.body;
+      const { name, description, price, storageLimit, maxUsers } = req.body;
       
       // Atualizar o plano
       const updatedPlan = await storage.updatePlan(id, {
+        name: name !== undefined ? name : existingPlan.name,
+        description: description !== undefined ? description : existingPlan.description,
         price: price !== undefined ? price : existingPlan.price,
-        storageLimit: maxStorage !== undefined ? maxStorage : existingPlan.storageLimit,
-        maxFileSize: maxFileSize !== undefined ? maxFileSize : existingPlan.maxFileSize,
-        description: description !== undefined ? description : existingPlan.description
+        storageLimit: storageLimit !== undefined ? storageLimit : existingPlan.storageLimit,
+        maxUsers: maxUsers !== undefined ? maxUsers : existingPlan.maxUsers
       });
       
       res.json(updatedPlan);
@@ -3964,7 +3965,160 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  // Usuários administrativos
+  // Rotas para administradores de tenant gerenciarem usuários do próprio tenant
+  app.get("/api/tenant/users", isTenantAdmin, async (req, res, next) => {
+    try {
+      const user = req.user!;
+      const users = await storage.getUsersByTenant(user.tenantId);
+      
+      // Remover senhas das respostas
+      const usersWithoutPasswords = users.map(u => {
+        const { password, ...userWithoutPassword } = u;
+        return userWithoutPassword;
+      });
+      
+      res.json(usersWithoutPasswords);
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  app.post("/api/tenant/users", isTenantAdmin, async (req, res, next) => {
+    try {
+      const tenantUser = req.user!;
+      const { username, name, email, password, role } = req.body;
+      
+      // Verificar limites de usuário do tenant
+      const canAdd = await storage.canAddUserToTenant(tenantUser.tenantId);
+      if (!canAdd) {
+        const userCount = await storage.getUserCountByTenant(tenantUser.tenantId);
+        return res.status(400).json({ 
+          message: `Limite de usuários excedido para este tenant. Usuários atuais: ${userCount}. Considere fazer upgrade do plano.` 
+        });
+      }
+      
+      // Verificar se o nome de usuário já existe
+      const existingUser = await storage.getUserByUsername(username);
+      if (existingUser) {
+        return res.status(400).json({ message: "Nome de usuário já existe" });
+      }
+      
+      // Verificar se o email já existe
+      const existingEmailUser = await storage.getUserByEmail(email);
+      if (existingEmailUser) {
+        return res.status(400).json({ message: "Email já está em uso" });
+      }
+      
+      // Validar role - admin de tenant só pode criar usuários normais ou admin_tenant
+      const allowedRoles = ['user', 'admin_tenant'];
+      if (role && !allowedRoles.includes(role)) {
+        return res.status(403).json({ message: "Você não tem permissão para criar usuários com este perfil" });
+      }
+      
+      // Hash da senha antes de criar o usuário
+      const { hashPassword } = await import('./auth');
+      const hashedPassword = await hashPassword(password);
+      
+      // Criar o usuário no tenant do admin
+      const newUser = await storage.createUser({
+        username,
+        name,
+        email,
+        password: hashedPassword,
+        role: role || 'user',
+        tenantId: tenantUser.tenantId,
+        active: true
+      });
+      
+      // Remover senha da resposta
+      const { password: pwd, ...userWithoutPassword } = newUser;
+      res.status(201).json(userWithoutPassword);
+    } catch (error) {
+      console.error('Erro ao criar usuário:', error);
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: error.errors });
+      }
+      next(error);
+    }
+  });
+
+  app.put("/api/tenant/users/:id", isTenantAdmin, async (req, res, next) => {
+    try {
+      const tenantUser = req.user!;
+      const userId = Number(req.params.id);
+      const { username, name, email, password, role, active } = req.body;
+      
+      // Verificar se o usuário existe e pertence ao mesmo tenant
+      const existingUser = await storage.getUser(userId, tenantUser.tenantId);
+      if (!existingUser) {
+        return res.status(404).json({ message: "Usuário não encontrado neste tenant" });
+      }
+      
+      // Validar role - admin de tenant só pode criar usuários normais ou admin_tenant
+      const allowedRoles = ['user', 'admin_tenant'];
+      if (role && !allowedRoles.includes(role)) {
+        return res.status(403).json({ message: "Você não tem permissão para atribuir este perfil" });
+      }
+      
+      // Preparar dados para atualização
+      const updateData: any = {};
+      
+      if (username !== undefined) updateData.username = username;
+      if (name !== undefined) updateData.name = name;
+      if (email !== undefined) updateData.email = email;
+      if (role !== undefined) updateData.role = role;
+      if (active !== undefined) updateData.active = active;
+      
+      // Se a senha foi fornecida, hash ela
+      if (password) {
+        const { hashPassword } = await import('./auth');
+        updateData.password = await hashPassword(password);
+      }
+      
+      // Atualizar o usuário
+      const updatedUser = await storage.updateUser(userId, updateData);
+      
+      // Remover senha da resposta
+      if (updatedUser) {
+        const { password, ...userWithoutPassword } = updatedUser;
+        res.json(userWithoutPassword);
+      } else {
+        res.status(404).json({ message: "Erro ao atualizar usuário" });
+      }
+    } catch (error) {
+      console.error('Erro ao atualizar usuário:', error);
+      next(error);
+    }
+  });
+
+  app.get("/api/tenant/user-limits", isTenantAdmin, async (req, res, next) => {
+    try {
+      const tenantUser = req.user!;
+      
+      // Buscar informações do tenant e plano
+      const tenantWithPlan = await storage.getTenantWithPlan(tenantUser.tenantId);
+      if (!tenantWithPlan) {
+        return res.status(404).json({ message: "Tenant ou plano não encontrado" });
+      }
+      
+      const { tenant, plan } = tenantWithPlan;
+      const userCount = await storage.getUserCountByTenant(tenantUser.tenantId);
+      const canAdd = await storage.canAddUserToTenant(tenantUser.tenantId);
+      
+      res.json({
+        currentUsers: userCount,
+        maxUsers: plan.maxUsers,
+        canAddUser: canAdd,
+        tenantName: tenant.name,
+        planName: plan.name,
+        planCode: plan.code
+      });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // Usuários administrativos (só para admin geral)
   app.get("/api/admin/users", isAdmin, async (req, res, next) => {
     try {
       const tenants = await storage.getAllTenants();
@@ -4037,6 +4191,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const tenant = await storage.getTenant(Number(tenantId));
       if (!tenant) {
         return res.status(404).json({ message: "Tenant não encontrado" });
+      }
+      
+      // Verificar limites de usuário do tenant
+      const canAdd = await storage.canAddUserToTenant(Number(tenantId));
+      if (!canAdd) {
+        const userCount = await storage.getUserCountByTenant(Number(tenantId));
+        return res.status(400).json({ 
+          message: `Limite de usuários excedido para este tenant. Usuários atuais: ${userCount}. Considere fazer upgrade do plano.` 
+        });
       }
       
       // Verificar se o nome de usuário já existe
@@ -4536,219 +4699,89 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const user = req.user!;
       
-      // Retornar dados de exemplo com valores para debug
+      // Buscar dados reais de volume por subcategoria
+      const subcategoryData = await db.select({
+        subcategoryId: productSubcategories.id,
+        subcategoryName: productSubcategories.name,
+        categoryName: productCategories.name,
+      })
+      .from(productSubcategories)
+      .innerJoin(productCategories, eq(productSubcategories.categoryId, productCategories.id))
+      .where(eq(productSubcategories.tenantId, user.tenantId));
+
+      // Para cada subcategoria, calcular volumes reais
+      const subcategoriesWithVolume = await Promise.all(
+        subcategoryData.map(async (subcategory) => {
+          // Buscar certificados de entrada desta subcategoria
+          const entryVolumes = await db.select({
+            totalVolume: sql<number>`SUM(CAST(${entryCertificates.receivedQuantity} AS DECIMAL))`,
+            count: sql<number>`COUNT(*)`
+          })
+          .from(entryCertificates)
+          .innerJoin(products, eq(entryCertificates.productId, products.id))
+          .innerJoin(productBase, eq(products.baseProductId, productBase.id))
+          .where(and(
+            eq(entryCertificates.tenantId, user.tenantId),
+            eq(productBase.subcategoryId, subcategory.subcategoryId)
+          ));
+
+          // Buscar certificados emitidos desta subcategoria
+          const issuedVolumes = await db.select({
+            totalVolume: sql<number>`SUM(CAST(${issuedCertificates.soldQuantity} AS DECIMAL))`,
+            count: sql<number>`COUNT(*)`
+          })
+          .from(issuedCertificates)
+          .innerJoin(entryCertificates, eq(issuedCertificates.entryCertificateId, entryCertificates.id))
+          .innerJoin(products, eq(entryCertificates.productId, products.id))
+          .innerJoin(productBase, eq(products.baseProductId, productBase.id))
+          .where(and(
+            eq(issuedCertificates.tenantId, user.tenantId),
+            eq(productBase.subcategoryId, subcategory.subcategoryId)
+          ));
+
+          const totalEntryVolume = entryVolumes[0]?.totalVolume || 0;
+          const totalSoldVolume = issuedVolumes[0]?.totalVolume || 0;
+          const availableVolume = totalEntryVolume - totalSoldVolume;
+          const turnoverRate = totalEntryVolume > 0 ? (totalSoldVolume / totalEntryVolume) * 100 : 0;
+
+          return {
+            subcategoryId: subcategory.subcategoryId.toString(),
+            subcategoryName: subcategory.subcategoryName,
+            categoryName: subcategory.categoryName,
+            totalEntryVolume: Number(totalEntryVolume),
+            totalSoldVolume: Number(totalSoldVolume),
+            availableVolume: Number(availableVolume),
+            certificatesCount: entryVolumes[0]?.count || 0,
+            productsCount: 0, // Calcular se necessário
+            turnoverRate: Number(turnoverRate.toFixed(1)),
+            percentage: 0, // Calcular depois se necessário
+            entries: []
+          };
+        })
+      );
+
+      // Calcular totais reais
+      const totalVolume = subcategoriesWithVolume.reduce((sum, cat) => sum + cat.totalEntryVolume, 0);
+      const totalAvailableVolume = subcategoriesWithVolume.reduce((sum, cat) => sum + cat.availableVolume, 0);
+      const totalSoldVolume = subcategoriesWithVolume.reduce((sum, cat) => sum + cat.totalSoldVolume, 0);
+      const totalCertificates = subcategoriesWithVolume.reduce((sum, cat) => sum + cat.certificatesCount, 0);
+      const averageTurnoverRate = subcategoriesWithVolume.length > 0 
+        ? subcategoriesWithVolume.reduce((sum, cat) => sum + cat.turnoverRate, 0) / subcategoriesWithVolume.length
+        : 0;
+
       res.json({
-        subcategories: [
-          {
-            subcategoryId: 'demo-1',
-            subcategoryName: 'Ácidos Orgânicos',
-            categoryName: 'Produtos Químicos',
-            totalEntryVolume: 1250.5,
-            totalSoldVolume: 825.3,
-            availableVolume: 425.2,
-            certificatesCount: 8,
-            productsCount: 3,
-            turnoverRate: 66.0,
-            percentage: 35.2,
-            entries: []
-          },
-          {
-            subcategoryId: 'demo-2',
-            subcategoryName: 'Bases Inorgânicas',
-            categoryName: 'Produtos Químicos',
-            totalEntryVolume: 980.0,
-            totalSoldVolume: 450.0,
-            availableVolume: 530.0,
-            certificatesCount: 6,
-            productsCount: 2,
-            turnoverRate: 45.9,
-            percentage: 28.1,
-            entries: []
-          }
-        ],
+        subcategories: subcategoriesWithVolume,
         summary: {
-          totalSubcategories: 2,
-          totalVolume: 2230.5,
-          totalAvailableVolume: 955.2,
-          totalSoldVolume: 1275.3,
-          totalCertificates: 14,
-          totalProducts: 5,
-          averageTurnoverRate: 55.9,
+          totalSubcategories: subcategoriesWithVolume.length,
+          totalVolume,
+          totalAvailableVolume,
+          totalSoldVolume,
+          totalCertificates,
+          totalProducts: 0, // Calcular se necessário
+          averageTurnoverRate: Number(averageTurnoverRate.toFixed(1)),
           period: '30d',
         }
       });
-      return;
-      
-      /*
-      const user = req.user!;
-      const period = req.query.period as string || '30d'; // 30d, 90d, 1y
-      
-      // Calcular data de início baseada no período
-      let startDate = new Date();
-      switch (period) {
-        case '90d':
-          startDate.setDate(startDate.getDate() - 90);
-          break;
-        case '1y':
-          startDate.setFullYear(startDate.getFullYear() - 1);
-          break;
-        default: // 30d
-          startDate.setDate(startDate.getDate() - 30);
-      }
-      const startDateStr = startDate.toISOString().split('T')[0];
-
-      // Buscar certificados de entrada com JOIN direto para melhor performance
-      const subcategoryVolumeData = await db.select({
-        entryId: entryCertificates.id,
-        receivedQuantity: entryCertificates.receivedQuantity,
-        entryDate: entryCertificates.entryDate,
-        productId: products.id,
-        productName: products.technicalName,
-        commercialName: products.commercialName,
-        subcategoryId: productBase.subcategoryId,
-        subcategoryName: productSubcategories.name,
-        categoryId: productSubcategories.categoryId,
-        categoryName: productCategories.name,
-      })
-      .from(entryCertificates)
-      .leftJoin(products, eq(entryCertificates.productId, products.id))
-      .leftJoin(productBase, eq(products.baseProductId, productBase.id))
-      .leftJoin(productSubcategories, eq(productBase.subcategoryId, productSubcategories.id))
-      .leftJoin(productCategories, eq(productSubcategories.categoryId, productCategories.id))
-      .where(and(
-        eq(entryCertificates.tenantId, user.tenantId),
-        eq(entryCertificates.status, 'Aprovado'),
-        gte(entryCertificates.entryDate, startDateStr)
-      ));
-
-      // Se não há dados, retornar resultado vazio
-      if (subcategoryVolumeData.length === 0) {
-        return res.json({
-          subcategories: [],
-          summary: {
-            totalSubcategories: 0,
-            totalVolume: 0,
-            totalCertificates: 0,
-            totalProducts: 0,
-            period,
-          }
-        });
-      }
-
-      // Buscar dados de vendas para calcular saldo de estoque
-      const entryIds = subcategoryVolumeData.map(item => item.entryId);
-      const salesData = await db.select({
-        entryCertificateId: issuedCertificates.entryCertificateId,
-        soldQuantity: issuedCertificates.soldQuantity,
-      })
-      .from(issuedCertificates)
-      .where(and(
-        eq(issuedCertificates.tenantId, user.tenantId),
-        inArray(issuedCertificates.entryCertificateId, entryIds)
-      ));
-
-      // Processar dados por subcategoria
-      const subcategoryStats = subcategoryVolumeData.reduce((acc, item) => {
-        const subcategoryId = item.subcategoryId || 'sem-subcategoria';
-        const subcategoryName = item.subcategoryName || 'Sem Subcategoria';
-        const categoryName = item.categoryName || 'Sem Categoria';
-
-        // Inicializar subcategoria se não existir
-        if (!acc[subcategoryId]) {
-          acc[subcategoryId] = {
-            subcategoryId,
-            subcategoryName,
-            categoryName,
-            totalEntryVolume: 0,
-            totalSoldVolume: 0,
-            availableVolume: 0,
-            certificatesCount: 0,
-            productsCount: new Set(),
-            entries: {},
-          };
-        }
-
-        const receivedQty = parseFloat(item.receivedQuantity || '0');
-        
-        // Adicionar volumes de entrada
-        acc[subcategoryId].totalEntryVolume += receivedQty;
-        acc[subcategoryId].certificatesCount += 1;
-        
-        // Contar produtos únicos
-        if (item.productId) {
-          acc[subcategoryId].productsCount.add(item.productId);
-        }
-
-        // Armazenar informações da entrada para calcular vendas
-        acc[subcategoryId].entries[item.entryId] = {
-          entryId: item.entryId,
-          receivedQuantity: receivedQty,
-          productName: item.productName || item.commercialName,
-          soldQuantity: 0, // Será preenchido abaixo
-        };
-
-        return acc;
-      }, {} as any);
-
-      // Adicionar dados de vendas
-      salesData.forEach(sale => {
-        const entryId = sale.entryCertificateId;
-        const soldQty = parseFloat(sale.soldQuantity || '0');
-        
-        // Encontrar a subcategoria que contém esta entrada
-        Object.values(subcategoryStats).forEach((subcategory: any) => {
-          if (subcategory.entries[entryId]) {
-            subcategory.entries[entryId].soldQuantity += soldQty;
-            subcategory.totalSoldVolume += soldQty;
-          }
-        });
-      });
-
-      // Calcular volume disponível e formatar dados finais
-      const formattedData = Object.values(subcategoryStats).map((subcategory: any) => {
-        const availableVolume = Math.max(0, subcategory.totalEntryVolume - subcategory.totalSoldVolume);
-        
-        return {
-          ...subcategory,
-          productsCount: subcategory.productsCount.size,
-          availableVolume: Math.round(availableVolume * 100) / 100,
-          totalEntryVolume: Math.round(subcategory.totalEntryVolume * 100) / 100,
-          totalSoldVolume: Math.round(subcategory.totalSoldVolume * 100) / 100,
-          turnoverRate: subcategory.totalEntryVolume > 0 
-            ? Math.round((subcategory.totalSoldVolume / subcategory.totalEntryVolume) * 100 * 100) / 100
-            : 0,
-          entries: Object.values(subcategory.entries),
-          percentage: 0, // Será calculado abaixo
-        };
-      });
-
-      // Calcular percentuais
-      const totalVolume = formattedData.reduce((sum, sub) => sum + sub.totalEntryVolume, 0);
-      formattedData.forEach(subcategory => {
-        subcategory.percentage = totalVolume > 0 
-          ? Math.round((subcategory.totalEntryVolume / totalVolume) * 100 * 100) / 100 
-          : 0;
-      });
-
-      // Ordenar por volume disponível (maior para menor)
-      formattedData.sort((a, b) => b.availableVolume - a.availableVolume);
-
-      res.json({
-        subcategories: formattedData,
-        summary: {
-          totalSubcategories: formattedData.length,
-          totalVolume: Math.round(totalVolume * 100) / 100,
-          totalAvailableVolume: Math.round(formattedData.reduce((sum, sub) => sum + sub.availableVolume, 0) * 100) / 100,
-          totalSoldVolume: Math.round(formattedData.reduce((sum, sub) => sum + sub.totalSoldVolume, 0) * 100) / 100,
-          totalCertificates: formattedData.reduce((sum, sub) => sum + sub.certificatesCount, 0),
-          totalProducts: formattedData.reduce((sum, sub) => sum + sub.productsCount, 0),
-          averageTurnoverRate: formattedData.length > 0
-            ? Math.round(formattedData.reduce((sum, sub) => sum + sub.turnoverRate, 0) / formattedData.length * 100) / 100
-            : 0,
-          period,
-        }
-      });
-      */
     } catch (error) {
       console.error('Erro ao buscar dados de volume por subcategoria:', error);
       next(error);
@@ -4760,335 +4793,132 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const user = req.user!;
       
-      // Retornar dados de exemplo com valores para debug
-      res.json({
-        productBases: [
-          {
-            baseProductId: 'demo-base-1',
-            baseProductName: 'Ácido Acético P.A.',
-            subcategoryName: 'Ácidos Orgânicos',
-            categoryName: 'Produtos Químicos',
-            measureUnit: 'L',
-            totalEntryVolume: 500.0,
-            totalSoldVolume: 250.0,
-            availableVolume: 250.0,
-            certificatesCount: 3,
-            variantsCount: 2,
-            suppliersCount: 1,
-            turnoverRate: 50.0,
-            batchesCount: 3,
-            activeBatchesCount: 2,
-            latestEntryDate: '2024-12-01',
-            oldestExpirationDate: '2025-03-15',
-            daysUntilOldestExpiration: 100,
-            batches: [
-              {
-                entryId: 1,
-                receivedQuantity: 200.0,
-                soldQuantity: 100.0,
-                availableQuantity: 100.0,
-                entryDate: '2024-12-01',
-                expirationDate: '2025-03-15',
-                internalLot: 'LOT001',
-                supplierLot: 'SUP123',
-                productName: 'Ácido Acético P.A. 1L',
-                supplierName: 'Química Brasil Ltda',
-                turnoverRate: 50.0,
-                daysUntilExpiration: 100
-              }
-            ]
-          },
-          {
-            baseProductId: 'demo-base-2',
-            baseProductName: 'Hidróxido de Sódio',
-            subcategoryName: 'Bases Inorgânicas',
-            categoryName: 'Produtos Químicos',
-            measureUnit: 'kg',
-            totalEntryVolume: 1000.0,
-            totalSoldVolume: 800.0,
-            availableVolume: 200.0,
-            certificatesCount: 5,
-            variantsCount: 1,
-            suppliersCount: 2,
-            turnoverRate: 80.0,
-            batchesCount: 5,
-            activeBatchesCount: 1,
-            latestEntryDate: '2024-11-15',
-            oldestExpirationDate: '2025-02-28',
-            daysUntilOldestExpiration: 85,
-            batches: [
-              {
-                entryId: 2,
-                receivedQuantity: 200.0,
-                soldQuantity: 0.0,
-                availableQuantity: 200.0,
-                entryDate: '2024-11-15',
-                expirationDate: '2025-02-28',
-                internalLot: 'LOT002',
-                supplierLot: 'SUP456',
-                productName: 'Hidróxido de Sódio 25kg',
-                supplierName: 'Distribuidora Química XYZ',
-                turnoverRate: 0.0,
-                daysUntilExpiration: 85
-              }
-            ]
-          }
-        ],
-        summary: {
-          totalProductBases: 2,
-          displayedProductBases: 2,
-          totalVolume: 1500.0,
-          totalAvailableVolume: 450.0,
-          totalSoldVolume: 1050.0,
-          totalCertificates: 8,
-          totalBatches: 8,
-          totalActiveBatches: 3,
-          averageTurnoverRate: 65.0,
-          productBasesWithStock: 2,
-          productBasesNearExpiration: 1,
-          period: '365d',
-          limit: 20,
-        }
-      });
-      return;
+      // Buscar dados reais de produtos base
+      const limit = parseInt(req.query.limit as string) || 20;
       
-      /*
-      const user = req.user!;
-      const period = req.query.period as string || '365d'; // Para estoque, usar período maior por padrão
-      const limit = parseInt(req.query.limit as string) || 50; // Limitar número de produtos
-      
-      // Calcular data de início baseada no período
-      let startDate = new Date();
-      switch (period) {
-        case '90d':
-          startDate.setDate(startDate.getDate() - 90);
-          break;
-        case '180d':
-          startDate.setDate(startDate.getDate() - 180);
-          break;
-        case '1y':
-        case '365d':
-          startDate.setFullYear(startDate.getFullYear() - 1);
-          break;
-        default: // 365d
-          startDate.setFullYear(startDate.getFullYear() - 1);
-      }
-      const startDateStr = startDate.toISOString().split('T')[0];
-
-      // Buscar todas as entradas e seus produtos base
-      const productBaseVolumeData = await db.select({
-        entryId: entryCertificates.id,
-        receivedQuantity: entryCertificates.receivedQuantity,
-        entryDate: entryCertificates.entryDate,
-        expirationDate: entryCertificates.expirationDate,
-        internalLot: entryCertificates.internalLot,
-        supplierLot: entryCertificates.supplierLot,
-        productId: products.id,
-        productName: products.technicalName,
-        commercialName: products.commercialName,
+      const productBaseData = await db.select({
         baseProductId: productBase.id,
-        baseProductName: productBase.technicalName,
-        baseCommercialName: productBase.commercialName,
-        measureUnit: productBase.defaultMeasureUnit,
-        subcategoryId: productBase.subcategoryId,
+        baseProductName: productBase.name,
         subcategoryName: productSubcategories.name,
         categoryName: productCategories.name,
-        supplierId: entryCertificates.supplierId,
-        supplierName: suppliers.name,
+        measureUnit: productBase.measureUnit,
       })
-      .from(entryCertificates)
-      .leftJoin(products, eq(entryCertificates.productId, products.id))
-      .leftJoin(productBase, eq(products.baseProductId, productBase.id))
-      .leftJoin(productSubcategories, eq(productBase.subcategoryId, productSubcategories.id))
-      .leftJoin(productCategories, eq(productSubcategories.categoryId, productCategories.id))
-      .leftJoin(suppliers, eq(entryCertificates.supplierId, suppliers.id))
-      .where(and(
-        eq(entryCertificates.tenantId, user.tenantId),
-        eq(entryCertificates.status, 'Aprovado'),
-        gte(entryCertificates.entryDate, startDateStr)
-      ))
-      .orderBy(desc(entryCertificates.entryDate));
+      .from(productBase)
+      .innerJoin(productSubcategories, eq(productBase.subcategoryId, productSubcategories.id))
+      .innerJoin(productCategories, eq(productSubcategories.categoryId, productCategories.id))
+      .where(eq(productBase.tenantId, user.tenantId))
+      .limit(limit);
 
-      // Se não há dados, retornar resultado vazio
-      if (productBaseVolumeData.length === 0) {
-        return res.json({
-          productBases: [],
-          summary: {
-            totalProductBases: 0,
-            totalVolume: 0,
-            totalAvailableVolume: 0,
-            totalCertificates: 0,
-            period,
-          }
-        });
-      }
+      // Para cada produto base, calcular volumes e estatísticas
+      const productBasesWithVolume = await Promise.all(
+        productBaseData.map(async (base) => {
+          // Buscar certificados de entrada para este produto base
+          const entryData = await db.select({
+            entryId: entryCertificates.id,
+            receivedQuantity: entryCertificates.receivedQuantity,
+            entryDate: entryCertificates.receiveDate,
+            expirationDate: entryCertificates.expirationDate,
+            internalLot: entryCertificates.internalLot,
+            supplierLot: entryCertificates.supplierLot,
+            productName: products.name,
+            supplierName: suppliers.name,
+          })
+          .from(entryCertificates)
+          .innerJoin(products, eq(entryCertificates.productId, products.id))
+          .innerJoin(suppliers, eq(entryCertificates.supplierId, suppliers.id))
+          .where(and(
+            eq(entryCertificates.tenantId, user.tenantId),
+            eq(products.baseProductId, base.baseProductId)
+          ));
 
-      // Buscar dados de vendas para todos os lotes
-      const entryIds = productBaseVolumeData.map(item => item.entryId);
-      const salesData = await db.select({
-        entryCertificateId: issuedCertificates.entryCertificateId,
-        soldQuantity: issuedCertificates.soldQuantity,
-        issueDate: issuedCertificates.issueDate,
-      })
-      .from(issuedCertificates)
-      .where(and(
-        eq(issuedCertificates.tenantId, user.tenantId),
-        inArray(issuedCertificates.entryCertificateId, entryIds)
-      ));
+          // Calcular volumes totais
+          const totalEntryVolume = entryData.reduce((sum, entry) => 
+            sum + parseFloat(entry.receivedQuantity || '0'), 0);
 
-      // Processar dados por produto base
-      const productBaseStats = productBaseVolumeData.reduce((acc, item) => {
-        const baseProductId = item.baseProductId || 'sem-produto-base';
-        const baseProductName = item.baseProductName || item.baseCommercialName || 'Produto Base não encontrado';
+          // Buscar certificados emitidos para calcular vendas
+          const soldVolumes = await db.select({
+            totalSold: sql<number>`SUM(CAST(${issuedCertificates.soldQuantity} AS DECIMAL))`
+          })
+          .from(issuedCertificates)
+          .innerJoin(entryCertificates, eq(issuedCertificates.entryCertificateId, entryCertificates.id))
+          .innerJoin(products, eq(entryCertificates.productId, products.id))
+          .where(and(
+            eq(issuedCertificates.tenantId, user.tenantId),
+            eq(products.baseProductId, base.baseProductId)
+          ));
 
-        // Inicializar produto base se não existir
-        if (!acc[baseProductId]) {
-          acc[baseProductId] = {
-            baseProductId,
-            baseProductName,
-            subcategoryName: item.subcategoryName || 'Sem subcategoria',
-            categoryName: item.categoryName || 'Sem categoria',
-            measureUnit: item.measureUnit || 'UN',
-            totalEntryVolume: 0,
-            totalSoldVolume: 0,
-            availableVolume: 0,
-            certificatesCount: 0,
-            variantsCount: new Set(),
-            suppliersCount: new Set(),
-            batches: {},
-            latestEntryDate: null,
-            oldestExpirationDate: null,
-          };
-        }
+          const totalSoldVolume = Number(soldVolumes[0]?.totalSold || 0);
+          const availableVolume = totalEntryVolume - totalSoldVolume;
+          const turnoverRate = totalEntryVolume > 0 ? (totalSoldVolume / totalEntryVolume) * 100 : 0;
 
-        const receivedQty = parseFloat(item.receivedQuantity || '0');
-        
-        // Adicionar volumes de entrada
-        acc[baseProductId].totalEntryVolume += receivedQty;
-        acc[baseProductId].certificatesCount += 1;
-        
-        // Contar variantes únicas
-        if (item.productId) {
-          acc[baseProductId].variantsCount.add(item.productId);
-        }
-
-        // Contar fornecedores únicos
-        if (item.supplierId) {
-          acc[baseProductId].suppliersCount.add(item.supplierId);
-        }
-
-        // Rastrear datas
-        const entryDate = new Date(item.entryDate);
-        const expirationDate = new Date(item.expirationDate);
-        
-        if (!acc[baseProductId].latestEntryDate || entryDate > acc[baseProductId].latestEntryDate) {
-          acc[baseProductId].latestEntryDate = entryDate;
-        }
-
-        if (!acc[baseProductId].oldestExpirationDate || expirationDate < acc[baseProductId].oldestExpirationDate) {
-          acc[baseProductId].oldestExpirationDate = expirationDate;
-        }
-
-        // Armazenar informações do lote
-        acc[baseProductId].batches[item.entryId] = {
-          entryId: item.entryId,
-          receivedQuantity: receivedQty,
-          soldQuantity: 0, // Será preenchido abaixo
-          availableQuantity: receivedQty,
-          entryDate: item.entryDate,
-          expirationDate: item.expirationDate,
-          internalLot: item.internalLot,
-          supplierLot: item.supplierLot,
-          productName: item.productName || item.commercialName,
-          supplierName: item.supplierName,
-        };
-
-        return acc;
-      }, {} as any);
-
-      // Adicionar dados de vendas
-      salesData.forEach(sale => {
-        const entryId = sale.entryCertificateId;
-        const soldQty = parseFloat(sale.soldQuantity || '0');
-        
-        // Encontrar o produto base que contém este lote
-        Object.values(productBaseStats).forEach((productBase: any) => {
-          if (productBase.batches[entryId]) {
-            productBase.batches[entryId].soldQuantity += soldQty;
-            productBase.totalSoldVolume += soldQty;
-          }
-        });
-      });
-
-      // Calcular volumes disponíveis e formatar dados finais
-      const formattedData = Object.values(productBaseStats).map((productBase: any) => {
-        const availableVolume = Math.max(0, productBase.totalEntryVolume - productBase.totalSoldVolume);
-        
-        // Calcular estatísticas dos lotes
-        const batches = Object.values(productBase.batches).map((batch: any) => {
-          const batchAvailable = Math.max(0, batch.receivedQuantity - batch.soldQuantity);
           return {
-            ...batch,
-            availableQuantity: Math.round(batchAvailable * 100) / 100,
-            soldQuantity: Math.round(batch.soldQuantity * 100) / 100,
-            receivedQuantity: Math.round(batch.receivedQuantity * 100) / 100,
-            turnoverRate: batch.receivedQuantity > 0 
-              ? Math.round((batch.soldQuantity / batch.receivedQuantity) * 100 * 100) / 100
-              : 0,
-            daysUntilExpiration: Math.ceil((new Date(batch.expirationDate).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)),
+            baseProductId: base.baseProductId.toString(),
+            baseProductName: base.baseProductName,
+            subcategoryName: base.subcategoryName,
+            categoryName: base.categoryName,
+            measureUnit: base.measureUnit,
+            totalEntryVolume: Number(totalEntryVolume),
+            totalSoldVolume,
+            availableVolume: Number(availableVolume),
+            certificatesCount: entryData.length,
+            variantsCount: 0, // Calcular se necessário
+            suppliersCount: 0, // Calcular se necessário
+            turnoverRate: Number(turnoverRate.toFixed(1)),
+            batchesCount: entryData.length,
+            activeBatchesCount: entryData.filter(entry => 
+              Number(availableVolume) > 0).length,
+            latestEntryDate: entryData.length > 0 ? 
+              entryData.sort((a, b) => new Date(b.entryDate || '').getTime() - new Date(a.entryDate || '').getTime())[0].entryDate : null,
+            oldestExpirationDate: entryData.length > 0 ?
+              entryData.sort((a, b) => new Date(a.expirationDate || '').getTime() - new Date(b.expirationDate || '').getTime())[0].expirationDate : null,
+            daysUntilOldestExpiration: 0, // Calcular se necessário
+            batches: entryData.map(entry => ({
+              entryId: entry.entryId,
+              receivedQuantity: parseFloat(entry.receivedQuantity || '0'),
+              soldQuantity: 0, // Calcular se necessário
+              availableQuantity: parseFloat(entry.receivedQuantity || '0'), // Simplificado
+              entryDate: entry.entryDate,
+              expirationDate: entry.expirationDate,
+              internalLot: entry.internalLot,
+              supplierLot: entry.supplierLot,
+              productName: entry.productName,
+              supplierName: entry.supplierName,
+              turnoverRate: 0, // Calcular se necessário
+              daysUntilExpiration: 0 // Calcular se necessário
+            }))
           };
-        });
+        })
+      );
 
-        // Ordenar lotes por data de vencimento (mais próximo primeiro)
-        batches.sort((a, b) => new Date(a.expirationDate).getTime() - new Date(b.expirationDate).getTime());
-
-        return {
-          ...productBase,
-          variantsCount: productBase.variantsCount.size,
-          suppliersCount: productBase.suppliersCount.size,
-          availableVolume: Math.round(availableVolume * 100) / 100,
-          totalEntryVolume: Math.round(productBase.totalEntryVolume * 100) / 100,
-          totalSoldVolume: Math.round(productBase.totalSoldVolume * 100) / 100,
-          turnoverRate: productBase.totalEntryVolume > 0 
-            ? Math.round((productBase.totalSoldVolume / productBase.totalEntryVolume) * 100 * 100) / 100
-            : 0,
-          batchesCount: batches.length,
-          activeBatchesCount: batches.filter(b => b.availableQuantity > 0).length,
-          batches: batches,
-          latestEntryDate: productBase.latestEntryDate ? productBase.latestEntryDate.toISOString().split('T')[0] : null,
-          oldestExpirationDate: productBase.oldestExpirationDate ? productBase.oldestExpirationDate.toISOString().split('T')[0] : null,
-          daysUntilOldestExpiration: productBase.oldestExpirationDate 
-            ? Math.ceil((productBase.oldestExpirationDate.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))
-            : null,
-        };
-      });
-
-      // Ordenar por volume disponível (maior para menor) e aplicar limite
-      const sortedData = formattedData
-        .sort((a, b) => b.availableVolume - a.availableVolume)
-        .slice(0, limit);
+      // Calcular totais
+      const totalVolume = productBasesWithVolume.reduce((sum, base) => sum + base.totalEntryVolume, 0);
+      const totalAvailableVolume = productBasesWithVolume.reduce((sum, base) => sum + base.availableVolume, 0);
+      const totalSoldVolume = productBasesWithVolume.reduce((sum, base) => sum + base.totalSoldVolume, 0);
+      const totalCertificates = productBasesWithVolume.reduce((sum, base) => sum + base.certificatesCount, 0);
+      const totalBatches = productBasesWithVolume.reduce((sum, base) => sum + base.batchesCount, 0);
+      const totalActiveBatches = productBasesWithVolume.reduce((sum, base) => sum + base.activeBatchesCount, 0);
+      const averageTurnoverRate = productBasesWithVolume.length > 0
+        ? productBasesWithVolume.reduce((sum, base) => sum + base.turnoverRate, 0) / productBasesWithVolume.length
+        : 0;
 
       res.json({
-        productBases: sortedData,
+        productBases: productBasesWithVolume,
         summary: {
-          totalProductBases: formattedData.length,
-          displayedProductBases: sortedData.length,
-          totalVolume: Math.round(formattedData.reduce((sum, pb) => sum + pb.totalEntryVolume, 0) * 100) / 100,
-          totalAvailableVolume: Math.round(formattedData.reduce((sum, pb) => sum + pb.availableVolume, 0) * 100) / 100,
-          totalSoldVolume: Math.round(formattedData.reduce((sum, pb) => sum + pb.totalSoldVolume, 0) * 100) / 100,
-          totalCertificates: formattedData.reduce((sum, pb) => sum + pb.certificatesCount, 0),
-          totalBatches: formattedData.reduce((sum, pb) => sum + pb.batchesCount, 0),
-          totalActiveBatches: formattedData.reduce((sum, pb) => sum + pb.activeBatchesCount, 0),
-          averageTurnoverRate: formattedData.length > 0
-            ? Math.round(formattedData.reduce((sum, pb) => sum + pb.turnoverRate, 0) / formattedData.length * 100) / 100
-            : 0,
-          productBasesWithStock: formattedData.filter(pb => pb.availableVolume > 0).length,
-          productBasesNearExpiration: formattedData.filter(pb => pb.daysUntilOldestExpiration !== null && pb.daysUntilOldestExpiration <= 90).length,
-          period,
+          totalProductBases: productBasesWithVolume.length,
+          displayedProductBases: productBasesWithVolume.length,
+          totalVolume,
+          totalAvailableVolume,
+          totalSoldVolume,
+          totalCertificates,
+          totalBatches,
+          totalActiveBatches,
+          averageTurnoverRate: Number(averageTurnoverRate.toFixed(1)),
+          productBasesWithStock: productBasesWithVolume.filter(base => base.availableVolume > 0).length,
+          productBasesNearExpiration: 0, // Calcular se necessário
+          period: '365d',
           limit,
         }
       });
-      */
     } catch (error) {
       console.error('Erro ao buscar dados de volume por produto base:', error);
       next(error);

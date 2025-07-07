@@ -21,10 +21,12 @@ import SettingsPage from "@/pages/settings-page";
 // Páginas de Administração
 import AdminDashboardPage from "@/pages/admin/index";
 import AdminTenantsPage from "@/pages/admin/tenants-page";
-import AdminPlansPage from "@/pages/admin/plans-page";
+import AdminPlansPage from "@/pages/admin/plans-redesigned";
 import AdminStoragePage from "@/pages/admin/storage-page";
 import AdminUsersPage from "@/pages/admin/users-page";
 import AdminModuleFeaturesPage from "@/pages/admin/module-features-page";
+import AdminModulesPage from "@/pages/admin/modules-redesigned";
+import AdminSettingsAdvancedPage from "@/pages/admin/settings-advanced";
 import { ProtectedRoute } from "./lib/protected-route";
 import { AdminRoute } from "./lib/admin-route";
 import { AuthProvider } from "./hooks/use-auth";
@@ -61,7 +63,9 @@ function Router() {
       <AdminRoute path="/admin/plans" component={AdminPlansPage} />
       <AdminRoute path="/admin/storage" component={AdminStoragePage} />
       <AdminRoute path="/admin/users" component={AdminUsersPage} />
+      <AdminRoute path="/admin/modules" component={AdminModulesPage} />
       <AdminRoute path="/admin/module-features" component={AdminModuleFeaturesPage} />
+      <AdminRoute path="/admin/settings-advanced" component={AdminSettingsAdvancedPage} />
       
       <Route component={NotFound} />
     </Switch>

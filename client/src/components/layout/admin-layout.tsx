@@ -77,12 +77,6 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
             title="Visão Geral"
             isActive={location === "/admin"}
           />
-          <SidebarItem
-            href="/admin/analytics"
-            icon={<BarChart3 className="h-4 w-4" />}
-            title="Analytics"
-            isActive={location === "/admin/analytics"}
-          />
           
           <Separator className="my-3" />
           
@@ -102,12 +96,6 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
             title="Planos & Preços"
             isActive={location === "/admin/plans"}
           />
-          <SidebarItem
-            href="/admin/subscriptions"
-            icon={<Monitor className="h-4 w-4" />}
-            title="Assinaturas"
-            isActive={location === "/admin/subscriptions"}
-          />
           
           <Separator className="my-3" />
           
@@ -122,16 +110,10 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
             isActive={location === "/admin/modules"}
           />
           <SidebarItem
-            href="/admin/features"
+            href="/admin/module-features"
             icon={<Puzzle className="h-4 w-4" />}
             title="Funcionalidades"
-            isActive={location === "/admin/features"}
-          />
-          <SidebarItem
-            href="/admin/module-plans"
-            icon={<Layers className="h-4 w-4" />}
-            title="Associações"
-            isActive={location === "/admin/module-plans"}
+            isActive={location === "/admin/module-features"}
           />
           
           <Separator className="my-3" />
@@ -153,16 +135,10 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
             isActive={location === "/admin/storage"}
           />
           <SidebarItem
-            href="/admin/security"
-            icon={<ShieldCheck className="h-4 w-4" />}
-            title="Segurança"
-            isActive={location === "/admin/security"}
-          />
-          <SidebarItem
-            href="/admin/settings"
+            href="/admin/settings-advanced"
             icon={<Settings className="h-4 w-4" />}
-            title="Configurações"
-            isActive={location === "/admin/settings"}
+            title="Configurações do Sistema"
+            isActive={location === "/admin/settings-advanced"}
           />
         </div>
         

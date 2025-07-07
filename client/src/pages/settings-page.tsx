@@ -76,6 +76,7 @@ const newUserSchema = z.object({
   password: z.string().min(6, "Senha deve ter pelo menos 6 caracteres"),
   confirmPassword: z.string().min(1, "Confirme a senha"),
   role: z.string().min(1, "Perfil é obrigatório"),
+  tenantId: z.string().optional(), // Only for admin users
 }).refine(data => data.password === data.confirmPassword, {
   message: "As senhas não coincidem",
   path: ["confirmPassword"],
@@ -142,8 +143,16 @@ export default function SettingsPage() {
   
   // Fetch users for tenant
   const { data: users, isLoading: isLoadingUsers } = useQuery({
-    queryKey: ["/api/users"],
-    enabled: !!user,
+    queryKey: user?.role === "admin" ? ["/api/admin/users"] : ["/api/tenant/users"],
+    queryFn: () => apiRequest(user?.role === "admin" ? "/api/admin/users" : "/api/tenant/users"),
+    enabled: !!user && (user.role === "admin" || user.role === "admin_tenant"),
+  });
+
+  // Fetch user limits for tenant admins
+  const { data: userLimits, isLoading: isLoadingLimits } = useQuery({
+    queryKey: ["/api/tenant/user-limits"],
+    queryFn: () => apiRequest("/api/tenant/user-limits"),
+    enabled: !!user && user.role === "admin_tenant",
   });
   
   // Fetch package types
@@ -222,19 +231,30 @@ export default function SettingsPage() {
   // Add new user
   const addUserMutation = useMutation({
     mutationFn: async (data: NewUserFormValues) => {
-      const payload = {
+      const endpoint = user?.role === "admin" ? "/api/admin/users" : "/api/tenant/users";
+      const payload = user?.role === "admin" ? {
         name: data.name,
         username: data.username,
         password: data.password,
         role: data.role,
-        tenantId: user?.tenantId,
+        tenantId: data.tenantId || user?.tenantId,
+        active: true,
+      } : {
+        name: data.name,
+        username: data.username,
+        password: data.password,
+        role: data.role,
         active: true,
       };
       
-      await apiRequest("POST", "/api/register", payload);
+      await apiRequest("POST", endpoint, payload);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/users"] });
+      const queryKey = user?.role === "admin" ? ["/api/admin/users"] : ["/api/tenant/users"];
+      queryClient.invalidateQueries({ queryKey });
+      if (user?.role === "admin_tenant") {
+        queryClient.invalidateQueries({ queryKey: ["/api/tenant/user-limits"] });
+      }
       setIsAddUserDialogOpen(false);
       newUserForm.reset();
       toast({
@@ -467,7 +487,12 @@ export default function SettingsPage() {
               Seu Perfil
             </TabsTrigger>
 
-            {user?.role === "admin" && (
+            <TabsTrigger value="package-types" className="flex items-center">
+              <Package className="h-4 w-4 mr-2" />
+              Tipos de Embalagem
+            </TabsTrigger>
+            
+            {(user?.role === "admin" || user?.role === "admin_tenant") && (
               <TabsTrigger value="users" className="flex items-center">
                 <Shield className="h-4 w-4 mr-2" />
                 Usuários
@@ -867,17 +892,37 @@ export default function SettingsPage() {
             </Dialog>
           </TabsContent>
           
-          {user?.role === "admin" && (
+          {(user?.role === "admin" || user?.role === "admin_tenant") && (
             <TabsContent value="users">
+              {/* Alert com informações do plano para admin_tenant */}
+              {user?.role === "admin_tenant" && userLimits && (
+                <div className="mb-6">
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                    <h3 className="text-sm font-medium text-blue-800 mb-2">Informações do Plano</h3>
+                    <div className="text-sm text-blue-700">
+                      <p><strong>Plano:</strong> {userLimits.planName} ({userLimits.planCode})</p>
+                      <p><strong>Usuários:</strong> {userLimits.currentUsers}/{userLimits.maxUsers}</p>
+                      <p><strong>Tenant:</strong> {userLimits.tenantName}</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+              
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between">
                   <div>
                     <CardTitle>Gerenciar Usuários</CardTitle>
                     <CardDescription>
-                      Adicione e gerencie usuários com acesso ao sistema.
+                      {user?.role === "admin" 
+                        ? "Adicione e gerencie usuários com acesso ao sistema." 
+                        : "Gerencie os usuários do seu tenant."
+                      }
                     </CardDescription>
                   </div>
-                  <Button onClick={() => setIsAddUserDialogOpen(true)}>
+                  <Button 
+                    onClick={() => setIsAddUserDialogOpen(true)}
+                    disabled={user?.role === "admin_tenant" && userLimits && !userLimits.canAddUser}
+                  >
                     <UserPlus className="h-4 w-4 mr-2" />
                     Novo Usuário
                   </Button>
@@ -906,10 +951,14 @@ export default function SettingsPage() {
                             <TableCell>
                               {user.role === "admin" ? (
                                 <Badge className="bg-purple-100 text-purple-800 hover:bg-purple-100">
-                                  Administrador
+                                  Admin Global
+                                </Badge>
+                              ) : user.role === "admin_tenant" ? (
+                                <Badge className="bg-blue-100 text-blue-800 hover:bg-blue-100">
+                                  Admin Tenant
                                 </Badge>
                               ) : (
-                                <Badge className="bg-blue-100 text-blue-800 hover:bg-blue-100">
+                                <Badge className="bg-gray-100 text-gray-800 hover:bg-gray-100">
                                   Usuário
                                 </Badge>
                               )}
@@ -1027,13 +1076,41 @@ export default function SettingsPage() {
                               </FormControl>
                               <SelectContent>
                                 <SafeSelectItem value="user">Usuário</SafeSelectItem>
-                                <SafeSelectItem value="admin">Administrador</SafeSelectItem>
+                                {user?.role === "admin" && (
+                                  <>
+                                    <SafeSelectItem value="admin_tenant">Admin Tenant</SafeSelectItem>
+                                    <SafeSelectItem value="admin">Admin Global</SafeSelectItem>
+                                  </>
+                                )}
+                                {user?.role === "admin_tenant" && (
+                                  <SafeSelectItem value="admin_tenant">Admin Tenant</SafeSelectItem>
+                                )}
                               </SelectContent>
                             </Select>
                             <FormMessage />
                           </FormItem>
                         )}
                       />
+                      
+                      {/* Campo tenantId apenas para administradores globais */}
+                      {user?.role === "admin" && (
+                        <FormField
+                          control={newUserForm.control}
+                          name="tenantId"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Tenant ID (apenas para admin global)</FormLabel>
+                              <FormControl>
+                                <Input 
+                                  placeholder="ID do tenant (deixe vazio para usar o seu)" 
+                                  {...field} 
+                                />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      )}
                       
                       <div className="flex justify-end space-x-2 pt-4">
                         <Button

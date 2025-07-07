@@ -39,6 +39,10 @@ export interface IStorage {
   updateUser(id: number, user: Partial<User>): Promise<User | undefined>;
   getUsersByTenant(tenantId: number): Promise<User[]>;
   deleteUser(id: number): Promise<boolean>;
+  getUserCountByTenant(tenantId: number): Promise<number>;
+  canAddUserToTenant(tenantId: number): Promise<boolean>;
+  createSupportUserForTenant(tenantId: number): Promise<User>;
+  getTenantWithPlan(tenantId: number): Promise<{tenant: Tenant, plan: any} | undefined>;
 
   // Tenants
   getTenant(id: number): Promise<Tenant | undefined>;
@@ -369,6 +373,62 @@ export class MemStorage implements IStorage {
     return this.users.delete(id);
   }
 
+  async getUserCountByTenant(tenantId: number): Promise<number> {
+    return Array.from(this.users.values()).filter(
+      (user) => user.tenantId === tenantId && user.active
+    ).length;
+  }
+
+  async canAddUserToTenant(tenantId: number): Promise<boolean> {
+    const tenant = await this.getTenant(tenantId);
+    if (!tenant) {
+      return false;
+    }
+
+    // Para MemStorage, assumir plano básico com 5 usuários
+    const maxUsers = 5;
+    const currentUserCount = await this.getUserCountByTenant(tenantId);
+    
+    return currentUserCount < maxUsers;
+  }
+
+  async createSupportUserForTenant(tenantId: number): Promise<User> {
+    const { hashPassword } = await import('./auth');
+    const hashedPassword = await hashPassword('Bio12345');
+
+    const supportUser: User = {
+      id: this.userIdCounter++,
+      username: 'suporte',
+      name: 'Usuário de Suporte',
+      email: 'suporte@temp.local',
+      password: hashedPassword,
+      role: 'admin_tenant',
+      tenantId: tenantId,
+      active: true
+    };
+
+    this.users.set(supportUser.id, supportUser);
+    return supportUser;
+  }
+
+  async getTenantWithPlan(tenantId: number): Promise<{tenant: Tenant, plan: any} | undefined> {
+    const tenant = await this.getTenant(tenantId);
+    if (!tenant) {
+      return undefined;
+    }
+
+    // Para MemStorage, retornar um plano básico simulado
+    const plan = {
+      id: 1,
+      code: 'A',
+      name: 'Plano Básico',
+      maxUsers: 5,
+      storageLimit: 1024
+    };
+
+    return { tenant, plan };
+  }
+
   // Tenant methods
   async getTenant(id: number): Promise<Tenant | undefined> {
     return this.tenants.get(id);
@@ -393,6 +453,10 @@ export class MemStorage implements IStorage {
       planEndDate: tenant.planEndDate ?? null
     };
     this.tenants.set(id, newTenant);
+    
+    // Criar usuário de suporte automático para o tenant
+    await this.createSupportUserForTenant(newTenant.id);
+    
     return newTenant;
   }
 
@@ -1468,8 +1532,7 @@ export class MemStorage implements IStorage {
     return {
       ...existingPlan,
       ...plan,
-      updatedAt: new Date(),
-      maxStorage: plan.storageLimit || existingPlan.maxStorage
+      updatedAt: new Date()
     };
   }
   
@@ -1668,6 +1731,34 @@ export class DatabaseStorage implements IStorage {
     return (result.rowCount || 0) > 0;
   }
 
+  async getUserCountByTenant(tenantId: number): Promise<number> {
+    const [result] = await db.select({ count: sql<number>`count(*)` })
+      .from(users)
+      .where(and(eq(users.tenantId, tenantId), eq(users.active, true)));
+    return result.count;
+  }
+
+  async canAddUserToTenant(tenantId: number): Promise<boolean> {
+    // Buscar o tenant e seu plano
+    const tenant = await this.getTenant(tenantId);
+    if (!tenant) {
+      return false;
+    }
+
+    // Buscar o plano do tenant
+    const [plan] = await db.select().from(plans).where(eq(plans.id, tenant.planId));
+    if (!plan) {
+      return false;
+    }
+
+    // Contar usuários ativos no tenant
+    const currentUserCount = await this.getUserCountByTenant(tenantId);
+    
+    // Verificar se ainda há espaço
+    // O plano maxUsers inclui o usuário de suporte, então verificamos se ainda podemos adicionar mais usuários
+    return currentUserCount < plan.maxUsers;
+  }
+
   // Tenant methods
   async getTenant(id: number): Promise<Tenant | undefined> {
     const [tenant] = await db.select().from(tenants).where(eq(tenants.id, id));
@@ -1696,7 +1787,43 @@ export class DatabaseStorage implements IStorage {
       planStartDate: tenant.planStartDate ?? new Date(),
       planEndDate: tenant.planEndDate ?? null
     }).returning();
+
+    // Criar usuário de suporte automático para o tenant
+    await this.createSupportUserForTenant(newTenant.id);
+    
     return newTenant;
+  }
+
+  async createSupportUserForTenant(tenantId: number): Promise<User> {
+    const { hashPassword } = await import('./auth');
+    const hashedPassword = await hashPassword('Bio12345');
+
+    const [supportUser] = await db.insert(users).values({
+      username: 'suporte',
+      name: 'Usuário de Suporte',
+      email: 'suporte@temp.local',
+      password: hashedPassword,
+      role: 'admin_tenant',
+      tenantId: tenantId,
+      active: true
+    }).returning();
+
+    return supportUser;
+  }
+
+  async getTenantWithPlan(tenantId: number): Promise<{tenant: Tenant, plan: any} | undefined> {
+    const tenant = await this.getTenant(tenantId);
+    if (!tenant) {
+      return undefined;
+    }
+
+    // Buscar o plano do tenant
+    const [plan] = await db.select().from(plans).where(eq(plans.id, tenant.planId));
+    if (!plan) {
+      return undefined;
+    }
+
+    return { tenant, plan };
   }
 
   async updateTenant(id: number, tenantData: Partial<Tenant>): Promise<Tenant | undefined> {
@@ -2597,8 +2724,6 @@ export class DatabaseStorage implements IStorage {
     const [updatedPlan] = await db.update(plans)
       .set({
         ...plan,
-        // Mapear storageLimit se maxStorage foi fornecido
-        storageLimit: plan.maxStorage !== undefined ? plan.maxStorage : plan.storageLimit,
         updatedAt: new Date()
       })
       .where(eq(plans.id, id))
@@ -2606,10 +2731,7 @@ export class DatabaseStorage implements IStorage {
       
     if (!updatedPlan) return undefined;
     
-    return {
-      ...updatedPlan,
-      maxStorage: updatedPlan.storageLimit
-    };
+    return updatedPlan;
   }
   
   async deletePlan(id: number): Promise<boolean> {

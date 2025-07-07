@@ -181,7 +181,8 @@ export function Sidebar({ isMobile = false }: SidebarProps) {
           <div className="flex-1 min-w-0">
             <p className="text-sm font-medium truncate">{user?.name}</p>
             <p className="text-xs text-gray-500 truncate">
-              {user?.role === "admin" ? "Administrador" : "Usuário"}
+              {user?.role === "admin" ? "Administrador" : 
+               user?.role === "admin_tenant" ? "Admin Tenant" : "Usuário"}
             </p>
           </div>
           <button 

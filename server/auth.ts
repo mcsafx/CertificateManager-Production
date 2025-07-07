@@ -209,3 +209,12 @@ export function isTenantMember(tenantId: number) {
     res.status(403).json({ message: "Forbidden" });
   };
 }
+
+// Middleware to check if user is tenant admin
+export function isTenantAdmin(req: Request, res: Response, next: NextFunction) {
+  if (req.isAuthenticated() && req.user && 
+      ((req.user as SelectUser).role === "admin" || (req.user as SelectUser).role === "admin_tenant")) {
+    return next();
+  }
+  res.status(403).json({ message: "Forbidden" });
+}
