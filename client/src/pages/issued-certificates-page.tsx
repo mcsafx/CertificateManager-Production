@@ -70,6 +70,9 @@ export default function IssuedCertificatesPage() {
     refetch,
   } = useQuery<IssuedCertificate[]>({
     queryKey: ["/api/issued-certificates"],
+    refetchOnWindowFocus: true,
+    refetchOnMount: true,
+    staleTime: 0, // Always consider data stale to force refresh
   });
   
   // Fetch entry certificates for selection

@@ -10,6 +10,8 @@ import { InventoryTurnoverChart } from "@/components/analytics/inventory-turnove
 import { CategoryVolumeChart } from "@/components/analytics/category-volume-chart";
 import { SubcategoryVolumeChart } from "@/components/analytics/subcategory-volume-chart";
 import { ProductBaseVolumeChart } from "@/components/analytics/product-base-volume-chart";
+import { DashboardFilters } from "@/components/analytics/dashboard-filters";
+import { DashboardFiltersProvider } from "@/contexts/dashboard-filters-context";
 
 export default function HomePage() {
   const { user } = useAuth();
@@ -135,10 +137,14 @@ export default function HomePage() {
 
   return (
     <Layout>
-      <div className="p-6">
-        <div className="flex justify-between items-center mb-6">
-          <h1 className="text-2xl font-medium">Dashboard</h1>
-        </div>
+      <DashboardFiltersProvider>
+        <div className="p-6">
+          <div className="flex justify-between items-center mb-6">
+            <h1 className="text-2xl font-medium">Dashboard</h1>
+          </div>
+
+          {/* Filtros do Dashboard */}
+          <DashboardFilters />
         
         {isLoading ? (
           <div className="flex justify-center items-center h-64">
@@ -348,7 +354,8 @@ export default function HomePage() {
             </div>
           </>
         )}
-      </div>
+        </div>
+      </DashboardFiltersProvider>
     </Layout>
   );
 }

@@ -2,6 +2,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { ScatterChart, Scatter, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { TrendingUp, Package2, Zap } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
+import { useDashboardFilters } from "@/contexts/dashboard-filters-context";
 
 interface InventoryTurnoverData {
   data: Array<{
@@ -23,9 +24,24 @@ interface InventoryTurnoverData {
 }
 
 export function InventoryTurnoverChart() {
+  const { filters, getQueryParams } = useDashboardFilters();
+  
   const { data, isLoading, error } = useQuery<InventoryTurnoverData>({
-    queryKey: ["/api/analytics/inventory-turnover"],
-    staleTime: 10 * 60 * 1000, // Cache por 10 minutos
+    queryKey: ["/api/analytics/inventory-turnover", filters],
+    queryFn: async () => {
+      const params = getQueryParams();
+      
+      const response = await fetch(`/api/analytics/inventory-turnover?${params.toString()}`, {
+        credentials: 'include'
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch inventory turnover data');
+      }
+      
+      return response.json();
+    },
+    staleTime: 5 * 60 * 1000, // Cache por 5 minutos
     retry: 3,
   });
 

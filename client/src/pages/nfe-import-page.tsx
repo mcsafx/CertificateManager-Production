@@ -41,20 +41,33 @@ export default function NFeImportPage() {
   // Process NFe import mutation
   const processImportMutation = useMutation({
     mutationFn: async (processedData: any) => {
-      const response = await apiRequest('/api/nfe/import', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(processedData),
-      });
+      console.log('Starting NFe import with data:', processedData);
+      
+      try {
+        // Use direct fetch to debug the issue
+        const response = await fetch('/api/nfe/import', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+          },
+          body: JSON.stringify(processedData),
+          credentials: 'include',
+        });
+        
+        console.log('API response:', response);
 
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || 'Erro ao processar importação');
+        if (!response.ok) {
+          const error = await response.json();
+          console.error('API error response:', error);
+          throw new Error(error.message || 'Erro ao processar importação');
+        }
+
+        return response.json();
+      } catch (error) {
+        console.error('API request error:', error);
+        throw error;
       }
-
-      return response.json();
     },
     onSuccess: (data) => {
       setImportResults(data);

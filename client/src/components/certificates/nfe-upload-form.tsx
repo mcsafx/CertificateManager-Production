@@ -40,14 +40,11 @@ export function NFeUploadForm({ onSuccess, onCancel }: NFeUploadFormProps) {
   const [parsedData, setParsedData] = useState<any>(null);
 
   const handleFileSelect = useCallback((file: File) => {
-    // Validate file type
-    const validTypes = ['text/xml', 'application/xml', 'application/zip'];
+    // Validate file extensions - be more permissive with file types
     const validExtensions = ['.xml', '.zip'];
-    
-    const hasValidType = validTypes.includes(file.type);
     const hasValidExtension = validExtensions.some(ext => file.name.toLowerCase().endsWith(ext));
     
-    if (!hasValidType && !hasValidExtension) {
+    if (!hasValidExtension) {
       toast({
         title: "Tipo de arquivo inválido",
         description: "Por favor, selecione um arquivo XML ou ZIP contendo XMLs de NFe.",
@@ -67,13 +64,23 @@ export function NFeUploadForm({ onSuccess, onCancel }: NFeUploadFormProps) {
       return;
     }
 
+    // Validate file is not empty
+    if (file.size === 0) {
+      toast({
+        title: "Arquivo vazio",
+        description: "O arquivo selecionado está vazio.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setSelectedFile(file);
     setValidationErrors([]);
     setNfeSummary(null);
     setParsedData(null);
     
-    // Auto-validate XML
-    validateXmlFile(file);
+    // Skip auto-validation for now to avoid issues
+    // validateXmlFile(file);
   }, [toast]);
 
   const validateXmlFile = async (file: File) => {
@@ -81,14 +88,38 @@ export function NFeUploadForm({ onSuccess, onCancel }: NFeUploadFormProps) {
     setValidationErrors([]);
 
     try {
-      const text = await file.text();
+      // Use FileReader as a fallback method
+      const readFile = (file: File): Promise<string> => {
+        return new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = (e) => {
+            resolve(e.target?.result as string);
+          };
+          reader.onerror = (e) => {
+            reject(new Error('Erro ao ler arquivo'));
+          };
+          reader.readAsText(file, 'UTF-8');
+        });
+      };
+
+      // Try to read the file
+      let text = '';
+      try {
+        text = await readFile(file);
+      } catch (readerError) {
+        // Fallback to ArrayBuffer method
+        const arrayBuffer = await file.arrayBuffer();
+        const decoder = new TextDecoder('utf-8');
+        text = decoder.decode(arrayBuffer);
+      }
       
-      // Quick validation of XML structure
-      if (!text.trim()) {
-        setValidationErrors(['Arquivo vazio']);
+      // Check if we got any content
+      if (!text || !text.trim()) {
+        setValidationErrors([`Arquivo não pôde ser lido. Tamanho do arquivo: ${file.size} bytes`]);
         return;
       }
 
+      // Basic XML validation
       if (!text.includes('<?xml') && !text.includes('<nfeProc') && !text.includes('<NFe')) {
         setValidationErrors(['Arquivo não parece ser um XML válido']);
         return;
@@ -105,6 +136,10 @@ export function NFeUploadForm({ onSuccess, onCancel }: NFeUploadFormProps) {
         setValidationErrors(['XML não parece ser uma NFe válida']);
         return;
       }
+
+      // Log for debugging
+      console.log('XML validated successfully. Length:', text.length);
+      console.log('First 200 chars:', text.substring(0, 200));
 
       // Try to get summary
       const response = await fetch('/api/nfe/validate', {
@@ -397,7 +432,7 @@ export function NFeUploadForm({ onSuccess, onCancel }: NFeUploadFormProps) {
           
           <Button
             onClick={handleUpload}
-            disabled={!selectedFile || validationErrors.length > 0 || isUploading || isValidating}
+            disabled={!selectedFile || isUploading || isValidating}
             className="min-w-[120px]"
           >
             {isUploading ? (

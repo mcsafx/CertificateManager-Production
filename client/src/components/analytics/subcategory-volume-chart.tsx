@@ -3,6 +3,7 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 import { Package2, TrendingUp, Activity } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
+import { useDashboardFilters } from "@/contexts/dashboard-filters-context";
 
 interface SubcategoryVolumeData {
   subcategories: Array<{
@@ -37,9 +38,23 @@ interface SubcategoryVolumeData {
 
 export function SubcategoryVolumeChart() {
   const [selectedSubcategory, setSelectedSubcategory] = useState<string | null>(null);
+  const { filters, getQueryParams } = useDashboardFilters();
 
   const { data, isLoading, error } = useQuery<SubcategoryVolumeData>({
-    queryKey: ["/api/analytics/subcategory-volume"],
+    queryKey: ["/api/analytics/subcategory-volume", filters],
+    queryFn: async () => {
+      const params = getQueryParams();
+      
+      const response = await fetch(`/api/analytics/subcategory-volume?${params.toString()}`, {
+        credentials: 'include'
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch subcategory volume data');
+      }
+      
+      return response.json();
+    },
     staleTime: 15 * 60 * 1000, // Cache por 15 minutos
     retry: 3,
   });

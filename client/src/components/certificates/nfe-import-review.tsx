@@ -29,6 +29,7 @@ import {
   Save,
   X
 } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
 
 interface NFeImportData {
@@ -105,6 +106,9 @@ export function NFeImportReview({ importData, onConfirm, onCancel }: NFeImportRe
   const [selectedClientId, setSelectedClientId] = useState<number | null>(null);
   const [newClientData, setNewClientData] = useState<any>(null);
   const [productMappings, setProductMappings] = useState<{ [key: string]: number }>({});
+  const [selectedItems, setSelectedItems] = useState<{ [key: string]: boolean }>({});
+  const [selectedLots, setSelectedLots] = useState<{ [key: string]: number }>({});
+  const [showSupplierInfo, setShowSupplierInfo] = useState<boolean>(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [currentStep, setCurrentStep] = useState<'review' | 'client' | 'products' | 'confirm'>('review');
 
@@ -120,25 +124,69 @@ export function NFeImportReview({ importData, onConfirm, onCancel }: NFeImportRe
   });
 
   // Fetch entry certificates for product selection
-  const { data: entryCertificates } = useQuery({
+  const { data: entryCertificates, isLoading: loadingCertificates } = useQuery({
     queryKey: ['/api/entry-certificates'],
+    staleTime: 0, // Always refetch to get latest data
   });
 
+  // Function to get available lots for a product, ordered by expiration date (FEFO)
+  const getAvailableLots = (productId: number) => {
+    if (!entryCertificates || !productId) return [];
+    
+    // Filter certificates ONLY for the specific product ID
+    const filteredCerts = (entryCertificates || []).filter((cert: any) => {
+      const isCorrectProduct = cert.productId === productId;
+      const isApproved = cert.status === 'APPROVED' || cert.status === 'Aprovado';
+      return isCorrectProduct && isApproved;
+    });
+    
+    return filteredCerts
+      .sort((a: any, b: any) => new Date(a.expirationDate).getTime() - new Date(b.expirationDate).getTime())
+      .map((cert: any) => ({
+        id: cert.id,
+        internalLot: cert.internalLot,
+        supplierLot: cert.supplierLot,
+        manufacturingDate: cert.manufacturingDate,
+        expirationDate: cert.expirationDate,
+        receivedQuantity: cert.receivedQuantity,
+        measureUnit: cert.measureUnit,
+        daysToExpiration: Math.ceil((new Date(cert.expirationDate).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))
+      }));
+  };
+
   useEffect(() => {
-    // Pre-select found client
+    // Handle client resolution automatically
     if (importData.clientResolution?.action === 'found' && importData.clientResolution.client) {
       setSelectedClientId(importData.clientResolution.client.id);
+      setNewClientData(null);
+    } else if (importData.clientResolution?.action === 'create' && importData.clientResolution.suggestedData) {
+      // Auto-select creating new client when not found
+      setNewClientData(importData.clientResolution.suggestedData);
+      setSelectedClientId(null);
     }
 
-    // Pre-select exact product matches
+    // Pre-select exact product matches and mark items as selected
     if (importData.productMatches) {
       const mappings: { [key: string]: number } = {};
+      const selected: { [key: string]: boolean } = {};
+      const lots: { [key: string]: number } = {};
+      
       importData.productMatches.forEach((match, index) => {
         if (match.hasExactMatch && match.bestMatch) {
           mappings[index.toString()] = match.bestMatch.id;
+          selected[index.toString()] = true;
+          
+          // Auto-select first available lot for exact matches
+          const availableLots = getAvailableLots(match.bestMatch.id);
+          if (availableLots.length > 0) {
+            lots[index.toString()] = availableLots[0].id;
+          }
         }
       });
+      
       setProductMappings(mappings);
+      setSelectedItems(selected);
+      setSelectedLots(lots);
     }
   }, [importData]);
 
@@ -159,6 +207,29 @@ export function NFeImportReview({ importData, onConfirm, onCancel }: NFeImportRe
       ...prev,
       [itemIndex.toString()]: productId
     }));
+    
+    // Auto-select the first available lot (FEFO - First Expired, First Out)
+    const availableLots = getAvailableLots(productId);
+    if (availableLots.length > 0) {
+      setSelectedLots(prev => ({
+        ...prev,
+        [itemIndex.toString()]: availableLots[0].id
+      }));
+    }
+  };
+
+  const handleItemSelection = (itemIndex: number, checked: boolean) => {
+    setSelectedItems(prev => ({
+      ...prev,
+      [itemIndex.toString()]: checked
+    }));
+  };
+
+  const handleLotSelection = (itemIndex: number, lotId: number) => {
+    setSelectedLots(prev => ({
+      ...prev,
+      [itemIndex.toString()]: lotId
+    }));
   };
 
   const handleConfirmImport = async () => {
@@ -171,14 +242,36 @@ export function NFeImportReview({ importData, onConfirm, onCancel }: NFeImportRe
       return;
     }
 
-    const unmappedItems = importData.nfeData.itens.filter((_, index) => 
-      !productMappings[index.toString()]
+    const selectedItemIndexes = Object.keys(selectedItems).filter(key => selectedItems[key]);
+    const unmappedSelectedItems = selectedItemIndexes.filter(index => 
+      !productMappings[index]
+    );
+    const unselectedLots = selectedItemIndexes.filter(index => 
+      productMappings[index] && !selectedLots[index]
     );
 
-    if (unmappedItems.length > 0) {
+    if (unmappedSelectedItems.length > 0) {
       toast({
-        title: "Produtos não mapeados",
-        description: `${unmappedItems.length} item(ns) ainda não foram mapeados para produtos do sistema.`,
+        title: "Produtos selecionados não mapeados",
+        description: `${unmappedSelectedItems.length} item(ns) selecionados ainda não foram mapeados para produtos do sistema.`,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (unselectedLots.length > 0) {
+      toast({
+        title: "Lotes não selecionados",
+        description: `${unselectedLots.length} produto(s) ainda não têm lotes selecionados.`,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (selectedItemIndexes.length === 0) {
+      toast({
+        title: "Nenhum produto selecionado",
+        description: "Selecione pelo menos um produto para processar.",
         variant: "destructive",
       });
       return;
@@ -192,6 +285,9 @@ export function NFeImportReview({ importData, onConfirm, onCancel }: NFeImportRe
         clientId: selectedClientId,
         newClientData,
         productMappings,
+        selectedItems,
+        selectedLots,
+        showSupplierInfo,
       };
 
       if (onConfirm) {
@@ -275,7 +371,7 @@ export function NFeImportReview({ importData, onConfirm, onCancel }: NFeImportRe
             </div>
             <div>
               <Label className="text-sm font-medium text-gray-600">Destinatário</Label>
-              <div className="font-medium">{importData.nfeData.destinatario.nome}</div>
+              <div className="font-medium">{importData.nfeData.destinatario.razaoSocial}</div>
               <div className="text-sm text-gray-600">
                 {importData.nfeData.destinatario.cnpj ? formatCNPJ(importData.nfeData.destinatario.cnpj) : importData.nfeData.destinatario.cpf}
               </div>
@@ -409,9 +505,31 @@ export function NFeImportReview({ importData, onConfirm, onCancel }: NFeImportRe
         <TabsContent value="products" className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Package className="w-5 h-5" />
-                Mapeamento de Produtos
+              <CardTitle className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Package className="w-5 h-5" />
+                  Mapeamento de Produtos
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      const allSelected = Object.keys(selectedItems).every(key => selectedItems[key]);
+                      const newSelected: { [key: string]: boolean } = {};
+                      
+                      if (importData.productMatches) {
+                        importData.productMatches.forEach((_, index) => {
+                          newSelected[index.toString()] = !allSelected;
+                        });
+                      }
+                      
+                      setSelectedItems(newSelected);
+                    }}
+                  >
+                    {Object.keys(selectedItems).every(key => selectedItems[key]) ? "Deselecionar Todos" : "Selecionar Todos"}
+                  </Button>
+                </div>
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -419,12 +537,19 @@ export function NFeImportReview({ importData, onConfirm, onCancel }: NFeImportRe
                 {importData.productMatches?.map((match, index) => (
                   <div key={index} className="border rounded-lg p-4">
                     <div className="flex items-start justify-between mb-3">
-                      <div className="flex-1">
-                        <div className="font-medium">{match.nfeItem.descricao}</div>
-                        <div className="text-sm text-gray-600">
-                          Código: {match.nfeItem.codigo} | 
-                          Qtd: {match.nfeItem.quantidade} {match.nfeItem.unidade} | 
-                          Valor: {formatCurrency(match.nfeItem.valorTotal)}
+                      <div className="flex items-start gap-3 flex-1">
+                        <Checkbox
+                          id={`item-${index}`}
+                          checked={selectedItems[index.toString()] || false}
+                          onCheckedChange={(checked) => handleItemSelection(index, checked as boolean)}
+                        />
+                        <div className="flex-1">
+                          <div className="font-medium">{match.nfeItem.descricao}</div>
+                          <div className="text-sm text-gray-600">
+                            Código: {match.nfeItem.codigo} | 
+                            Qtd: {match.nfeItem.quantidade} {match.nfeItem.unidade} | 
+                            Valor: {formatCurrency(match.nfeItem.valorTotal)}
+                          </div>
                         </div>
                       </div>
                       {getProductMatchBadge(match)}
@@ -450,29 +575,109 @@ export function NFeImportReview({ importData, onConfirm, onCancel }: NFeImportRe
                         <Select
                           value={productMappings[index.toString()]?.toString() || ""}
                           onValueChange={(value) => handleProductMapping(index, parseInt(value))}
+                          disabled={!selectedItems[index.toString()]}
                         >
                           <SelectTrigger>
-                            <SelectValue placeholder="Selecione um produto..." />
+                            <SelectValue placeholder={
+                              selectedItems[index.toString()] 
+                                ? "Selecione um produto..." 
+                                : "Selecione o item acima primeiro"
+                            } />
                           </SelectTrigger>
                           <SelectContent>
-                            {match.matches.map((productMatch) => (
-                              <SelectItem key={productMatch.id} value={productMatch.id.toString()}>
-                                <div className="flex items-center justify-between w-full">
-                                  <span>{productMatch.technicalName}</span>
-                                  <Badge variant="outline" className="ml-2">
-                                    {Math.round(productMatch.similarity * 100)}%
-                                  </Badge>
-                                </div>
-                              </SelectItem>
-                            ))}
+                            {match.matches && match.matches.length > 0 ? (
+                              match.matches.map((productMatch) => (
+                                <SelectItem key={productMatch.id} value={productMatch.id.toString()}>
+                                  <div className="flex items-center justify-between w-full">
+                                    <span>{productMatch.technicalName}</span>
+                                    <Badge variant="outline" className="ml-2">
+                                      {Math.round(productMatch.similarity * 100)}%
+                                    </Badge>
+                                  </div>
+                                </SelectItem>
+                              ))
+                            ) : (
+                              (availableProducts || []).map((product: any) => (
+                                <SelectItem key={product.id} value={product.id.toString()}>
+                                  <div className="flex items-center justify-between w-full">
+                                    <span>{product.technicalName}</span>
+                                    <Badge variant="outline" className="ml-2">
+                                      Manual
+                                    </Badge>
+                                  </div>
+                                </SelectItem>
+                              ))
+                            )}
                           </SelectContent>
                         </Select>
 
-                        {match.matches.length > 0 && (
+                        {match.matches && match.matches.length > 0 ? (
                           <div className="text-sm text-gray-600">
                             {match.matches.length} produto(s) encontrado(s) com similaridade
                           </div>
+                        ) : (
+                          <div className="text-sm text-gray-600">
+                            {(availableProducts || []).length || 0} produto(s) disponíveis no sistema
+                          </div>
                         )}
+                      </div>
+                    )}
+
+                    {/* Lot Selection - Only show if product is selected and mapped */}
+                    {selectedItems[index.toString()] && productMappings[index.toString()] && (
+                      <div className="mt-4 p-3 bg-blue-50 rounded-lg">
+                        <Label className="text-sm font-medium text-blue-900">
+                          Seleção de Lote (Gestão FEFO - Primeiro a Vencer, Primeiro a Sair)
+                        </Label>
+                        <div className="mt-2">
+                          <Select
+                            value={selectedLots[index.toString()]?.toString() || ""}
+                            onValueChange={(value) => handleLotSelection(index, parseInt(value))}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Selecione um lote..." />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {getAvailableLots(productMappings[index.toString()]).map((lot: any) => (
+                                <SelectItem key={lot.id} value={lot.id.toString()}>
+                                  <div className="flex flex-col">
+                                    <div className="flex items-center justify-between w-full">
+                                      <span className="font-medium">{lot.internalLot}</span>
+                                      <Badge 
+                                        variant={lot.daysToExpiration <= 30 ? "destructive" : 
+                                                lot.daysToExpiration <= 90 ? "default" : "secondary"}
+                                        className="ml-2"
+                                      >
+                                        {lot.daysToExpiration}d
+                                      </Badge>
+                                    </div>
+                                    <div className="text-xs text-gray-600">
+                                      Lote: {lot.supplierLot} | Qtd: {lot.receivedQuantity} {lot.measureUnit}
+                                    </div>
+                                    <div className="text-xs text-gray-600">
+                                      Venc: {new Date(lot.expirationDate).toLocaleDateString('pt-BR')}
+                                    </div>
+                                  </div>
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          
+                          {loadingCertificates ? (
+                            <div className="text-sm text-blue-600 mt-1">
+                              Carregando lotes disponíveis...
+                            </div>
+                          ) : getAvailableLots(productMappings[index.toString()]).length === 0 ? (
+                            <div className="text-sm text-red-600 mt-1">
+                              Nenhum lote disponível para este produto
+                            </div>
+                          ) : (
+                            <div className="text-xs text-gray-600 mt-1">
+                              {getAvailableLots(productMappings[index.toString()]).length} lote(s) disponível(is), 
+                              ordenados por proximidade de vencimento
+                            </div>
+                          )}
+                        </div>
                       </div>
                     )}
                   </div>
@@ -500,12 +705,12 @@ export function NFeImportReview({ importData, onConfirm, onCancel }: NFeImportRe
                     {selectedClientId ? (
                       <>
                         <CheckCircle className="w-4 h-4 text-green-500" />
-                        <span className="text-sm">Cliente selecionado</span>
+                        <span className="text-sm">Cliente existente selecionado</span>
                       </>
                     ) : newClientData ? (
                       <>
                         <CheckCircle className="w-4 h-4 text-blue-500" />
-                        <span className="text-sm">Novo cliente será criado</span>
+                        <span className="text-sm">Novo cliente será criado automaticamente</span>
                       </>
                     ) : (
                       <>
@@ -514,25 +719,87 @@ export function NFeImportReview({ importData, onConfirm, onCancel }: NFeImportRe
                       </>
                     )}
                   </div>
+                  {newClientData && (
+                    <div className="text-xs text-gray-600 bg-blue-50 p-2 rounded">
+                      <strong>Novo cliente:</strong> {newClientData.name} - {newClientData.cnpj || newClientData.cpf}
+                    </div>
+                  )}
                 </div>
 
                 <div className="space-y-2">
                   <Label className="text-sm font-medium">Status dos Produtos</Label>
                   <div className="flex items-center gap-2">
-                    {Object.keys(productMappings).length === importData.nfeData.itens.length ? (
-                      <>
-                        <CheckCircle className="w-4 h-4 text-green-500" />
-                        <span className="text-sm">Todos os produtos mapeados</span>
-                      </>
-                    ) : (
-                      <>
-                        <AlertCircle className="w-4 h-4 text-yellow-500" />
-                        <span className="text-sm">
-                          {Object.keys(productMappings).length} de {importData.nfeData.itens.length} produtos mapeados
-                        </span>
-                      </>
-                    )}
+                    {(() => {
+                      const selectedCount = Object.keys(selectedItems).filter(key => selectedItems[key]).length;
+                      const mappedCount = Object.keys(selectedItems).filter(key => 
+                        selectedItems[key] && productMappings[key]
+                      ).length;
+                      const lotsSelectedCount = Object.keys(selectedItems).filter(key => 
+                        selectedItems[key] && productMappings[key] && selectedLots[key]
+                      ).length;
+                      
+                      if (selectedCount === 0) {
+                        return (
+                          <>
+                            <AlertCircle className="w-4 h-4 text-red-500" />
+                            <span className="text-sm">Nenhum produto selecionado</span>
+                          </>
+                        );
+                      } else if (mappedCount === selectedCount && lotsSelectedCount === selectedCount) {
+                        return (
+                          <>
+                            <CheckCircle className="w-4 h-4 text-green-500" />
+                            <span className="text-sm">
+                              {selectedCount} produto(s) com lotes selecionados
+                            </span>
+                          </>
+                        );
+                      } else if (mappedCount === selectedCount) {
+                        return (
+                          <>
+                            <AlertCircle className="w-4 h-4 text-yellow-500" />
+                            <span className="text-sm">
+                              {lotsSelectedCount} de {selectedCount} produto(s) com lotes selecionados
+                            </span>
+                          </>
+                        );
+                      } else {
+                        return (
+                          <>
+                            <AlertCircle className="w-4 h-4 text-yellow-500" />
+                            <span className="text-sm">
+                              {mappedCount} de {selectedCount} produto(s) mapeado(s)
+                            </span>
+                          </>
+                        );
+                      }
+                    })()}
                   </div>
+                </div>
+              </div>
+
+              {/* Certificate Options */}
+              <div className="pt-4 border-t space-y-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <Label className="text-sm font-medium">Opções do Certificado</Label>
+                    <p className="text-xs text-gray-600 mt-1">
+                      Configure como as informações serão exibidas nos certificados gerados
+                    </p>
+                  </div>
+                </div>
+                
+                <div className="flex items-center space-x-2">
+                  <input
+                    type="checkbox"
+                    id="showSupplierInfo"
+                    checked={showSupplierInfo}
+                    onChange={(e) => setShowSupplierInfo(e.target.checked)}
+                    className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                  />
+                  <Label htmlFor="showSupplierInfo" className="text-sm">
+                    Exibir informações do fornecedor, fabricante e país de origem no certificado
+                  </Label>
                 </div>
               </div>
 
@@ -546,7 +813,21 @@ export function NFeImportReview({ importData, onConfirm, onCancel }: NFeImportRe
                 
                 <Button
                   onClick={handleConfirmImport}
-                  disabled={isProcessing || (!selectedClientId && !newClientData) || Object.keys(productMappings).length !== importData.nfeData.itens.length}
+                  disabled={(() => {
+                    const selectedCount = Object.keys(selectedItems).filter(key => selectedItems[key]).length;
+                    const mappedCount = Object.keys(selectedItems).filter(key => 
+                      selectedItems[key] && productMappings[key]
+                    ).length;
+                    const lotsSelectedCount = Object.keys(selectedItems).filter(key => 
+                      selectedItems[key] && productMappings[key] && selectedLots[key]
+                    ).length;
+                    
+                    return isProcessing || 
+                           (!selectedClientId && !newClientData) || 
+                           selectedCount === 0 || 
+                           mappedCount !== selectedCount ||
+                           lotsSelectedCount !== selectedCount;
+                  })()}
                   className="min-w-[150px]"
                 >
                   {isProcessing ? (

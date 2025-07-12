@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Package, Clock, TrendingUp, AlertTriangle, Box } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
+import { useDashboardFilters } from "@/contexts/dashboard-filters-context";
 
 interface ProductBaseVolumeData {
   productBases: Array<{
@@ -59,10 +60,25 @@ interface ProductBaseVolumeData {
 export function ProductBaseVolumeChart() {
   const [selectedProductBase, setSelectedProductBase] = useState<string | null>(null);
   const [sortBy, setSortBy] = useState<'available' | 'turnover' | 'expiration'>('available');
+  const { filters, getQueryParams } = useDashboardFilters();
 
   const { data, isLoading, error } = useQuery<ProductBaseVolumeData>({
-    queryKey: ["/api/analytics/product-base-volume", { limit: 20 }], // Mostrar top 20
-    staleTime: 10 * 60 * 1000, // Cache por 10 minutos
+    queryKey: ["/api/analytics/product-base-volume", filters], // Include filters in query key
+    queryFn: async () => {
+      const params = getQueryParams();
+      params.set('limit', '20'); // Show top 20
+      
+      const response = await fetch(`/api/analytics/product-base-volume?${params.toString()}`, {
+        credentials: 'include'
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch product base volume data');
+      }
+      
+      return response.json();
+    },
+    staleTime: 5 * 60 * 1000, // Cache for 5 minutes
     retry: 3,
   });
 

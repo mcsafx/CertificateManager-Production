@@ -2,6 +2,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from "recharts";
 import { AlertTriangle, Clock, CheckCircle, XCircle } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
+import { useDashboardFilters } from "@/contexts/dashboard-filters-context";
 
 interface ExpiringProductsData {
   summary: {
@@ -46,8 +47,23 @@ const CATEGORY_CONFIG = {
 };
 
 export function ExpiringProductsChart() {
+  const { filters, getQueryParams } = useDashboardFilters();
+  
   const { data, isLoading, error } = useQuery<ExpiringProductsData>({
-    queryKey: ["/api/analytics/expiring-products"],
+    queryKey: ["/api/analytics/expiring-products", filters],
+    queryFn: async () => {
+      const params = getQueryParams();
+      
+      const response = await fetch(`/api/analytics/expiring-products?${params.toString()}`, {
+        credentials: 'include'
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch expiring products data');
+      }
+      
+      return response.json();
+    },
     staleTime: 5 * 60 * 1000, // Cache por 5 minutos
     retry: 3,
   });

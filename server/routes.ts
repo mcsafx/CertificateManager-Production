@@ -13,7 +13,7 @@ import {
   insertProductCategorySchema, insertProductSubcategorySchema,
   insertProductBaseSchema, insertProductFileSchema, insertProductBaseFileSchema,
   insertFileSchema, insertBatchRevalidationSchema,
-  entryCertificates, issuedCertificates, products, suppliers, clients,
+  entryCertificates, issuedCertificates, products, suppliers, clients, manufacturers,
   productCategories, productSubcategories, batchRevalidations, productBase
 } from "@shared/schema";
 import { tempUpload, moveFileToFinalStorage, getFileSizeInMB, removeFile, getFileUrl } from "./services/file-upload";
@@ -4793,20 +4793,60 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const user = req.user!;
       
-      // Buscar dados reais de produtos base
+      // Parse filter parameters
       const limit = parseInt(req.query.limit as string) || 20;
+      const period = req.query.period as string || '365d';
+      const categoryId = req.query.categoryId ? parseInt(req.query.categoryId as string) : null;
+      const subcategoryId = req.query.subcategoryId ? parseInt(req.query.subcategoryId as string) : null;
+      const supplierId = req.query.supplierId ? parseInt(req.query.supplierId as string) : null;
+      const productBaseId = req.query.productBaseId ? parseInt(req.query.productBaseId as string) : null;
+      const status = req.query.status as string || 'all';
+
+      // Calculate date range based on period
+      const now = new Date();
+      const startDate = new Date();
+      switch (period) {
+        case '7d':
+          startDate.setDate(now.getDate() - 7);
+          break;
+        case '30d':
+          startDate.setDate(now.getDate() - 30);
+          break;
+        case '90d':
+          startDate.setDate(now.getDate() - 90);
+          break;
+        case '365d':
+        default:
+          startDate.setFullYear(now.getFullYear() - 1);
+          break;
+      }
+
+      // Build where conditions for product base filtering
+      const productBaseConditions = [eq(productBase.tenantId, user.tenantId)];
+      
+      if (categoryId) {
+        productBaseConditions.push(eq(productCategories.id, categoryId));
+      }
+      
+      if (subcategoryId) {
+        productBaseConditions.push(eq(productSubcategories.id, subcategoryId));
+      }
+      
+      if (productBaseId) {
+        productBaseConditions.push(eq(productBase.id, productBaseId));
+      }
       
       const productBaseData = await db.select({
         baseProductId: productBase.id,
-        baseProductName: productBase.name,
+        baseProductName: productBase.technicalName,
         subcategoryName: productSubcategories.name,
         categoryName: productCategories.name,
-        measureUnit: productBase.measureUnit,
+        measureUnit: productBase.defaultMeasureUnit,
       })
       .from(productBase)
       .innerJoin(productSubcategories, eq(productBase.subcategoryId, productSubcategories.id))
       .innerJoin(productCategories, eq(productSubcategories.categoryId, productCategories.id))
-      .where(eq(productBase.tenantId, user.tenantId))
+      .where(and(...productBaseConditions))
       .limit(limit);
 
       // Para cada produto base, calcular volumes e estatísticas
@@ -4816,11 +4856,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const entryData = await db.select({
             entryId: entryCertificates.id,
             receivedQuantity: entryCertificates.receivedQuantity,
-            entryDate: entryCertificates.receiveDate,
+            entryDate: entryCertificates.entryDate,
             expirationDate: entryCertificates.expirationDate,
             internalLot: entryCertificates.internalLot,
             supplierLot: entryCertificates.supplierLot,
-            productName: products.name,
+            productName: products.technicalName,
             supplierName: suppliers.name,
           })
           .from(entryCertificates)
@@ -4828,7 +4868,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
           .innerJoin(suppliers, eq(entryCertificates.supplierId, suppliers.id))
           .where(and(
             eq(entryCertificates.tenantId, user.tenantId),
-            eq(products.baseProductId, base.baseProductId)
+            eq(products.baseProductId, base.baseProductId),
+            gte(entryCertificates.entryDate, startDate.toISOString().split('T')[0]),
+            supplierId ? eq(entryCertificates.supplierId, supplierId) : sql`1=1`,
+            status === 'approved' ? eq(entryCertificates.status, 'Aprovado') : 
+            status === 'pending' ? eq(entryCertificates.status, 'Pendente') : sql`1=1`
           ));
 
           // Calcular volumes totais
@@ -4844,7 +4888,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           .innerJoin(products, eq(entryCertificates.productId, products.id))
           .where(and(
             eq(issuedCertificates.tenantId, user.tenantId),
-            eq(products.baseProductId, base.baseProductId)
+            eq(products.baseProductId, base.baseProductId),
+            gte(issuedCertificates.issueDate, startDate.toISOString().split('T')[0])
           ));
 
           const totalSoldVolume = Number(soldVolumes[0]?.totalSold || 0);
@@ -4869,9 +4914,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
               Number(availableVolume) > 0).length,
             latestEntryDate: entryData.length > 0 ? 
               entryData.sort((a, b) => new Date(b.entryDate || '').getTime() - new Date(a.entryDate || '').getTime())[0].entryDate : null,
-            oldestExpirationDate: entryData.length > 0 ?
-              entryData.sort((a, b) => new Date(a.expirationDate || '').getTime() - new Date(b.expirationDate || '').getTime())[0].expirationDate : null,
-            daysUntilOldestExpiration: 0, // Calcular se necessário
+            oldestExpirationDate: (() => {
+              if (entryData.length === 0) return null;
+              
+              const sortedByExpiration = entryData
+                .filter(entry => entry.expirationDate)
+                .sort((a, b) => new Date(a.expirationDate).getTime() - new Date(b.expirationDate).getTime());
+              
+              return sortedByExpiration.length > 0 ? sortedByExpiration[0].expirationDate : null;
+            })(),
+            daysUntilOldestExpiration: (() => {
+              if (entryData.length === 0) return null;
+              
+              const sortedByExpiration = entryData
+                .filter(entry => entry.expirationDate) // Filter out null/undefined dates
+                .sort((a, b) => new Date(a.expirationDate).getTime() - new Date(b.expirationDate).getTime());
+              
+              if (sortedByExpiration.length === 0) return null;
+              
+              const oldestExpirationDate = sortedByExpiration[0].expirationDate;
+              return Math.ceil((new Date(oldestExpirationDate).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
+            })(),
             batches: entryData.map(entry => ({
               entryId: entry.entryId,
               receivedQuantity: parseFloat(entry.receivedQuantity || '0'),
@@ -4884,7 +4947,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
               productName: entry.productName,
               supplierName: entry.supplierName,
               turnoverRate: 0, // Calcular se necessário
-              daysUntilExpiration: 0 // Calcular se necessário
+              daysUntilExpiration: entry.expirationDate ? 
+                Math.ceil((new Date(entry.expirationDate).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)) : null
             }))
           };
         })
@@ -4915,7 +4979,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           averageTurnoverRate: Number(averageTurnoverRate.toFixed(1)),
           productBasesWithStock: productBasesWithVolume.filter(base => base.availableVolume > 0).length,
           productBasesNearExpiration: 0, // Calcular se necessário
-          period: '365d',
+          period,
           limit,
         }
       });
@@ -5179,9 +5243,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     async (req, res, next) => {
       try {
         const { tenantId, id: userId } = req.user!;
-        const { nfeData, clientId, newClientData, productMappings } = req.body;
+        const { nfeData, clientId, newClientData, productMappings, selectedItems, selectedLots, showSupplierInfo = false } = req.body;
 
-        if (!nfeData || (!clientId && !newClientData) || !productMappings) {
+        if (!nfeData || (!clientId && !newClientData) || !productMappings || !selectedItems || !selectedLots) {
           return res.status(400).json({ message: 'Dados incompletos para importação' });
         }
 
@@ -5189,51 +5253,73 @@ export async function registerRoutes(app: Express): Promise<Server> {
         let finalClientId = clientId;
         if (newClientData && !clientId) {
           const { ClientAutoResolver } = await import('./services/client-auto-resolver');
+          
+          console.log('Creating new client with data:', newClientData);
+          
           const newClient = await ClientAutoResolver.autoCreateClient({
             ...newClientData,
             tenantId
           });
+          
+          console.log('Client created successfully:', newClient);
           finalClientId = newClient.id;
         }
 
-        // Create issued certificates for each mapped product
-        const issuedCertificates = [];
+        // Create issued certificates for each selected item
+        const createdCertificates = [];
         const errors = [];
 
-        for (const [itemIndex, productId] of Object.entries(productMappings)) {
+        // Only process selected items
+        const selectedItemIndexes = Object.keys(selectedItems).filter(key => selectedItems[key]);
+
+        for (const itemIndex of selectedItemIndexes) {
           try {
+            const productId = productMappings[itemIndex];
+            const lotId = selectedLots[itemIndex];
             const nfeItem = nfeData.itens[parseInt(itemIndex)];
+
+            if (!productId || !lotId) {
+              errors.push(`Item ${parseInt(itemIndex) + 1}: Produto ou lote não selecionado`);
+              continue;
+            }
             
-            // Find an available entry certificate for this product
+            // Find the specific selected entry certificate (lot)
             const entryCert = await db.query.entryCertificates.findFirst({
               where: and(
+                eq(entryCertificates.id, lotId),
                 eq(entryCertificates.productId, productId),
-                eq(entryCertificates.tenantId, tenantId),
-                eq(entryCertificates.status, 'APPROVED')
-              ),
-              orderBy: [desc(entryCertificates.entryDate)]
+                eq(entryCertificates.tenantId, tenantId)
+              )
             });
 
             if (!entryCert) {
-              errors.push(`Nenhum certificado de entrada aprovado encontrado para o produto do item ${nfeItem.descricao}`);
+              errors.push(`Lote selecionado não encontrado para o item ${nfeItem.descricao}`);
+              continue;
+            }
+
+            // Verify that the certificate is approved
+            if (entryCert.status !== 'APPROVED' && entryCert.status !== 'Aprovado') {
+              errors.push(`Lote selecionado para ${nfeItem.descricao} não está aprovado`);
               continue;
             }
 
             // Create issued certificate
+            const issueDate = new Date().toISOString().split('T')[0]; // Format as YYYY-MM-DD
+            
             const issuedCert = await db.insert(issuedCertificates).values({
               entryCertificateId: entryCert.id,
               clientId: finalClientId,
               invoiceNumber: `${nfeData.invoice.numero}/${nfeData.invoice.serie}`,
-              issueDate: new Date(nfeData.invoice.dataEmissao),
+              issueDate: issueDate,
               soldQuantity: nfeItem.quantidade.toString(),
               measureUnit: nfeItem.unidade,
-              customLot: `NFe-${nfeData.invoice.numero}-${nfeItem.codigo}`,
+              customLot: entryCert.internalLot, // Use the internal lot from the selected entry certificate
               tenantId,
-              showSupplierInfo: false,
+              showSupplierInfo: showSupplierInfo,
               observations: `Importado automaticamente da NFe ${nfeData.invoice.numero}/${nfeData.invoice.serie}${nfeItem.observacao ? ` - ${nfeItem.observacao}` : ''}`
             }).returning();
 
-            issuedCertificates.push(issuedCert[0]);
+            createdCertificates.push(issuedCert[0]);
           } catch (itemError) {
             errors.push(`Erro ao processar item ${nfeItem.descricao}: ${itemError.message}`);
           }
@@ -5241,14 +5327,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
         res.json({
           success: true,
-          issuedCertificates,
+          issuedCertificates: createdCertificates,
           clientId: finalClientId,
-          totalProcessed: issuedCertificates.length,
+          totalProcessed: createdCertificates.length,
           totalErrors: errors.length,
           errors
         });
       } catch (error) {
-        next(error);
+        console.error('Error in NFe import:', error);
+        res.status(500).json({ 
+          message: error.message || 'Erro interno do servidor',
+          stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+        });
       }
     }
   );

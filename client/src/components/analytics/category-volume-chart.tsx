@@ -3,6 +3,7 @@ import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from "recha
 import { BarChart3, Package, TrendingUp } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
+import { useDashboardFilters } from "@/contexts/dashboard-filters-context";
 
 interface CategoryVolumeData {
   categories: Array<{
@@ -45,9 +46,23 @@ const CHART_COLORS = [
 
 export function CategoryVolumeChart() {
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const { filters, getQueryParams } = useDashboardFilters();
 
   const { data, isLoading, error } = useQuery<CategoryVolumeData>({
-    queryKey: ["/api/analytics/category-volume"],
+    queryKey: ["/api/analytics/category-volume", filters],
+    queryFn: async () => {
+      const params = getQueryParams();
+      
+      const response = await fetch(`/api/analytics/category-volume?${params.toString()}`, {
+        credentials: 'include'
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch category volume data');
+      }
+      
+      return response.json();
+    },
     staleTime: 15 * 60 * 1000, // Cache por 15 minutos
     retry: 3,
   });

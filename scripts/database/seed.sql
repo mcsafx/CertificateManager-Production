@@ -212,112 +212,48 @@ ON CONFLICT (plan_id, module_id) DO NOTHING;
 -- TENANT ADMINISTRATIVO (Sistema)
 -- =============================================================================
 
-INSERT INTO tenants (
-    name, 
-    cnpj, 
-    address, 
-    phone, 
-    active, 
-    plan_id, 
-    storage_used, 
-    plan_start_date, 
-    plan_end_date, 
-    payment_status
-) VALUES (
-    'Administração do Sistema', 
-    '00.000.000/0000-00', 
-    'Sistema CertificateManager', 
-    '(00) 0000-0000', 
-    true, 
-    3,  -- Plano Completo
-    0, 
-    CURRENT_DATE, 
-    CURRENT_DATE + INTERVAL '1 year', 
-    'active'
-)
-ON CONFLICT (cnpj) DO UPDATE SET
-    name = EXCLUDED.name,
-    plan_id = EXCLUDED.plan_id,
-    updated_at = NOW();
+-- Tenant administrativo será criado automaticamente no primeiro login
+-- Não incluir dados de tenant fictícios aqui
 
 -- =============================================================================
 -- USUÁRIO ADMINISTRADOR
 -- =============================================================================
 
--- Senha 'admin123' hasheada com bcrypt
-INSERT INTO users (
-    username, 
-    password, 
-    name, 
-    role, 
-    tenant_id, 
-    active
-) VALUES (
-    'admin', 
-    '$2b$10$K8BVJKxe9XBHjQp9ZLwZIejhQ8fBpO1WH2.GgTkWZL7XJ5fGWXHCa',  -- admin123
-    'Administrador do Sistema', 
-    'system_admin', 
-    1,  -- Tenant administrativo
-    true
-)
-ON CONFLICT (username) DO UPDATE SET
-    name = EXCLUDED.name,
-    role = EXCLUDED.role,
-    active = EXCLUDED.active,
-    updated_at = NOW();
+-- Usuário administrador será criado automaticamente no setup inicial
+-- Configuração feita via interface ou script de instalação
 
 -- =============================================================================
--- DADOS DE DEMONSTRAÇÃO (Opcional)
+-- ESTRUTURA LIMPA - SEM DADOS DE DEMONSTRAÇÃO
 -- =============================================================================
-
--- Categoria de produto exemplo
-INSERT INTO product_categories (name, description, tenant_id, active) 
-VALUES (
-    'Produtos Químicos Industriais', 
-    'Categoria para produtos químicos de uso industrial', 
-    1, 
-    true
-)
-ON CONFLICT DO NOTHING;
+-- Sistema pronto para uso em produção sem dados fictícios
 
 -- =============================================================================
 -- VERIFICAÇÕES FINAIS
 -- =============================================================================
 
--- Verificar quantos registros foram inseridos
+-- Verificar estrutura do sistema
 DO $$
 DECLARE
     plans_count INTEGER;
     modules_count INTEGER;
     features_count INTEGER;
-    tenants_count INTEGER;
-    users_count INTEGER;
 BEGIN
     SELECT COUNT(*) INTO plans_count FROM plans;
     SELECT COUNT(*) INTO modules_count FROM modules;
     SELECT COUNT(*) INTO features_count FROM module_features;
-    SELECT COUNT(*) INTO tenants_count FROM tenants;
-    SELECT COUNT(*) INTO users_count FROM users;
     
     RAISE NOTICE '';
-    RAISE NOTICE '🎉 DADOS INSERIDOS COM SUCESSO!';
-    RAISE NOTICE '================================';
+    RAISE NOTICE '🎉 ESTRUTURA DO SISTEMA INICIALIZADA!';
+    RAISE NOTICE '====================================';
     RAISE NOTICE 'Planos: %', plans_count;
     RAISE NOTICE 'Módulos: %', modules_count;
     RAISE NOTICE 'Funcionalidades: %', features_count;
-    RAISE NOTICE 'Tenants: %', tenants_count;
-    RAISE NOTICE 'Usuários: %', users_count;
-    RAISE NOTICE '================================';
-    RAISE NOTICE '';
-    RAISE NOTICE '📋 CREDENCIAIS DE ACESSO:';
-    RAISE NOTICE 'Usuário: admin';
-    RAISE NOTICE 'Senha: admin123';
-    RAISE NOTICE 'URL: http://localhost:5000';
+    RAISE NOTICE '====================================';
     RAISE NOTICE '';
     RAISE NOTICE '🔄 PRÓXIMOS PASSOS:';
-    RAISE NOTICE '1. Execute: npm run dev';
-    RAISE NOTICE '2. Acesse: http://localhost:5000';
-    RAISE NOTICE '3. Faça login com admin/admin123';
+    RAISE NOTICE '1. Configure o primeiro tenant';
+    RAISE NOTICE '2. Execute: npm run dev';
+    RAISE NOTICE '3. Acesse: http://localhost:5000';
     RAISE NOTICE '';
 END
 $$;

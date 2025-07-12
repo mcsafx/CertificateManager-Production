@@ -78,8 +78,8 @@ Content-Type: application/json
     "numeroNFe": "000000123",
     "serie": "1",
     "dataEmissao": "2024-01-15",
-    "destinatario": "EMPRESA EXEMPLO LTDA",
-    "cnpjDestinatario": "12.345.678/0001-90",
+    "destinatario": "[NOME_CLIENTE]",
+    "cnpjDestinatario": "[CNPJ_CLIENTE]",
     "totalItens": 5,
     "valorTotal": 15678.90
   },
@@ -115,7 +115,7 @@ nfeFile: arquivo.xml
     },
     "emitente": {
       "cnpj": "12345678000190",
-      "razaoSocial": "DISTRIBUIDORA EXEMPLO LTDA",
+      "razaoSocial": "[EMPRESA_EMITENTE]",
       "endereco": { /* dados completos */ }
     },
     "destinatario": {
