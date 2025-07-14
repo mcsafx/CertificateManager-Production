@@ -202,7 +202,7 @@ npm run dev    # for development
 
 ## Development Guidelines
 
-### Code Style Preferences (Magnus/Developer Profile)
+### Code Style Preferences (mcsafx/Developer Profile)
 - **Explanation Level**: Clear technical explanations with practical analogies
 - **Code Style**: "Copy-paste" functional level with inline comments
 - **Detail Level**: Step-by-step instructions with verification steps

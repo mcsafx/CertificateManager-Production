@@ -73,8 +73,8 @@ git config user.email
 
 **Exemplo de saída:**
 ```
-user.name=Magnus Silva
-user.email=magnus@exemplo.com
+user.name=João Silva
+user.email=joao@exemplo.com
 core.editor=nano
 ```
 
