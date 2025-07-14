@@ -554,7 +554,7 @@ export function CertificateForm({ certificateId, onSuccess }: CertificateFormPro
                 name="referenceDocument"
                 value={formData.referenceDocument}
                 onChange={handleChange}
-                placeholder="Nº NF ou Invoice"
+                placeholder="Nº NF, Fatura ou Invoice"
                 required
               />
             </div>
@@ -639,10 +639,13 @@ export function CertificateForm({ certificateId, onSuccess }: CertificateFormPro
                     ))
                   ) : (
                     <>
-                      <SafeSelectItem value="Tambor">Tambor</SafeSelectItem>
+                      <SafeSelectItem value="Tambor de Metal">Tambor</SafeSelectItem>
+                      <SafeSelectItem value="Tambor de Plástico">Tambor</SafeSelectItem>
                       <SafeSelectItem value="IBC">IBC</SafeSelectItem>
                       <SafeSelectItem value="Saco">Saco</SafeSelectItem>
                       <SafeSelectItem value="Bombona">Bombona</SafeSelectItem>
+                      <SafeSelectItem value="Caixa">Granel</SafeSelectItem>
+                      <SafeSelectItem value="Bag OneWay">Tambor</SafeSelectItem>
                       <SafeSelectItem value="Granel">Granel</SafeSelectItem>
                     </>
                   )}
