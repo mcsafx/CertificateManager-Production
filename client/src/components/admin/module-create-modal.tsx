@@ -9,6 +9,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { Plus, Loader2 } from "lucide-react";
+import { ResponsiveFormGrid, ResponsiveFormSection } from "@/components/ui/responsive-form-grid";
 
 interface ModuleCreateModalProps {
   onSuccess?: () => void;
@@ -86,7 +87,7 @@ export function ModuleCreateModal({ onSuccess }: ModuleCreateModalProps) {
         </Button>
       </DialogTrigger>
       
-      <DialogContent className="max-w-md">
+      <DialogContent className="max-w-md lg:max-w-2xl">
         <DialogHeader>
           <DialogTitle>Criar Novo Módulo</DialogTitle>
           <DialogDescription>
@@ -94,7 +95,9 @@ export function ModuleCreateModal({ onSuccess }: ModuleCreateModalProps) {
           </DialogDescription>
         </DialogHeader>
         
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit}>
+          <ResponsiveFormSection>
+            <ResponsiveFormGrid columns={{ mobile: 1, tablet: 1, desktop: 2, widescreen: 2 }}>
           <div>
             <Label htmlFor="code">Código *</Label>
             <Input
@@ -120,7 +123,7 @@ export function ModuleCreateModal({ onSuccess }: ModuleCreateModalProps) {
             />
           </div>
           
-          <div>
+          <div className="md:col-span-2">
             <Label htmlFor="description">Descrição *</Label>
             <Textarea
               id="description"
@@ -132,33 +135,37 @@ export function ModuleCreateModal({ onSuccess }: ModuleCreateModalProps) {
             />
           </div>
           
-          <div className="flex items-center justify-between">
-            <div>
-              <Label htmlFor="active">Módulo Ativo</Label>
-              <p className="text-sm text-muted-foreground">
-                Determina se o módulo estará disponível
-              </p>
+          <div className="md:col-span-2 space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <Label htmlFor="active">Módulo Ativo</Label>
+                <p className="text-sm text-muted-foreground">
+                  Determina se o módulo estará disponível
+                </p>
+              </div>
+              <Switch
+                id="active"
+                checked={formData.active}
+                onCheckedChange={(checked) => updateField('active', checked)}
+              />
             </div>
-            <Switch
-              id="active"
-              checked={formData.active}
-              onCheckedChange={(checked) => updateField('active', checked)}
-            />
-          </div>
-          
-          <div className="flex items-center justify-between">
-            <div>
-              <Label htmlFor="isCore">Módulo Core</Label>
-              <p className="text-sm text-muted-foreground">
-                Módulos core são obrigatórios em todos os planos
-              </p>
+            
+            <div className="flex items-center justify-between">
+              <div>
+                <Label htmlFor="isCore">Módulo Core</Label>
+                <p className="text-sm text-muted-foreground">
+                  Módulos core são obrigatórios em todos os planos
+                </p>
+              </div>
+              <Switch
+                id="isCore"
+                checked={formData.isCore}
+                onCheckedChange={(checked) => updateField('isCore', checked)}
+              />
             </div>
-            <Switch
-              id="isCore"
-              checked={formData.isCore}
-              onCheckedChange={(checked) => updateField('isCore', checked)}
-            />
           </div>
+            </ResponsiveFormGrid>
+          </ResponsiveFormSection>
           
           <div className="flex justify-between items-center pt-4 border-t">
             <Button

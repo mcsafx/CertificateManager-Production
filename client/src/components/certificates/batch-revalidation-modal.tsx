@@ -26,6 +26,7 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { formatDate } from "@/lib/utils";
 import { Calendar, FileText, Clock, AlertTriangle, Upload, X, CheckCircle } from "lucide-react";
+import { ResponsiveFormGrid, ResponsiveFormSection } from "@/components/ui/responsive-form-grid";
 
 const revalidationSchema = z.object({
   newInternalLot: z.string().min(1, "Novo lote interno é obrigatório"),
@@ -183,7 +184,7 @@ export function BatchRevalidationModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-[800px] max-h-[90vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-[800px] lg:max-w-[1200px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <FileText className="h-5 w-5 text-blue-600" />
@@ -221,9 +222,9 @@ export function BatchRevalidationModal({
         </div>
 
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-            {/* Campos principais em layout horizontal */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <form onSubmit={form.handleSubmit(onSubmit)}>
+            <ResponsiveFormSection>
+              <ResponsiveFormGrid columns={{ mobile: 1, tablet: 2, desktop: 3, widescreen: 4 }}>
               <FormField
                 control={form.control}
                 name="newInternalLot"
@@ -260,31 +261,30 @@ export function BatchRevalidationModal({
                   </FormItem>
                 )}
               />
-            </div>
-
-            {/* Razão da revalidação e upload lado a lado */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <FormField
-                control={form.control}
-                name="revalidationReason"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Razão da Revalidação</FormLabel>
-                    <FormControl>
-                      <Textarea
-                        {...field}
-                        placeholder="Descreva o motivo da revalidação, incluindo referências aos laudos de laboratório..."
-                        rows={3}
-                        disabled={isLoading}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+              <div className="lg:col-span-2 xl:col-span-4">
+                <FormField
+                  control={form.control}
+                  name="revalidationReason"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Razão da Revalidação</FormLabel>
+                      <FormControl>
+                        <Textarea
+                          {...field}
+                          placeholder="Descreva o motivo da revalidação, incluindo referências aos laudos de laboratório..."
+                          rows={3}
+                          disabled={isLoading}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
 
               {/* Upload de Certificado Laboratorial */}
-              <div className="space-y-2">
+              <div className="lg:col-span-2 xl:col-span-4">
+                <div className="space-y-2">
                 <Label htmlFor="labCertificate">
                   Certificado de Laboratório (Opcional)
                 </Label>
@@ -343,7 +343,9 @@ export function BatchRevalidationModal({
                   />
                 </div>
               </div>
-            </div>
+              </div>
+              </ResponsiveFormGrid>
+            </ResponsiveFormSection>
 
             <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
               <div className="flex items-start gap-2">

@@ -265,7 +265,7 @@ export default function SuppliersPage() {
       </div>
       
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="sm:max-w-[550px]">
+        <DialogContent className="sm:max-w-[550px] lg:max-w-[800px]">
           <DialogHeader>
             <DialogTitle>
               {editingSupplier ? "Editar Fornecedor" : "Novo Fornecedor"}

@@ -17,6 +17,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
+import { ResponsiveFormGrid, ResponsiveFormSection } from "@/components/ui/responsive-form-grid";
 
 interface CertificateFormProps {
   certificateId?: number;
@@ -486,7 +487,8 @@ export function CertificateForm({ certificateId, onSuccess }: CertificateFormPro
       <form onSubmit={handleSubmit}>
         {/* Step 1: Basic Information */}
         {formStep === 1 && (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <ResponsiveFormSection title="Informações Básicas" description="Dados básicos do certificado de entrada">
+            <ResponsiveFormGrid columns={{ mobile: 1, tablet: 2, desktop: 2, widescreen: 3 }}>
             <div>
               <Label htmlFor="supplierId">Fornecedor *</Label>
               <div className="flex gap-2">
@@ -591,33 +593,35 @@ export function CertificateForm({ certificateId, onSuccess }: CertificateFormPro
               </Select>
             </div>
             
-            <div className="grid grid-cols-2 gap-2">
-              <div>
-                <Label htmlFor="receivedQuantity">Quantidade Recebida *</Label>
-                <Input
-                  id="receivedQuantity"
-                  name="receivedQuantity"
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  value={formData.receivedQuantity}
-                  onChange={handleChange}
-                  placeholder="0,00"
-                  required
-                />
-              </div>
-              
-              <div>
-                <Label htmlFor="measureUnit">Unidade *</Label>
-                <Input
-                  id="measureUnit"
-                  name="measureUnit"
-                  value={formData.measureUnit}
-                  onChange={handleChange}
-                  placeholder="Ex: kg"
-                  required
-                />
-              </div>
+            <div className="md:col-span-2 xl:col-span-3">
+              <ResponsiveFormGrid columns={{ mobile: 1, tablet: 2, desktop: 2, widescreen: 2 }}>
+                <div>
+                  <Label htmlFor="receivedQuantity">Quantidade Recebida *</Label>
+                  <Input
+                    id="receivedQuantity"
+                    name="receivedQuantity"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={formData.receivedQuantity}
+                    onChange={handleChange}
+                    placeholder="0,00"
+                    required
+                  />
+                </div>
+                
+                <div>
+                  <Label htmlFor="measureUnit">Unidade *</Label>
+                  <Input
+                    id="measureUnit"
+                    name="measureUnit"
+                    value={formData.measureUnit}
+                    onChange={handleChange}
+                    placeholder="Ex: kg"
+                    required
+                  />
+                </div>
+              </ResponsiveFormGrid>
             </div>
             
             <div>
@@ -730,12 +734,13 @@ export function CertificateForm({ certificateId, onSuccess }: CertificateFormPro
                 required
               />
             </div>
-          </div>
+            </ResponsiveFormGrid>
+          </ResponsiveFormSection>
         )}
         
         {/* Step 2: Characteristics and Results */}
         {formStep === 2 && (
-          <div className="space-y-6">
+          <ResponsiveFormSection title="Características e Resultados" description="Resultados das análises e características do produto">
             <div className="overflow-x-auto">
               <div className="mb-2 text-sm text-gray-500 italic">
                 <p>Nota: Para valores numéricos, preencha pelo menos o valor mínimo ou máximo e a unidade. Para valores textuais (ex: "LAT"), não é necessário preencher mínimo/máximo nem unidade.</p>
@@ -833,12 +838,13 @@ export function CertificateForm({ certificateId, onSuccess }: CertificateFormPro
               <Plus className="h-4 w-4 mr-2" />
               Adicionar Nova Característica
             </Button>
-          </div>
+          </ResponsiveFormSection>
         )}
         
         {/* Step 3: Documentation */}
         {formStep === 3 && (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <ResponsiveFormSection title="Documentação" description="Status do boletim e arquivos anexos">
+            <ResponsiveFormGrid columns={{ mobile: 1, tablet: 1, desktop: 2, widescreen: 2 }}>
             <div>
               <Label>Status do Boletim *</Label>
               <RadioGroup
@@ -932,7 +938,8 @@ export function CertificateForm({ certificateId, onSuccess }: CertificateFormPro
                 }}
               />
             </div>
-          </div>
+            </ResponsiveFormGrid>
+          </ResponsiveFormSection>
         )}
         
         <div className="flex justify-between pt-6 border-t">
