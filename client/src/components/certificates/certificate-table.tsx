@@ -19,11 +19,11 @@ import {
   Eye, 
   FileEdit, 
   Download, 
-  AlertCircle,
   ChevronLeft,
   ChevronRight,
   FileText,
-  RefreshCw
+  RefreshCw,
+  Trash2
 } from "lucide-react";
 import { formatDate } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
@@ -35,6 +35,8 @@ interface CertificateTableProps {
   onEdit: (id: number) => void;
   onDownload: (id: number) => void;
   onRevalidate: (certificate: EnhancedEntryCertificate) => void;
+  onDelete: (id: number) => void;
+  deletingId?: number;
 }
 
 export function CertificateTable({ 
@@ -43,7 +45,9 @@ export function CertificateTable({
   onView, 
   onEdit, 
   onDownload,
-  onRevalidate
+  onRevalidate,
+  onDelete,
+  deletingId
 }: CertificateTableProps) {
   // Format date strings
   const formatDateStr = (dateStr: string | Date) => {
@@ -138,6 +142,20 @@ export function CertificateTable({
                         <RefreshCw className="h-4 w-4" />
                       </Button>
                     )}
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      onClick={() => onDelete(certificate.id)}
+                      title="Excluir Certificado"
+                      className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                      disabled={deletingId === certificate.id}
+                    >
+                      {deletingId === certificate.id ? (
+                        <div className="animate-spin h-4 w-4 border-2 border-red-500 border-t-transparent rounded-full"></div>
+                      ) : (
+                        <Trash2 className="h-4 w-4" />
+                      )}
+                    </Button>
                   </div>
                 </TableCell>
               </TableRow>

@@ -202,7 +202,7 @@ export default function ProductsPage() {
       </div>
       
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="max-w-3xl">
+        <DialogContent className="max-w-6xl w-full max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>
               {selectedProductId ? "Editar Produto" : (baseProductId ? "Nova Variante" : "Novo Produto")}

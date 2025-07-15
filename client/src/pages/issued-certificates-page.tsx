@@ -15,7 +15,6 @@ import {
   Plus, 
   Search, 
   Eye, 
-  Download, 
   Calendar, 
   FileText,
   Trash2 
@@ -443,9 +442,6 @@ export default function IssuedCertificatesPage() {
                             <Button variant="ghost" size="icon" onClick={() => handleView(certificate.id)}>
                               <Eye className="h-4 w-4 text-primary" />
                             </Button>
-                            <Button variant="ghost" size="icon" onClick={() => handleDownload(certificate.id)}>
-                              <Download className="h-4 w-4 text-primary" />
-                            </Button>
                             <Button variant="ghost" size="icon" onClick={() => handleDelete(certificate.id)}>
                               <Trash2 className="h-4 w-4 text-red-500" />
                             </Button>
@@ -475,7 +471,7 @@ export default function IssuedCertificatesPage() {
         {/* Select Entry Certificate Dialog */}
         {isDialogOpen && !selectedEntryId && (
           <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-            <DialogContent className="max-w-3xl">
+            <DialogContent className="max-w-6xl w-full max-h-[85vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle>Selecionar Boletim de Entrada</DialogTitle>
               </DialogHeader>
@@ -487,7 +483,7 @@ export default function IssuedCertificatesPage() {
                 {/* Filtros para boletins de entrada */}
                 <Card className="p-4">
                   <h3 className="mb-3 text-sm font-medium">Filtros</h3>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                     {/* Filtro por Fabricante */}
                     <div className="space-y-2">
                       <Label htmlFor="manufacturerFilter">Fabricante</Label>
@@ -611,16 +607,16 @@ export default function IssuedCertificatesPage() {
                     <Loader2 className="h-8 w-8 animate-spin text-primary" />
                   </div>
                 ) : entryCertificates && filteredEntryCertificates.length > 0 ? (
-                  <div className="overflow-y-auto max-h-[400px]">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Produto</TableHead>
-                          <TableHead>Lote Interno</TableHead>
-                          <TableHead>Data Entrada</TableHead>
-                          <TableHead>Validade</TableHead>
-                          <TableHead>Status</TableHead>
-                          <TableHead>Ação</TableHead>
+                  <div className="overflow-y-auto max-h-[50vh]">
+                    <Table className="min-w-full">
+                      <TableHeader className="sticky top-0 bg-white z-10">
+                        <TableRow className="border-b">
+                          <TableHead className="w-[25%] min-w-[150px]">Produto</TableHead>
+                          <TableHead className="w-[15%] min-w-[120px]">Lote Interno</TableHead>
+                          <TableHead className="w-[15%] min-w-[100px]">Data Entrada</TableHead>
+                          <TableHead className="w-[15%] min-w-[100px]">Validade</TableHead>
+                          <TableHead className="w-[15%] min-w-[100px]">Status</TableHead>
+                          <TableHead className="w-[15%] min-w-[100px]">Ação</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>

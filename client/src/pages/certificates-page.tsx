@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Layout } from "@/components/layout/layout";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { Plus, FileText } from "lucide-react";
 import { EntryCertificate } from "@shared/schema";
 
@@ -25,6 +25,7 @@ export default function CertificatesPage() {
   const [filters, setFilters] = useState<CertificateFilters>({});
   const [isRevalidationModalOpen, setIsRevalidationModalOpen] = useState(false);
   const [selectedCertificateForRevalidation, setSelectedCertificateForRevalidation] = useState<EnhancedEntryCertificate | null>(null);
+  const [deletingId, setDeletingId] = useState<number | null>(null);
   
   const {
     data: certificates,
@@ -78,6 +79,58 @@ export default function CertificatesPage() {
     // Fazer download do arquivo original do certificado
     window.open(`/api/certificates/download/${id}`, "_blank");
   };
+  
+  const handleDelete = (id: number) => {
+    if (window.confirm("Tem certeza que deseja excluir este certificado? Esta ação não pode ser desfeita.")) {
+      deleteMutation.mutate(id);
+    }
+  };
+  
+  const deleteMutation = useMutation({
+    mutationFn: async (id: number) => {
+      console.log(`[DELETE] Attempting to delete certificate ${id}`);
+      setDeletingId(id);
+      
+      const response = await fetch(`/api/entry-certificates/${id}`, {
+        method: "DELETE",
+        credentials: "include",
+      });
+      
+      console.log(`[DELETE] Response status: ${response.status}`);
+      
+      if (!response.ok) {
+        let errorMessage = "Erro ao excluir certificado";
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.message || errorMessage;
+        } catch (e) {
+          // Se não conseguir parsear JSON, usa mensagem padrão
+          errorMessage = `Erro ${response.status}: ${response.statusText}`;
+        }
+        console.error(`[DELETE] Error:`, errorMessage);
+        throw new Error(errorMessage);
+      }
+      
+      console.log(`[DELETE] Certificate ${id} deleted successfully`);
+    },
+    onSuccess: () => {
+      setDeletingId(null);
+      refetch();
+      toast({
+        title: "Certificado excluído",
+        description: "O certificado foi excluído com sucesso.",
+      });
+    },
+    onError: (error) => {
+      setDeletingId(null);
+      console.error(`[DELETE] Frontend error:`, error);
+      toast({
+        title: "Erro ao excluir",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
   
   const handleDialogClose = () => {
     setIsDialogOpen(false);
@@ -140,6 +193,8 @@ export default function CertificatesPage() {
             onEdit={handleEdit}
             onDownload={handleDownload}
             onRevalidate={handleRevalidate}
+            onDelete={handleDelete}
+            deletingId={deletingId}
           />
         )}
       </div>

@@ -978,9 +978,48 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Este certificado não possui um arquivo original anexado" });
       }
       
-      // Redirecionar para a URL original do arquivo
-      // Isso permite que o navegador abra o arquivo diretamente
-      return res.redirect(certificate.originalFileUrl);
+      // Se a URL é um caminho local, servir o arquivo diretamente
+      if (certificate.originalFileUrl.startsWith('/') || certificate.originalFileUrl.startsWith('file://')) {
+        const fs = await import('fs');
+        const path = await import('path');
+        
+        let filePath = certificate.originalFileUrl;
+        if (filePath.startsWith('file://')) {
+          filePath = filePath.replace('file://', '');
+        }
+        
+        if (!fs.existsSync(filePath)) {
+          return res.status(404).json({ message: "Arquivo não encontrado no sistema" });
+        }
+        
+        const fileName = certificate.originalFileName || path.basename(filePath);
+        const stat = fs.statSync(filePath);
+        
+        // Definir headers para download
+        res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
+        res.setHeader('Content-Length', stat.size.toString());
+        
+        // Determinar content-type baseado na extensão
+        const ext = path.extname(fileName).toLowerCase();
+        let contentType = 'application/octet-stream';
+        if (ext === '.pdf') {
+          contentType = 'application/pdf';
+        } else if (['.jpg', '.jpeg'].includes(ext)) {
+          contentType = 'image/jpeg';
+        } else if (ext === '.png') {
+          contentType = 'image/png';
+        }
+        
+        res.setHeader('Content-Type', contentType);
+        
+        // Enviar o arquivo
+        const fileStream = fs.createReadStream(filePath);
+        fileStream.pipe(res);
+        
+      } else {
+        // Se for uma URL externa, redirecionar
+        return res.redirect(certificate.originalFileUrl);
+      }
       
     } catch (error) {
       next(error);
@@ -2166,6 +2205,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const user = req.user!;
       const certificateId = Number(req.params.id);
       
+      console.log(`[PATCH] Updating certificate ${certificateId} for tenant ${user.tenantId}`);
+      console.log(`[PATCH] Request body:`, JSON.stringify(req.body, null, 2));
+      
       // Obter o certificado atual
       const existingCertificate = await storage.getEntryCertificate(
         certificateId, 
@@ -2173,6 +2215,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       );
       
       if (!existingCertificate) {
+        console.log(`[PATCH] Certificate ${certificateId} not found for tenant ${user.tenantId}`);
         return res.status(404).json({ message: "Certificate not found" });
       }
       
@@ -2200,6 +2243,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Update certificate
+      console.log(`[PATCH] Updating certificate with data:`, certificateData);
       const certificate = await storage.updateEntryCertificate(
         certificateId, 
         user.tenantId, 
@@ -2207,8 +2251,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       );
       
       if (!certificate) {
+        console.log(`[PATCH] Failed to update certificate ${certificateId}`);
         return res.status(404).json({ message: "Certificate not found" });
       }
+      
+      console.log(`[PATCH] Certificate updated successfully:`, certificate);
       
       // Handle results update if provided
       if (req.body.results && Array.isArray(req.body.results)) {
@@ -2263,6 +2310,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         results: updatedResults
       });
     } catch (error) {
+      console.error(`[PATCH] Error updating certificate ${req.params.id}:`, error);
       next(error);
     }
   });
@@ -2272,25 +2320,66 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const user = req.user!;
       const certificateId = Number(req.params.id);
       
+      console.log(`[DELETE] Deleting certificate ${certificateId} for tenant ${user.tenantId}`);
+      
+      // Verificar se o certificado existe
+      const certificate = await storage.getEntryCertificate(certificateId, user.tenantId);
+      if (!certificate) {
+        console.log(`[DELETE] Certificate ${certificateId} not found for tenant ${user.tenantId}`);
+        return res.status(404).json({ message: "Certificate not found" });
+      }
+      
+      // Check for issued certificates that depend on this entry certificate
+      const issuedCertificates = await storage.getIssuedCertificatesByEntryCertificate(
+        certificateId, 
+        user.tenantId
+      );
+      
+      if (issuedCertificates.length > 0) {
+        console.log(`[DELETE] Cannot delete certificate ${certificateId} - has ${issuedCertificates.length} issued certificates`);
+        return res.status(400).json({ 
+          message: "Não é possível excluir este certificado pois existem certificados emitidos vinculados a ele." 
+        });
+      }
+      
+      // Check for batch revalidations that depend on this entry certificate
+      const batchRevalidations = await storage.getBatchRevalidationsByBatch(
+        certificateId, 
+        user.tenantId
+      );
+      
+      if (batchRevalidations.length > 0) {
+        console.log(`[DELETE] Cannot delete certificate ${certificateId} - has ${batchRevalidations.length} batch revalidations`);
+        return res.status(400).json({ 
+          message: "Não é possível excluir este certificado pois existem revalidações vinculadas a ele." 
+        });
+      }
+      
       // Delete associated results first
       const results = await storage.getResultsByEntryCertificate(
         certificateId, 
         user.tenantId
       );
       
+      console.log(`[DELETE] Found ${results.length} results to delete`);
+      
       for (const result of results) {
-        await storage.deleteEntryCertificateResult(result.id, user.tenantId);
+        const resultDeleted = await storage.deleteEntryCertificateResult(result.id, user.tenantId);
+        console.log(`[DELETE] Result ${result.id} deleted: ${resultDeleted}`);
       }
       
       // Now delete the certificate
       const success = await storage.deleteEntryCertificate(certificateId, user.tenantId);
       
       if (!success) {
+        console.log(`[DELETE] Failed to delete certificate ${certificateId}`);
         return res.status(404).json({ message: "Certificate not found" });
       }
       
+      console.log(`[DELETE] Certificate ${certificateId} deleted successfully`);
       res.status(204).end();
     } catch (error) {
+      console.error(`[DELETE] Error deleting certificate ${req.params.id}:`, error);
       next(error);
     }
   });
@@ -3179,7 +3268,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     tempUpload.single('file'), 
     async (req, res) => {
       try {
+        console.log(`[UPLOAD] File upload initiated by user ${req.user?.id} for tenant ${req.user?.tenantId}`);
+        console.log(`[UPLOAD] Request body:`, req.body);
+        
         if (!req.file) {
+          console.log('[UPLOAD] No file received');
           return res.status(400).json({ message: 'Nenhum arquivo enviado' });
         }
         
@@ -3201,6 +3294,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Gerar nome para armazenamento
         const storedFileName = req.file.filename;
         
+        console.log(`[UPLOAD] File details:`, {
+          originalFileName,
+          storedFileName,
+          fileSize,
+          fileType,
+          fileSizeMB,
+          fileCategory
+        });
+        
         // Mover arquivo para armazenamento permanente
         const finalPath = await moveFileToFinalStorage(
           tempPath, 
@@ -3208,6 +3310,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           fileCategory, 
           storedFileName
         );
+        
+        console.log(`[UPLOAD] File moved to final storage:`, finalPath);
         
         // Gerar URL pública
         const publicUrl = getFileUrl(finalPath);
@@ -3227,6 +3331,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           fileSizeMB: fileSizeMB.toString(),
           publicUrl
         });
+        
+        console.log(`[UPLOAD] File saved to database:`, newFile);
         
         res.status(201).json(newFile);
       } catch (error) {

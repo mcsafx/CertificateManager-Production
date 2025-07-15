@@ -83,21 +83,23 @@ export function BatchRevalidationModal({
       formData.append('description', 'Certificado de laboratório para revalidação');
       formData.append('entityType', 'batch_revalidation');
 
-      const response = await fetch('/api/files', {
+      const response = await fetch('/api/files/upload', {
         method: 'POST',
         credentials: 'include',
         body: formData,
       });
 
       if (!response.ok) {
-        throw new Error('Erro no upload do arquivo');
+        const errorText = await response.text();
+        console.error('Erro no upload - Status:', response.status, 'Response:', errorText);
+        throw new Error(`Erro no upload do arquivo: ${response.status} - ${errorText}`);
       }
 
       const result = await response.json();
       setUploadProgress("Arquivo enviado com sucesso!");
       
       return {
-        url: result.publicUrl,
+        url: result.publicUrl || result.filePath,
         fileName: result.fileName
       };
     } catch (error) {

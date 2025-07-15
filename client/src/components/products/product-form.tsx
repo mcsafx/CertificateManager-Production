@@ -210,7 +210,7 @@ export function ProductForm({ productId, defaultBaseProductId, onSuccess }: Prod
             </Select>
           </div>
           
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
             <div className="space-y-2">
               <Label htmlFor="sku">SKU</Label>
               <Input

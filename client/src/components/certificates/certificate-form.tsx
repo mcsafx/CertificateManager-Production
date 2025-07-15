@@ -30,6 +30,7 @@ export function CertificateForm({ certificateId, onSuccess }: CertificateFormPro
   const { toast } = useToast();
   
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isUploadingFile, setIsUploadingFile] = useState(false);
   const [isEditing, setIsEditing] = useState(!!certificateId);
   const [formStep, setFormStep] = useState(1);
   const [isSupplierDialogOpen, setIsSupplierDialogOpen] = useState(false);
@@ -246,6 +247,39 @@ export function CertificateForm({ certificateId, onSuccess }: CertificateFormPro
   
   const saveMutation = useMutation({
     mutationFn: async () => {
+      // Validate numeric fields
+      if (isNaN(parseInt(formData.supplierId)) || isNaN(parseInt(formData.manufacturerId)) || isNaN(parseInt(formData.productId))) {
+        throw new Error("IDs de fornecedor, fabricante e produto devem ser números válidos.");
+      }
+      
+      if (isNaN(parseFloat(formData.receivedQuantity)) || parseFloat(formData.receivedQuantity) <= 0) {
+        throw new Error("Quantidade recebida deve ser um número positivo.");
+      }
+      
+      // Validate dates
+      const entryDate = new Date(formData.entryDate);
+      const manufacturingDate = new Date(formData.manufacturingDate);
+      const inspectionDate = new Date(formData.inspectionDate);
+      const expirationDate = new Date(formData.expirationDate);
+      
+      if (isNaN(entryDate.getTime()) || isNaN(manufacturingDate.getTime()) || 
+          isNaN(inspectionDate.getTime()) || isNaN(expirationDate.getTime())) {
+        throw new Error("Todas as datas devem ser válidas.");
+      }
+      
+      // Validate date logic
+      if (manufacturingDate > expirationDate) {
+        throw new Error("Data de fabricação não pode ser posterior à data de validade.");
+      }
+      
+      if (entryDate > expirationDate) {
+        throw new Error("Data de entrada não pode ser posterior à data de validade.");
+      }
+      
+      if (inspectionDate > expirationDate) {
+        throw new Error("Data de inspeção não pode ser posterior à data de validade.");
+      }
+      
       const certificatePayload = {
         ...formData,
         supplierId: parseInt(formData.supplierId),
@@ -253,6 +287,7 @@ export function CertificateForm({ certificateId, onSuccess }: CertificateFormPro
         productId: parseInt(formData.productId),
         receivedQuantity: parseFloat(formData.receivedQuantity),
         conversionFactor: formData.conversionFactor ? parseFloat(formData.conversionFactor) : null,
+        tenantId: 1, // Ensure tenantId is included
       };
       
       const resultsPayload = results.map(result => {
@@ -271,16 +306,20 @@ export function CertificateForm({ certificateId, onSuccess }: CertificateFormPro
       
       if (isEditing && certificateId) {
         // Update existing certificate
-        await apiRequest("PATCH", `/api/entry-certificates/${certificateId}`, {
+        console.log("Updating certificate with payload:", { certificate: certificatePayload, results: resultsPayload });
+        const response = await apiRequest("PATCH", `/api/entry-certificates/${certificateId}`, {
           certificate: certificatePayload,
           results: resultsPayload,
         });
+        console.log("Update response:", response);
       } else {
         // Create new certificate
-        await apiRequest("POST", "/api/entry-certificates", {
+        console.log("Creating certificate with payload:", { certificate: certificatePayload, results: resultsPayload });
+        const response = await apiRequest("POST", "/api/entry-certificates", {
           certificate: certificatePayload,
           results: resultsPayload,
         });
+        console.log("Create response:", response);
       }
     },
     onSuccess: () => {
@@ -301,9 +340,10 @@ export function CertificateForm({ certificateId, onSuccess }: CertificateFormPro
       }
     },
     onError: (error) => {
+      console.error("Erro ao salvar certificado:", error);
       toast({
-        title: "Erro",
-        description: error.message,
+        title: "Erro ao salvar",
+        description: error.message || "Ocorreu um erro ao salvar o certificado. Verifique os dados e tente novamente.",
         variant: "destructive",
       });
     },
@@ -352,6 +392,52 @@ export function CertificateForm({ certificateId, onSuccess }: CertificateFormPro
   
   const handleRemoveCharacteristic = (index: number) => {
     setResults(prev => prev.filter((_, i) => i !== index));
+  };
+  
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    
+    setIsUploadingFile(true);
+    
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('fileCategory', 'certificate');
+      formData.append('description', 'Boletim original');
+      
+      const response = await fetch('/api/files/upload', {
+        method: 'POST',
+        body: formData,
+        credentials: 'include',
+      });
+      
+      if (!response.ok) {
+        throw new Error('Erro ao fazer upload do arquivo');
+      }
+      
+      const uploadedFile = await response.json();
+      
+      setFormData(prev => ({ 
+        ...prev, 
+        originalFileUrl: uploadedFile.publicUrl || uploadedFile.filePath
+      }));
+      
+      toast({
+        title: "Arquivo carregado",
+        description: "O arquivo foi carregado com sucesso.",
+      });
+      
+    } catch (error) {
+      console.error('Erro no upload:', error);
+      toast({
+        title: "Erro no upload",
+        description: error instanceof Error ? error.message : "Erro desconhecido ao carregar arquivo",
+        variant: "destructive",
+      });
+    } finally {
+      setIsUploadingFile(false);
+    }
   };
   
   // Função auxiliar para determinar a classe CSS com base nos valores
@@ -918,8 +1004,16 @@ export function CertificateForm({ certificateId, onSuccess }: CertificateFormPro
                       variant="outline" 
                       size="sm"
                       onClick={() => fileInputRef.current?.click()}
+                      disabled={isUploadingFile}
                     >
-                      Escolher Arquivo
+                      {isUploadingFile ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Carregando...
+                        </>
+                      ) : (
+                        "Escolher Arquivo"
+                      )}
                     </Button>
                   </div>
                 </div>
@@ -929,13 +1023,8 @@ export function CertificateForm({ certificateId, onSuccess }: CertificateFormPro
                 type="file"
                 className="hidden"
                 accept=".pdf,.jpg,.jpeg,.png"
-                onChange={(e) => {
-                  const file = e.target.files?.[0];
-                  if (file) {
-                    // Aqui você lidaria com o upload do arquivo
-                    setFormData({ ...formData, originalFileUrl: URL.createObjectURL(file) });
-                  }
-                }}
+                onChange={handleFileUpload}
+                disabled={isUploadingFile}
               />
             </div>
             </ResponsiveFormGrid>
